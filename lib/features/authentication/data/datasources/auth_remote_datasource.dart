@@ -51,8 +51,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         );
         await storageService.saveAccessToken(loginResponse.accessToken);
         await storageService.saveRefreshToken(loginResponse.refreshToken);
-        print('🌐 API: Login response: ${loginResponse.user.toJson()}');
-        NavigationService.go('/home');
         return loginResponse;
       } else {
         throw ServerException(

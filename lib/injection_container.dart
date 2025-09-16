@@ -42,8 +42,8 @@ Future<void> init() async {
 }
 
 void _initAuth() {
-  // Bloc
-  sl.registerFactory(
+  // CRITICAL FIX: Change to registerLazySingleton for single AuthBloc instance
+  sl.registerLazySingleton(  // Changed from registerFactory to registerLazySingleton
     () => AuthBloc(
       loginUseCase: sl(),
       logoutUseCase: sl(),

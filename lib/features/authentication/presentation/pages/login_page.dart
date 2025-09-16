@@ -321,6 +321,7 @@ class _LoginPageState extends State<LoginPage> {
 
   void _login() {
     if (_formKey.currentState!.validate()) {
+      print('🔑 Login requested with email: ${_emailController.text.trim()} and password: ${_passwordController.text.trim()}');
       context.read<AuthBloc>().add(
         LoginRequested(
           email: _emailController.text.trim(),

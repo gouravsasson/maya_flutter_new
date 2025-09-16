@@ -57,24 +57,59 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   void _onLoginRequested(LoginRequested event, Emitter<AuthState> emit) async {
     print('🔐 Login requested for: ${event.email}');
+    print('📊 BEFORE LOGIN: Current state = ${state.runtimeType}');
+
     emit(AuthLoading());
+    print('📊 AFTER LOADING EMIT: Current state = ${state.runtimeType}');
 
-    final result = await loginUseCase(
-      LoginParams(email: event.email, password: event.password),
-    );
+    try {
+      print('🚀 Calling loginUseCase...');
+      final result = await loginUseCase(
+        LoginParams(email: event.email, password: event.password),
+      );
+      print('✅ LoginUseCase completed, processing result...');
 
-    result.fold(
-      (failure) {
-        print('❌ Login failed: ${failure.message}');
-        emit(AuthError(failure.message));
-      },
-      (user) {
-        print('✅ Login successful: ${user.firstName} ${user.lastName}');
-        authService.startTokenManagement();
-        emit(AuthAuthenticated(user));
-        
-      },
-    );
+      // REMOVE THIS DELAY IF IT EXISTS!
+      // await Future.delayed(Duration(seconds: 3));
+
+      print('🔍 About to process fold result...');
+
+      result.fold(
+        (failure) {
+          print('❌ FOLD FAILURE: ${failure.message}');
+          print('📊 BEFORE ERROR EMIT: Current state = ${state.runtimeType}');
+          emit(AuthError(failure.message));
+          print('📊 AFTER ERROR EMIT: Current state = ${state.runtimeType}');
+        },
+        (user) {
+          print('✅ FOLD SUCCESS: User received = ${user}');
+          print('📊 BEFORE SUCCESS EMIT: Current state = ${state.runtimeType}');
+
+          // This is the critical line that should emit AuthAuthenticated
+          print('🎯 CRITICAL: About to emit AuthAuthenticated...');
+          authService.startTokenManagement();
+
+          emit(AuthAuthenticated(user));
+
+          print('🎯 CRITICAL: AuthAuthenticated emitted!');
+          print('📊 AFTER SUCCESS EMIT: Current state = ${state.runtimeType}');
+
+          // Verify emit worked after a short delay
+          Future.delayed(Duration(milliseconds: 100), () {
+            print('🔍 VERIFICATION: State after 100ms = ${state.runtimeType}');
+          });
+
+          NavigationService.showSnackBar('Logged in successfully');
+          print('✅ Login process completed successfully');
+        },
+      );
+
+      print('🏁 Fold processing completed');
+    } catch (e, stackTrace) {
+      print('❌ EXCEPTION in _onLoginRequested: $e');
+      print('📚 STACK TRACE: $stackTrace');
+      emit(AuthError('Login failed: $e'));
+    }
   }
 
   void _onLogoutRequested(
