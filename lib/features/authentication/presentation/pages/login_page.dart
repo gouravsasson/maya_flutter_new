@@ -5,7 +5,7 @@ import '../../../../core/services/navigation_service.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
-
+import '../../../../core/services/contact_service.dart'; // Adjust path; ensure Dio is injected/initialized in CommunicationService
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -20,6 +20,17 @@ class _LoginPageState extends State<LoginPage> {
   );
   final _passwordController = TextEditingController(text: 'Prio12345');
   bool _obscurePassword = true;
+  late final ContactsService _commService;
+
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize CommunicationService here (replace with your Dio instance)
+    // Example: _commService = CommunicationService(ApiClient().publicDio);
+    // For now, assuming it's set up; throw if not
+    _commService = ContactsService(/* pass your _publicDio */);
+  }
 
   @override
   Widget build(BuildContext context) {

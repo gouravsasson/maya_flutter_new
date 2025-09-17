@@ -10,6 +10,9 @@ abstract class StorageService {
   Future<String?> getRefreshToken();
   Future<String?> getUserData();
   Future<void> clearAll();
+  Future<void> setBool(String key, bool value);
+  Future<bool?> getBool(String key);
+
 }
 
 class StorageServiceImpl implements StorageService {
@@ -52,5 +55,14 @@ class StorageServiceImpl implements StorageService {
   Future<void> clearAll() async {
     await _secureStorage.deleteAll();
     await _preferences.remove(AppConstants.userDataKey);
+  }
+  @override
+  Future<void> setBool(String key, bool value) async {
+    await _preferences.setBool(key, value);
+  }
+
+  @override
+  Future<bool?> getBool(String key) async {
+    return _preferences.getBool(key);
   }
 }
