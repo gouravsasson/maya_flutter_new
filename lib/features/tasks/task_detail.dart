@@ -38,24 +38,32 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
       final response = await widget.apiClient.fetchTasksDetail(
         sessionId: widget.sessionId,
       );
-      final data = response['data'];
+      final data = response['data'] as Map<String, dynamic>? ?? {};
       print(data);
-      if (response['statusCode'] == 200 && data['success'] == true) {
-        setState(() {
-          task = data['data'][0] as Map<String, dynamic>;
-          isLoading = false;
-        });
+      if (response['statusCode'] == 200 && (data['success'] as bool? ?? false)) {
+        final taskList = (data['data'] as List<dynamic>?) ?? [];
+        if (taskList.isNotEmpty) {
+          setState(() {
+            task = taskList[0] as Map<String, dynamic>? ?? {};
+            isLoading = false;
+          });
+        } else {
+          setState(() {
+            isLoading = false;
+            errorMessage = 'No task details found for session ${widget.sessionId}';
+          });
+        }
       } else {
         setState(() {
           isLoading = false;
           errorMessage =
-              'Failed to load task details: ${data['message'] ?? 'Unknown error'}';
+              'Failed to load task details: ${data['message']?.toString() ?? 'Unknown error'}';
         });
       }
     } catch (e) {
       setState(() {
         isLoading = false;
-        errorMessage = 'Error fetching task details: $e';
+        errorMessage = 'Error fetching task details: ${e.toString()}';
       });
     }
   }
@@ -105,27 +113,28 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                       const SizedBox(height: 8),
                       _buildDetailRow(
                         'Query',
-                        task!['user_payload']['task']?.isNotEmpty == true
-                            ? task!['user_payload']['task']
+                        (task?['user_payload']?['task'] as String?)?.isNotEmpty == true
+                            ? task!['user_payload']['task'] as String
                             : 'No query provided',
                       ),
                       _buildDetailRow(
                         'User Payload',
-                        _formatUserPayload(task!['user_payload']),
+                        _formatUserPayload(task?['user_payload'] as Map<String, dynamic>? ?? {}),
                       ),
                       _buildDetailRow(
                         'Status',
-                        task!['status'][0].toUpperCase() +
-                            task!['status'].substring(1),
+                        (task?['status'] as String?)?.isNotEmpty == true
+                            ? task!['status'][0].toUpperCase() + task!['status'].substring(1)
+                            : 'Unknown',
                       ),
-                      if (task!['error']?.isNotEmpty == true)
+                      if ((task?['error'] as String?)?.isNotEmpty == true)
                         _buildDetailRow(
                           'Error',
-                          task!['error'],
+                          task!['error'] as String,
                         ),
                       _buildDetailRow(
                         'Scheduled At',
-                        _formatTimestamp(task!['scheduled_at']),
+                        _formatTimestamp(task?['scheduled_at'] as String? ?? ''),
                       ),
                     ],
                   ),
@@ -161,18 +170,32 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     );
   }
 
-  String _formatTimestamp(String timestamp) {
+  String _formatTimestamp(String? timestamp) {
     try {
+      if (timestamp == null || timestamp.isEmpty) return 'N/A';
       final dateTime = DateTime.parse(timestamp).toLocal();
       return DateFormat('MMM d, yyyy h:mm a').format(dateTime);
     } catch (e) {
-      return timestamp;
+      return timestamp ?? 'N/A';
     }
   }
 
-  String _formatUserPayload(Map<String, dynamic> payload) {
-    return 'Name: ${payload['name'] ?? 'N/A'}\n'
-        'Task: ${payload['task']?.isNotEmpty == true ? payload['task'] : 'N/A'}\n'
-        'Phone: ${payload['phone'] ?? 'N/A'}';
+  String _formatUserPayload(Map<String, dynamic>? payload) {
+    if (payload == null || payload.isEmpty) {
+      return 'No payload data';
+    }
+    // Dynamically format all key-value pairs in the payload
+    return payload.entries.map((entry) {
+      // Capitalize the first letter of the key and replace underscores with spaces
+      String formattedKey = entry.key
+          .split('_')
+          .map((word) => word.isNotEmpty
+              ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+              : '')
+          .join(' ');
+      // Handle null or empty values
+      String value = entry.value?.toString() ?? 'N/A';
+      return '$formattedKey: $value';
+    }).join('\n');
   }
 }
