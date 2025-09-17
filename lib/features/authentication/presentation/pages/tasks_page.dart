@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:my_flutter_app/core/network/api_client.dart';
-import '../../../tasks/task_detail.dart';
+import '../../../widgets/task_detail.dart';
 import 'package:intl/intl.dart'; 
 
 class TaskDetail {
