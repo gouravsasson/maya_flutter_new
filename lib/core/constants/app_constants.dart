@@ -6,6 +6,11 @@ class AppConstants {
   static const int connectionTimeout = 30000;
   static const int receiveTimeout = 30000;
   
+  
+  static const String protectedUrl = 'https://maya.ravan.ai/api/protected/';
+  
+
+
   // Storage Keys
   static const String accessTokenKey = 'access_token';
   static const String refreshTokenKey = 'refresh_token';

@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.yourcompany.my_flutter_app"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "29.0.13846066"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -30,13 +30,23 @@ android {
         versionName = flutter.versionName
     }
 
-    buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
-        }
+    signingConfigs {
+    create("customDebug") {
+        keyAlias = "tushar"
+        keyPassword = "tushar"
+        storeFile = file("upload-keystore.jks")
+        storePassword = "tushar"
     }
+}
+
+    buildTypes {
+    release {
+        signingConfig = signingConfigs.getByName("customDebug")
+    }
+    debug {
+        signingConfig = signingConfigs.getByName("customDebug")
+    }
+}
 }
 
 flutter {

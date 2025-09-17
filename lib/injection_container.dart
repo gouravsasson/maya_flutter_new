@@ -25,12 +25,18 @@ Future<void> init() async {
   final sharedPreferences = await SharedPreferences.getInstance();
   sl.registerLazySingleton(() => sharedPreferences);
   sl.registerLazySingleton(() => const FlutterSecureStorage());
-  sl.registerLazySingleton(() => Dio());
+  sl.registerLazySingleton(() => Dio(), instanceName: 'publicDio');
+  sl.registerLazySingleton(() => Dio(), instanceName: 'protectedDio');
   sl.registerLazySingleton(() => Connectivity());
 
   // Core
   sl.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl(sl()));
-  sl.registerLazySingleton<ApiClient>(() => ApiClient(sl()));
+  sl.registerLazySingleton<ApiClient>(
+    () => ApiClient(
+      sl(instanceName: 'publicDio'),
+      sl(instanceName: 'protectedDio'),
+    ),
+  );
   sl.registerLazySingleton<StorageService>(
     () => StorageServiceImpl(sl(), sl()),
   );
@@ -43,7 +49,8 @@ Future<void> init() async {
 
 void _initAuth() {
   // CRITICAL FIX: Change to registerLazySingleton for single AuthBloc instance
-  sl.registerLazySingleton(  // Changed from registerFactory to registerLazySingleton
+  sl.registerLazySingleton(
+    // Changed from registerFactory to registerLazySingleton
     () => AuthBloc(
       loginUseCase: sl(),
       logoutUseCase: sl(),

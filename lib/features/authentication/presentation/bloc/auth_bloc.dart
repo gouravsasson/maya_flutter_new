@@ -1,5 +1,4 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/navigation_service.dart';
@@ -82,7 +81,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           print('📊 AFTER ERROR EMIT: Current state = ${state.runtimeType}');
         },
         (user) {
-          print('✅ FOLD SUCCESS: User received = ${user}');
+          print('✅ FOLD SUCCESS: User received = $user');
           print('📊 BEFORE SUCCESS EMIT: Current state = ${state.runtimeType}');
 
           // This is the critical line that should emit AuthAuthenticated

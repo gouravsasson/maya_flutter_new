@@ -5,6 +5,8 @@ import '../bloc/auth_bloc.dart';
 import '../bloc/auth_state.dart';
 
 class SplashPage extends StatelessWidget {
+  const SplashPage({super.key});
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(

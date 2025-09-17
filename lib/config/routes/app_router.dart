@@ -1,7 +1,7 @@
 // lib/core/routing/app_router.dart - No New Instances
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:my_flutter_app/features/authentication/presentation/pages/tasks_page.dart';
 
 import '../../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../../features/authentication/presentation/bloc/auth_state.dart';
@@ -16,6 +16,10 @@ class AppRouter {
   static const String login = '/login';
   static const String home = '/home';
   static const String profile = '/profile';
+  static const String tasks = '/tasks';
+  static const String integrations = '/integrations';
+  static const String settings = '/settings';
+  static const String call_sessions = '/call_sessions';
 
   static final ValueNotifier<AuthState> authStateNotifier = ValueNotifier(
     AuthInitial(),
@@ -112,6 +116,14 @@ class AppRouter {
           builder: (BuildContext context, GoRouterState state) {
             // DON'T create new instance - use existing from BlocProvider
             return ProfilePage();
+          },
+        ),
+        GoRoute(
+          path: tasks,
+          name: 'tasks',
+          builder: (BuildContext context, GoRouterState state) {
+            // DON'T create new instance - use existing from BlocProvider
+            return TasksPage();
           },
         ),
       ],
