@@ -173,6 +173,4 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       );
     }
   }
-
-  // Helper method to generate mock JWT tokens
- 
+}
