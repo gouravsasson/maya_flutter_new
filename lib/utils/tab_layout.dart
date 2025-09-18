@@ -26,19 +26,20 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
           _currentIndex = _tabController.index;
         });
 
-        // Navigate to corresponding tab route using push
+        // Navigate to corresponding tab route
         switch (_tabController.index) {
           case 0:
-            context.push('/home');
+            context.go('/home');
             break;
           case 1:
-            context.push('/tasks');
+            context.go('/tasks');
             break;
           case 2:
-            context.push('/integrations');
+            context.go('/integrations');
             break;
           case 3:
-            context.push('/settings');
+            // Add settings route if needed
+            context.go('/settings');
             break;
         }
       }
@@ -85,7 +86,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
     await prefs.remove('access_token');
     await prefs.remove('refresh_token');
     if (mounted) {
-      context.go('/login'); // Use go for logout to clear stack
+      context.go('/login');
     }
   }
 
@@ -104,164 +105,191 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
     }
   }
 
+  // Handle system back button
+  Future<bool> _onPopInvoked() async {
+    final currentLocation = GoRouterState.of(context).uri.path;
+    // If on a tab route (/home, /tasks, /integrations), prevent app exit
+    if (currentLocation == '/home' ||
+        currentLocation == '/tasks' ||
+        currentLocation == '/integrations' ||
+        currentLocation == '/settings') {
+      if (currentLocation == '/home') {
+        return true; // Allow app to close from home
+      }
+      context.go('/home'); // Navigate to home instead of closing
+      return false; // Prevent app exit
+    }
+    return true; // Allow back navigation for other routes
+  }
+
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateTabFromRoute();
     });
 
-    // No PopScope needed; let go_router handle back navigation
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_getTabTitle()),
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(FeatherIcons.menu),
-            onPressed: () => Scaffold.of(context).openDrawer(),
+    return PopScope(
+      canPop: false, // Control pop behavior manually
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldPop = await _onPopInvoked();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_getTabTitle()),
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(FeatherIcons.menu),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(FeatherIcons.bell, size: 24),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Notifications clicked')),
+                );
+              },
+            ),
+          ],
+          backgroundColor: const Color(0xFF6366F1),
+          foregroundColor: Colors.white,
+          elevation: 0,
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(FeatherIcons.bell, size: 24),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications clicked')),
-              );
-            },
-          ),
-        ],
-        backgroundColor: const Color(0xFF6366F1),
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(
-                color: Color(0xFF6366F1),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
+        drawer: Drawer(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              DrawerHeader(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF6366F1),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: const [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white24,
+                      child: Icon(
+                        FeatherIcons.user,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      'Maya Assistant',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'AI-Powered Productivity',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ],
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: const [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Colors.white24,
-                    child: Icon(
-                      FeatherIcons.user,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    'Maya Assistant',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'AI-Powered Productivity',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                ],
+              _buildDrawerItem(
+                icon: FeatherIcons.user,
+                title: 'Profile',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/profile'); // Use push instead of go
+                },
               ),
-            ),
-            _buildDrawerItem(
-              icon: FeatherIcons.user,
-              title: 'Profile',
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/profile');
-              },
-            ),
-            _buildDrawerItem(
-              icon: FeatherIcons.phone,
-              title: 'Call Sessions',
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/call_sessions');
-              },
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Divider(),
-            ),
-            _buildDrawerItem(
-              icon: FeatherIcons.helpCircle,
-              title: 'Help & Support',
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            _buildDrawerItem(
-              icon: FeatherIcons.info,
-              title: 'About',
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            const SizedBox(height: 20),
-            _buildDrawerItem(
-              icon: FeatherIcons.logOut,
-              title: 'Logout',
-              onTap: () {
-                context.push('/login');
-              },
-              isDestructive: true,
-            ),
-          ],
-        ),
-      ),
-      body: widget.child,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-          child: TabBar(
-            controller: _tabController,
-            labelColor: const Color(0xFF6366F1),
-            unselectedLabelColor: const Color(0xFF9CA3AF),
-            labelStyle: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-            unselectedLabelStyle: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w400,
-            ),
-            indicator: const BoxDecoration(),
-            indicatorPadding: EdgeInsets.zero,
-            tabs: [
-              _buildTab(FeatherIcons.home, 'Home', 0),
-              _buildTab(FeatherIcons.checkSquare, 'Tasks', 1),
-              _buildTab(FeatherIcons.zap, 'Connect', 2),
-              _buildTab(FeatherIcons.settings, 'Settings', 3),
+              _buildDrawerItem(
+                icon: FeatherIcons.phone,
+                title: 'Call Sessions',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/call_sessions'); // Use push instead of go
+                },
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Divider(),
+              ),
+              _buildDrawerItem(
+                icon: FeatherIcons.helpCircle,
+                title: 'Help & Support',
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+              _buildDrawerItem(
+                icon: FeatherIcons.info,
+                title: 'About',
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 20),
+              _buildDrawerItem(
+                icon: FeatherIcons.logOut,
+                title: 'Logout',
+                onTap: () {
+                  Navigator.pop(context);
+                  _handleLogout();
+                },
+                isDestructive: true,
+              ),
             ],
+          ),
+        ),
+        body: widget.child,
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              labelColor: const Color(0xFF6366F1),
+              unselectedLabelColor: const Color(0xFF9CA3AF),
+              labelStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w400,
+              ),
+              indicator: const BoxDecoration(),
+              indicatorPadding: EdgeInsets.zero,
+              tabs: [
+                _buildTab(FeatherIcons.home, 'Home', 0),
+                _buildTab(FeatherIcons.checkSquare, 'Tasks', 1),
+                _buildTab(FeatherIcons.zap, 'Connect', 2),
+                _buildTab(FeatherIcons.settings, 'Settings', 3),
+              ],
+            ),
           ),
         ),
       ),
