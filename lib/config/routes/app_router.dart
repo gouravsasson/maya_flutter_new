@@ -5,6 +5,7 @@ import 'package:my_flutter_app/features/authentication/presentation/pages/call_s
 import 'package:my_flutter_app/features/authentication/presentation/pages/integration_page.dart';
 import 'package:my_flutter_app/features/authentication/presentation/pages/tasks_page.dart';
 import 'package:my_flutter_app/features/widgets/ghl.dart';
+import 'package:my_flutter_app/utils/tab_layout.dart';
 
 import '../../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../../features/authentication/presentation/bloc/auth_state.dart';
@@ -87,7 +88,6 @@ class AppRouter {
         print('   No redirect needed');
         return null;
       },
-
       routes: [
         // Authentication routes (no persistent navigation)
         GoRoute(
@@ -108,10 +108,7 @@ class AppRouter {
         // Shell route for main app (with persistent navigation)
         ShellRoute(
           builder: (context, state, child) {
-            return Scaffold(
-              appBar: AppBar(title: Text('Navigation')),
-              body: child, // This is equivalent to <Outlet />
-            );
+            return TabLayout(child: child); // Pass the child to TabLayout
           },
           routes: [
             GoRoute(
@@ -122,37 +119,53 @@ class AppRouter {
               },
             ),
             GoRoute(
-              path: profile,
-              name: 'profile',
-              builder: (BuildContext context, GoRouterState state) {
-                return ProfilePage();
-              },
-            ),
-            GoRoute(
               path: tasks,
               name: 'tasks',
               builder: (BuildContext context, GoRouterState state) {
                 return TasksPage();
               },
             ),
+            GoRoute(
+              path: integrations,
+              name: 'integrations',
+              builder: (BuildContext context, GoRouterState state) {
+                return IntegrationsPage();
+              },
+            ),
+            // Add settings route if needed
+            // GoRoute(
+            //   path: settings,
+            //   name: 'settings',
+            //   builder: (BuildContext context, GoRouterState state) {
+            //     return SettingsPage();
+            //   },
+            // ),
+            GoRoute(
+              path: call_sessions,
+              name: 'call_sessions',
+              builder: (BuildContext context, GoRouterState state) {
+                // DON'T create new instance - use existing from BlocProvider
+                return CallSessionsPage();
+              },
+            ),
           ],
         ),
-        GoRoute(
-          path: call_sessions,
-          name: 'call_sessions',
-          builder: (BuildContext context, GoRouterState state) {
-            // DON'T create new instance - use existing from BlocProvider
-            return CallSessionsPage();
-          },
-        ),
-        GoRoute(
-          path: integrations,
-          name: 'integrations',
-          builder: (BuildContext context, GoRouterState state) {
-            // DON'T create new instance - use existing from BlocProvider
-            return IntegrationsPage();
-          },
-        ),
+        // GoRoute(
+        //   path: call_sessions,
+        //   name: 'call_sessions',
+        //   builder: (BuildContext context, GoRouterState state) {
+        //     // DON'T create new instance - use existing from BlocProvider
+        //     return CallSessionsPage();
+        //   },
+        // ),
+        // GoRoute(
+        //   path: integrations,
+        //   name: 'integrations',
+        //   builder: (BuildContext context, GoRouterState state) {
+        //     // DON'T create new instance - use existing from BlocProvider
+        //     return IntegrationsPage();
+        //   },
+        // ),
         GoRoute(
           path: '/ghl',
           builder: (context, state) => const GhlWebViewPage(),

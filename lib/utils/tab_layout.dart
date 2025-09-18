@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:my_flutter_app/features/authentication/presentation/pages/call_sessions.dart';
-import 'package:my_flutter_app/features/authentication/presentation/pages/home_page.dart';
-import 'package:my_flutter_app/features/authentication/presentation/pages/integration_page.dart';
-import 'package:my_flutter_app/features/authentication/presentation/pages/profile_page.dart';
-import 'package:my_flutter_app/features/authentication/presentation/pages/tasks_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 
+// Modified TabLayout that works with ShellRoute
 class TabLayout extends StatefulWidget {
-  const TabLayout({super.key});
+  final Widget child; // Accept child from ShellRoute
+  
+  const TabLayout({super.key, required this.child});
 
   @override
   _TabLayoutState createState() => _TabLayoutState();
@@ -27,12 +25,23 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
       setState(() {
         _currentIndex = _tabController.index;
       });
+      
+      // Navigate to corresponding route when tab changes
+      switch (_tabController.index) {
+        case 0:
+          context.go('/home');
+          break;
+        case 1:
+          context.go('/tasks');
+          break;
+        case 2:
+          context.go('/integrations');
+          break;
+        case 3:
+          // Add settings route if needed
+          break;
+      }
     });
-
-    // Request contacts permission when the widget is initialized
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   PermissionHandler.requestContactsPermission(context);
-    // });
   }
 
   @override
@@ -41,21 +50,42 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // Method to handle logout
+  // Update tab controller based on current route
+  void _updateTabFromRoute() {
+    final location = GoRouterState.of(context).uri.path;
+    int newIndex = 0;
+    
+    switch (location) {
+      case '/home':
+        newIndex = 0;
+        break;
+      case '/tasks':
+        newIndex = 1;
+        break;
+      case '/integrations':
+        newIndex = 2;
+        break;
+      default:
+        newIndex = 0;
+    }
+    
+    if (_currentIndex != newIndex) {
+      _currentIndex = newIndex;
+      _tabController.animateTo(newIndex);
+    }
+  }
+
+  // Method to handle logout (same as before)
   Future<void> _handleLogout() async {
     final prefs = await SharedPreferences.getInstance();
-
-    // Remove both access and refresh tokens
     await prefs.remove('access_token');
     await prefs.remove('refresh_token');
-
-    // Navigate to GoogleSignInScreen
     if (mounted) {
       context.go('/login');
     }
   }
 
-  // Get the title for the current tab
+  // Get the title for the current tab (same as before)
   String _getTabTitle() {
     switch (_currentIndex) {
       case 0:
@@ -73,6 +103,11 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // Update tab based on current route
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateTabFromRoute();
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_getTabTitle()),
@@ -86,8 +121,6 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
           IconButton(
             icon: const Icon(FeatherIcons.bell, size: 24),
             onPressed: () {
-              // Handle notification action
-              // Add notification logic here
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Notifications clicked')),
               );
@@ -144,10 +177,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
               title: 'Profile',
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ProfilePage()),
-                );
+                context.go('/profile'); // Use GoRouter navigation
               },
             ),
             _buildDrawerItem(
@@ -155,15 +185,9 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
               title: 'Call Sessions',
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CallSessionsPage(),
-                  ),
-                );
+                context.go('/call_sessions'); // Use GoRouter navigation
               },
             ),
-            
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Divider(),
@@ -173,7 +197,6 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
               title: 'Help & Support',
               onTap: () {
                 Navigator.pop(context);
-                // Navigate to help page
               },
             ),
             _buildDrawerItem(
@@ -181,7 +204,6 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
               title: 'About',
               onTap: () {
                 Navigator.pop(context);
-                // Show about dialog
               },
             ),
             const SizedBox(height: 20),
@@ -197,15 +219,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [
-          HomePage(),
-          TasksPage(),
-          IntegrationsPage(),
-          // SettingsPage(),
-        ],
-      ),
+      body: widget.child, // Show the child from GoRouter instead of TabBarView
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,

@@ -45,8 +45,16 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ✅ Add ToDo
-  Future<void> addToDo(String title, String description, {String? reminder}) async {
-    final payload = getIt<ApiClient>().prepareCreateToDoPayload(title, description, reminder);
+  Future<void> addToDo(
+    String title,
+    String description, {
+    String? reminder,
+  }) async {
+    final payload = getIt<ApiClient>().prepareCreateToDoPayload(
+      title,
+      description,
+      reminder,
+    );
     final response = await getIt<ApiClient>().createToDo(payload);
     if (response['statusCode'] == 200) {
       fetchToDos();
@@ -84,23 +92,6 @@ class _HomePageState extends State<HomePage> {
         final user = state is AuthAuthenticated ? state.user : null;
 
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Home'),
-            backgroundColor: Theme.of(context).primaryColor,
-            foregroundColor: Colors.white,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.person),
-                onPressed: () {
-                  context.push('/profile');
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () => _showLogoutDialog(context),
-              ),
-            ],
-          ),
           body: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
