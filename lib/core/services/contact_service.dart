@@ -50,9 +50,7 @@ class ContactsService {
 
   // Helper to get StorageService instance (async init if needed)
   static Future<StorageService> _getStorageService() async {
-    if (_storageService == null) {
-      _storageService = await _initStorageService();
-    }
+    _storageService ??= await _initStorageService();
     return _storageService!;
   }
 

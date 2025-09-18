@@ -61,6 +61,7 @@ dependencies:
   flutter_contacts: ^1.1.9+2
   feather_icons: ^1.2.0
   ultravox_client: ^0.0.9
+  webview_flutter: ^4.13.0
 
 dev_dependencies:
   flutter_test:

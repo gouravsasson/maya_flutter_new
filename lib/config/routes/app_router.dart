@@ -1,7 +1,9 @@
 // lib/core/routing/app_router.dart - No New Instances
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:my_flutter_app/features/authentication/presentation/pages/call_sessions.dart';
 import 'package:my_flutter_app/features/authentication/presentation/pages/tasks_page.dart';
+import 'package:my_flutter_app/features/widgets/ghl.dart';
 
 import '../../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../../features/authentication/presentation/bloc/auth_state.dart';
@@ -125,6 +127,18 @@ class AppRouter {
             // DON'T create new instance - use existing from BlocProvider
             return TasksPage();
           },
+        ),
+        GoRoute(
+          path: call_sessions,
+          name: 'call_sessions',
+          builder: (BuildContext context, GoRouterState state) {
+            // DON'T create new instance - use existing from BlocProvider
+            return CallSessionsPage();
+          },
+        ),
+        GoRoute(
+          path: '/ghl',
+          builder: (context, state) => const GhlWebViewPage(),
         ),
       ],
     );

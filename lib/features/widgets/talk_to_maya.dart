@@ -18,12 +18,12 @@ class TalkToMaya extends StatefulWidget {
 class _TalkToMayaState extends State<TalkToMaya> with SingleTickerProviderStateMixin {
   bool _isListening = false;
   String _currentTranscriptChunk = '';
-  List<String> _transcriptChunks = [];
+  final List<String> _transcriptChunks = [];
   UltravoxSession? _session;
   String _previousStatus = '';
   AnimationController? _pulseController;
 
-  final ApiClient _apiClient = GetIt.instance<ApiClient>(); // resolve from GetIt
+  final ApiClient _apiClient = GetIt.instance<ApiClient>(); 
 
   @override
   void initState() {
