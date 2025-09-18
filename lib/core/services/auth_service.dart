@@ -5,7 +5,6 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'storage_service.dart';
 import 'navigation_service.dart';
 import '../../injection_container.dart';
-import '../../features/authentication/data/datasources/auth_remote_datasource.dart';
 import '../network/api_client.dart';
 
 class AuthService {
