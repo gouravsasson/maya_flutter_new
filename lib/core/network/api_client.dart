@@ -44,13 +44,14 @@ class ApiClient {
     // Add authorization interceptor for protected Dio
     _protectedDio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (RequestOptions options, RequestInterceptorHandler handler) async {
-          final token = await getIt<StorageService>().getAccessToken();
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
-          return handler.next(options);
-        },
+        onRequest:
+            (RequestOptions options, RequestInterceptorHandler handler) async {
+              final token = await getIt<StorageService>().getAccessToken();
+              if (token != null) {
+                options.headers['Authorization'] = 'Bearer $token';
+              }
+              return handler.next(options);
+            },
         onError: (DioException error, ErrorInterceptorHandler handler) async {
           // You can add token refresh logic here if needed
           return handler.next(error);
@@ -97,6 +98,12 @@ class ApiClient {
 
   Map<String, dynamic> prepareGoogleLoginPayload(String accessToken) {
     return {'access_token': accessToken};
+  }
+
+  // Refresh Token API
+  Future<Map<String, dynamic>> refreshToken(String refreshToken) async {
+    final response = await post(_publicDio, '/auth/refresh', data: {'refresh_token': refreshToken});
+    return {'statusCode': response.statusCode, 'data': response.data};
   }
 
   // Google Access Token Mobile API

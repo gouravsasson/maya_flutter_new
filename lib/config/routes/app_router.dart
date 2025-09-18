@@ -89,11 +89,11 @@ class AppRouter {
       },
 
       routes: [
+        // Authentication routes (no persistent navigation)
         GoRoute(
           path: splash,
           name: 'splash',
           builder: (BuildContext context, GoRouterState state) {
-            // DON'T create new instance - use existing from BlocProvider
             return SplashPage();
           },
         ),
@@ -101,33 +101,41 @@ class AppRouter {
           path: login,
           name: 'login',
           builder: (BuildContext context, GoRouterState state) {
-            // DON'T create new instance - use existing from BlocProvider
             return LoginPage();
           },
         ),
-        GoRoute(
-          path: home,
-          name: 'home',
-          builder: (BuildContext context, GoRouterState state) {
-            // DON'T create new instance - use existing from BlocProvider
-            return HomePage();
+
+        // Shell route for main app (with persistent navigation)
+        ShellRoute(
+          builder: (context, state, child) {
+            return Scaffold(
+              appBar: AppBar(title: Text('Navigation')),
+              body: child, // This is equivalent to <Outlet />
+            );
           },
-        ),
-        GoRoute(
-          path: profile,
-          name: 'profile',
-          builder: (BuildContext context, GoRouterState state) {
-            // DON'T create new instance - use existing from BlocProvider
-            return ProfilePage();
-          },
-        ),
-        GoRoute(
-          path: tasks,
-          name: 'tasks',
-          builder: (BuildContext context, GoRouterState state) {
-            // DON'T create new instance - use existing from BlocProvider
-            return TasksPage();
-          },
+          routes: [
+            GoRoute(
+              path: home,
+              name: 'home',
+              builder: (BuildContext context, GoRouterState state) {
+                return HomePage();
+              },
+            ),
+            GoRoute(
+              path: profile,
+              name: 'profile',
+              builder: (BuildContext context, GoRouterState state) {
+                return ProfilePage();
+              },
+            ),
+            GoRoute(
+              path: tasks,
+              name: 'tasks',
+              builder: (BuildContext context, GoRouterState state) {
+                return TasksPage();
+              },
+            ),
+          ],
         ),
         GoRoute(
           path: call_sessions,
@@ -154,7 +162,7 @@ class AppRouter {
   }
 
   static bool _isProtectedRoute(String location) {
-    const protectedRoutes = [home, profile];
+    const protectedRoutes = [home, profile, tasks];
     return protectedRoutes.contains(location);
   }
 }

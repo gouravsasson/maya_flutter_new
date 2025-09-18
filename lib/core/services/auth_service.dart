@@ -5,6 +5,7 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'storage_service.dart';
 import 'navigation_service.dart';
 import '../../injection_container.dart';
+import '../../features/authentication/data/datasources/auth_remote_datasource.dart';
 
 class AuthService {
   final StorageService _storageService = sl<StorageService>();
@@ -63,8 +64,9 @@ class AuthService {
       await Future.delayed(Duration(seconds: 2));
       
       // For demo, generate a new mock token
-      final newToken = _generateMockToken();
-      await _storageService.saveAccessToken(newToken);
+      final newToken = await sl<AuthRemoteDataSourceImpl>().refreshToken(refreshToken);
+      await _storageService.saveAccessToken(newToken.accessToken);
+      await _storageService.saveRefreshToken(newToken.refreshToken);
       
       print('✅ Token refreshed successfully');
       return true;
@@ -95,8 +97,4 @@ class AuthService {
     }
   }
   
-  String _generateMockToken() {
-    final exp = DateTime.now().add(Duration(hours: 1)).millisecondsSinceEpoch ~/ 1000;
-    return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0Ijo${DateTime.now().millisecondsSinceEpoch ~/ 1000},"exp":$exp}.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
-  }
 }
