@@ -214,8 +214,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
               icon: FeatherIcons.logOut,
               title: 'Logout',
               onTap: () {
-                Navigator.pop(context);
-                _handleLogout();
+                context.push('/login');
               },
               isDestructive: true,
             ),
