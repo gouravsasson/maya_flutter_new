@@ -59,7 +59,7 @@ class AuthService {
         return false;
       }
 
-      print('🔄 Refreshing token...');
+      print('🔄 Refreshing token... $refreshToken');
 
       // Simulate API call
       await Future.delayed(Duration(seconds: 2));
@@ -72,6 +72,9 @@ class AuthService {
       );
       await _storageService.saveRefreshToken(
         newToken['data']['data']['refresh_token'],
+      );
+      print(
+        '🔄 New token refresh_token: ${newToken['data']['data']['refresh_token']}',
       );
 
       print('✅ Token refreshed successfully');
