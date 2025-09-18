@@ -2,20 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class NavigationService {
-  // Get current context from GoRouter
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   static BuildContext get context => GoRouter.of(
-    navigatorKey.currentContext!,
-  ).routerDelegate.navigatorKey.currentContext!;
+        navigatorKey.currentContext!,
+      ).routerDelegate.navigatorKey.currentContext!;
 
-  // Navigator key for global access
-  static final GlobalKey<NavigatorState> navigatorKey =
-      GlobalKey<NavigatorState>();
-
-  // Navigation methods using GoRouter
   static void go(String location) {
     final currentContext = navigatorKey.currentContext;
-    print('🔑 NavigationService: go: $location');
+    print('🔑 NavigationService: go (replace): $location');
     if (currentContext != null) {
       currentContext.go(location);
     }
@@ -23,6 +18,7 @@ class NavigationService {
 
   static void push(String location) {
     final currentContext = navigatorKey.currentContext;
+    print('🔑 NavigationService: push (stack): $location');
     if (currentContext != null) {
       currentContext.push(location);
     }
@@ -30,6 +26,7 @@ class NavigationService {
 
   static void pushReplacement(String location) {
     final currentContext = navigatorKey.currentContext;
+    print('🔑 NavigationService: pushReplacement: $location');
     if (currentContext != null) {
       currentContext.pushReplacement(location);
     }
@@ -37,15 +34,15 @@ class NavigationService {
 
   static void pop() {
     final currentContext = navigatorKey.currentContext;
+    print('🔑 NavigationService: pop');
     if (currentContext != null) {
       currentContext.pop();
     }
   }
 
-  // Utility methods
   static void showSnackBar(String message, {bool isError = false}) {
     final currentContext = navigatorKey.currentContext;
-    print('🔑 NavigationService: context: $currentContext');
+    print('🔑 NavigationService: showSnackBar: $message');
     if (currentContext != null) {
       ScaffoldMessenger.of(currentContext).showSnackBar(
         SnackBar(
@@ -59,6 +56,7 @@ class NavigationService {
 
   static void showSessionExpiredDialog() {
     final currentContext = navigatorKey.currentContext;
+    print('🔑 NavigationService: showSessionExpiredDialog');
     if (currentContext != null) {
       showDialog(
         context: currentContext,

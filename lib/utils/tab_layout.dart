@@ -3,10 +3,9 @@ import 'package:feather_icons/feather_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 
-// Modified TabLayout that works with ShellRoute
 class TabLayout extends StatefulWidget {
-  final Widget child; // Accept child from ShellRoute
-  
+  final Widget child;
+
   const TabLayout({super.key, required this.child});
 
   @override
@@ -22,24 +21,26 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
-      setState(() {
-        _currentIndex = _tabController.index;
-      });
-      
-      // Navigate to corresponding route when tab changes
-      switch (_tabController.index) {
-        case 0:
-          context.go('/home');
-          break;
-        case 1:
-          context.go('/tasks');
-          break;
-        case 2:
-          context.go('/integrations');
-          break;
-        case 3:
-          // Add settings route if needed
-          break;
+      if (_tabController.indexIsChanging) {
+        setState(() {
+          _currentIndex = _tabController.index;
+        });
+
+        // Navigate to corresponding tab route using push
+        switch (_tabController.index) {
+          case 0:
+            context.push('/home');
+            break;
+          case 1:
+            context.push('/tasks');
+            break;
+          case 2:
+            context.push('/integrations');
+            break;
+          case 3:
+            context.push('/settings');
+            break;
+        }
       }
     });
   }
@@ -50,11 +51,10 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // Update tab controller based on current route
   void _updateTabFromRoute() {
     final location = GoRouterState.of(context).uri.path;
     int newIndex = 0;
-    
+
     switch (location) {
       case '/home':
         newIndex = 0;
@@ -65,27 +65,30 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
       case '/integrations':
         newIndex = 2;
         break;
+      case '/settings':
+        newIndex = 3;
+        break;
       default:
         newIndex = 0;
     }
-    
+
     if (_currentIndex != newIndex) {
-      _currentIndex = newIndex;
+      setState(() {
+        _currentIndex = newIndex;
+      });
       _tabController.animateTo(newIndex);
     }
   }
 
-  // Method to handle logout (same as before)
   Future<void> _handleLogout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('access_token');
     await prefs.remove('refresh_token');
     if (mounted) {
-      context.go('/login');
+      context.go('/login'); // Use go for logout to clear stack
     }
   }
 
-  // Get the title for the current tab (same as before)
   String _getTabTitle() {
     switch (_currentIndex) {
       case 0:
@@ -103,11 +106,11 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    // Update tab based on current route
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateTabFromRoute();
     });
 
+    // No PopScope needed; let go_router handle back navigation
     return Scaffold(
       appBar: AppBar(
         title: Text(_getTabTitle()),
@@ -177,7 +180,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
               title: 'Profile',
               onTap: () {
                 Navigator.pop(context);
-                context.go('/profile'); // Use GoRouter navigation
+                context.push('/profile');
               },
             ),
             _buildDrawerItem(
@@ -185,7 +188,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
               title: 'Call Sessions',
               onTap: () {
                 Navigator.pop(context);
-                context.go('/call_sessions'); // Use GoRouter navigation
+                context.push('/call_sessions');
               },
             ),
             const Padding(
@@ -219,7 +222,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
           ],
         ),
       ),
-      body: widget.child, // Show the child from GoRouter instead of TabBarView
+      body: widget.child,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -258,7 +261,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
               _buildTab(FeatherIcons.home, 'Home', 0),
               _buildTab(FeatherIcons.checkSquare, 'Tasks', 1),
               _buildTab(FeatherIcons.zap, 'Connect', 2),
-              _buildTab(FeatherIcons.settings, 'Robot', 3),
+              _buildTab(FeatherIcons.settings, 'Settings', 3),
             ],
           ),
         ),
