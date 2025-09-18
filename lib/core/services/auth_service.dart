@@ -67,8 +67,13 @@ class AuthService {
 
       // For demo, generate a new mock token
       final newToken = await _apiClient.refreshToken(refreshToken);
-      await _storageService.saveAccessToken(newToken['data']['accessToken']);
-      await _storageService.saveRefreshToken(newToken['data']['refreshToken']);
+      print('🔄 New token: ${newToken['data']['refreshToken']}');
+      await _storageService.saveAccessToken(
+        newToken['data']['data']['access_token'],
+      );
+      await _storageService.saveRefreshToken(
+        newToken['data']['data']['refresh_token'],
+      );
 
       print('✅ Token refreshed successfully');
       return true;

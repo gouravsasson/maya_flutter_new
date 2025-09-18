@@ -102,7 +102,13 @@ class ApiClient {
 
   // Refresh Token API
   Future<Map<String, dynamic>> refreshToken(String refreshToken) async {
-    final response = await post(_publicDio, '/auth/refresh', data: {'refresh_token': refreshToken});
+    final response = await post(
+      _publicDio,
+      '/auth/refresh',
+      data: {'refresh_token': refreshToken},
+    );
+    print('refreshToken response: ${response.data}');
+    print('refreshToken statusCode: ${response.statusCode}');
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
