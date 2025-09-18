@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:my_flutter_app/features/authentication/presentation/pages/call_sessions.dart';
+import 'package:my_flutter_app/features/authentication/presentation/pages/integration_page.dart';
 import 'package:my_flutter_app/features/authentication/presentation/pages/tasks_page.dart';
 import 'package:my_flutter_app/features/widgets/ghl.dart';
 
@@ -134,6 +135,14 @@ class AppRouter {
           builder: (BuildContext context, GoRouterState state) {
             // DON'T create new instance - use existing from BlocProvider
             return CallSessionsPage();
+          },
+        ),
+        GoRoute(
+          path: integrations,
+          name: 'integrations',
+          builder: (BuildContext context, GoRouterState state) {
+            // DON'T create new instance - use existing from BlocProvider
+            return IntegrationsPage();
           },
         ),
         GoRoute(

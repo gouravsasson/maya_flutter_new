@@ -62,6 +62,8 @@ dependencies:
   feather_icons: ^1.2.0
   ultravox_client: ^0.0.9
   webview_flutter: ^4.13.0
+  google_sign_in: ^7.2.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
