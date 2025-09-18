@@ -149,7 +149,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       print('🌐 API: Attempting token refresh');
 
       
-      final response = await apiClient.refreshToken(refreshToken);
+      final response = await getIt<ApiClient>().refreshToken(refreshToken);
 
       // Simulate API call delay
       await Future.delayed(Duration(seconds: 1));
