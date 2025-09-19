@@ -17,6 +17,7 @@ import 'features/authentication/domain/usecases/login_usecase.dart';
 import 'features/authentication/domain/usecases/logout_usecase.dart';
 import 'features/authentication/domain/usecases/check_auth_usecase.dart';
 import 'features/authentication/presentation/bloc/auth_bloc.dart';
+import 'core/services/deep_link_service.dart';
 
 final sl = GetIt.instance;
 
@@ -42,6 +43,7 @@ Future<void> init() async {
   );
   sl.registerLazySingleton<TokenService>(() => TokenService(sl()));
   sl.registerLazySingleton<AuthService>(() => AuthService());
+  sl.registerLazySingleton<DeepLinkService>(() => DeepLinkService());
 
   // Authentication Feature
   _initAuth();
