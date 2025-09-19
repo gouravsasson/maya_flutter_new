@@ -8,7 +8,7 @@
 PRODUCT_NAME = Maya
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.myFlutterApp
+PRODUCT_BUNDLE_IDENTIFIER = com.com.ravan.Mayampany.myFlutterApp
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2025 com.yourcompany. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2025 com.com.ravan.Mayampany. All rights reserved.
