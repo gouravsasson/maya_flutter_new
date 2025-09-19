@@ -1,4 +1,4 @@
-# my_flutter_app
+# Maya
 
 A production-ready Flutter application with clean architecture
 

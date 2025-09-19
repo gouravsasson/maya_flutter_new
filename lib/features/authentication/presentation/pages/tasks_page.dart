@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:my_flutter_app/core/network/api_client.dart';
+import 'package:Maya/core/network/api_client.dart';
 import '../../../widgets/task_detail.dart';
-import 'package:intl/intl.dart'; 
+import 'package:intl/intl.dart';
 
 class TaskDetail {
   final String id;
@@ -89,7 +89,8 @@ class _TasksPageState extends State<TasksPage> {
       } else {
         setState(() {
           isLoading = false;
-          errorMessage = 'Failed to load tasks: ${data['message'] ?? 'Unknown error'}';
+          errorMessage =
+              'Failed to load tasks: ${data['message'] ?? 'Unknown error'}';
         });
       }
     } catch (e) {
@@ -365,7 +366,8 @@ class _TasksPageState extends State<TasksPage> {
                                       MaterialPageRoute(
                                         builder: (context) => TaskDetailPage(
                                           sessionId: task.id,
-                                          apiClient: apiClient, // Pass ApiClient
+                                          apiClient:
+                                              apiClient, // Pass ApiClient
                                         ),
                                       ),
                                     );

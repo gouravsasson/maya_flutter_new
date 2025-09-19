@@ -1,12 +1,12 @@
 // lib/features/home/presentation/pages/home_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:my_flutter_app/core/network/api_client.dart';
-import 'package:my_flutter_app/features/widgets/features_section.dart';
-import 'package:my_flutter_app/features/widgets/go_router_demo.dart';
-import 'package:my_flutter_app/features/widgets/talk_to_maya.dart';
-import 'package:my_flutter_app/features/widgets/todo_list.dart';
-import 'package:my_flutter_app/features/widgets/welcome_card.dart';
+import 'package:Maya/core/network/api_client.dart';
+import 'package:Maya/features/widgets/features_section.dart';
+import 'package:Maya/features/widgets/go_router_demo.dart';
+import 'package:Maya/features/widgets/talk_to_maya.dart';
+import 'package:Maya/features/widgets/todo_list.dart';
+import 'package:Maya/features/widgets/welcome_card.dart';
 
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';

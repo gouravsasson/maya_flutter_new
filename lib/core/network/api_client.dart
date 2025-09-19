@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
-import 'package:my_flutter_app/core/services/storage_service.dart';
+import 'package:Maya/core/services/storage_service.dart';
 import '../constants/app_constants.dart';
 
 final getIt = GetIt.instance;

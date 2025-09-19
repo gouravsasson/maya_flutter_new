@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:intl/intl.dart';
-import 'package:my_flutter_app/core/network/api_client.dart';
-import 'package:my_flutter_app/features/widgets/add_todo_dialog.dart';
-import 'package:my_flutter_app/features/widgets/edit_todo_dialog.dart';
-import 'package:my_flutter_app/utils/constants.dart';
+import 'package:Maya/core/network/api_client.dart';
+import 'package:Maya/features/widgets/add_todo_dialog.dart';
+import 'package:Maya/features/widgets/edit_todo_dialog.dart';
+import 'package:Maya/utils/constants.dart';
 
 class ToDoList extends StatelessWidget {
   final List<Map<String, dynamic>> todos;
@@ -85,42 +85,43 @@ class ToDoList extends StatelessWidget {
         isLoading
             ? const Center(child: CircularProgressIndicator())
             : todos.isEmpty
-                ? Center(
-                    child: Text(
-                      'No to-dos yet. Add one to get started!',
-                      style: kBodyStyle.copyWith(color: kTextHint),
-                    ),
-                  )
-                : ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: todos.length,
-                    itemBuilder: (context, index) {
-                      final todo = todos[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              offset: const Offset(0, 2),
-                              blurRadius: 4,
-                            ),
-                          ],
+            ? Center(
+                child: Text(
+                  'No to-dos yet. Add one to get started!',
+                  style: kBodyStyle.copyWith(color: kTextHint),
+                ),
+              )
+            : ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: todos.length,
+                itemBuilder: (context, index) {
+                  final todo = todos[index];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          offset: const Offset(0, 2),
+                          blurRadius: 4,
                         ),
-                        child: Material(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => EditToDoDialog(
-                                  todo: todo,
-                                  onUpdate: (
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => EditToDoDialog(
+                              todo: todo,
+                              onUpdate:
+                                  (
                                     id,
                                     title,
                                     description,
@@ -128,135 +129,127 @@ class ToDoList extends StatelessWidget {
                                     reminder,
                                     reminderTime,
                                   ) async {
-                                    final payload =
-                                        apiClient.prepareUpdateToDoPayload(
-                                      id,
-                                      title: title,
-                                      description: description,
-                                      status: status,
-                                      reminder: reminderTime != null &&
-                                          reminderTime.isNotEmpty,
-                                      reminder_time: reminderTime,
+                                    final payload = apiClient
+                                        .prepareUpdateToDoPayload(
+                                          id,
+                                          title: title,
+                                          description: description,
+                                          status: status,
+                                          reminder:
+                                              reminderTime != null &&
+                                              reminderTime.isNotEmpty,
+                                          reminder_time: reminderTime,
+                                        );
+                                    final response = await apiClient.updateToDo(
+                                      payload,
                                     );
-                                    final response =
-                                        await apiClient.updateToDo(payload);
                                     if (response['statusCode'] == 200) {
                                       onUpdate();
                                     }
                                   },
-                                  onDelete: (id) async {
-                                    final response =
-                                        await apiClient.deleteToDo(id);
-                                    if (response['statusCode'] == 200) {
-                                      onDelete();
-                                    }
-                                  },
-                                ),
-                              );
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              onDelete: (id) async {
+                                final response = await apiClient.deleteToDo(id);
+                                if (response['statusCode'] == 200) {
+                                  onDelete();
+                                }
+                              },
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          todo['title'],
-                                          style: kTitleStyle.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
+                                  Expanded(
+                                    child: Text(
+                                      todo['title'],
+                                      style: kTitleStyle.copyWith(
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                      getStatusIcon(todo['status'] ?? 'pending'),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    todo['description'] ?? '',
-                                    style: kBodyStyle.copyWith(
-                                      color: kTextSecondary,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        todo['reminder'] == true
-                                            ? FeatherIcons.bell
-                                            : FeatherIcons.bellOff,
-                                        size: 16,
-                                        color: todo['reminder'] == true
-                                            ? kPrimaryColor
-                                            : kTextHint,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        todo['reminder_time'] != null &&
-                                                todo['reminder_time']
-                                                    .isNotEmpty
-                                            ? () {
-                                                try {
-                                                  final date = DateFormat(
-                                                    'yyyy-MM-dd HH:mm',
-                                                  ).parse(
-                                                    todo['reminder_time'],
-                                                  );
-                                                  return DateFormat(
-                                                    'yyyy-MM-dd HH:mm',
-                                                  ).format(date.toLocal());
-                                                } catch (e) {
-                                                  try {
-                                                    final date =
-                                                        DateTime.parse(
-                                                      todo['reminder_time'],
-                                                    ).toLocal();
-                                                    return DateFormat(
-                                                      'yyyy-MM-dd HH:mm',
-                                                    ).format(date);
-                                                  } catch (e) {
-                                                    return 'Invalid reminder time';
-                                                  }
-                                                }
-                                              }()
-                                            : 'No reminder',
-                                        style: kBodyStyle.copyWith(
-                                          color: kTextHint,
-                                        ),
-                                      ),
-                                    ],
+                                  getStatusIcon(todo['status'] ?? 'pending'),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                todo['description'] ?? '',
+                                style: kBodyStyle.copyWith(
+                                  color: kTextSecondary,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    todo['reminder'] == true
+                                        ? FeatherIcons.bell
+                                        : FeatherIcons.bellOff,
+                                    size: 16,
+                                    color: todo['reminder'] == true
+                                        ? kPrimaryColor
+                                        : kTextHint,
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(width: 6),
                                   Text(
-                                    'Created: ${() {
-                                      try {
-                                        final date = DateTime.parse(
-                                          todo['CreatedAt'],
-                                        ).toLocal();
-                                        return DateFormat(
-                                          'yyyy-MM-dd HH:mm',
-                                        ).format(date);
-                                      } catch (e) {
-                                        return 'Unknown';
-                                      }
-                                    }()}',
-                                    style:
-                                        kBodyStyle.copyWith(color: kTextHint),
+                                    todo['reminder_time'] != null &&
+                                            todo['reminder_time'].isNotEmpty
+                                        ? () {
+                                            try {
+                                              final date = DateFormat(
+                                                'yyyy-MM-dd HH:mm',
+                                              ).parse(todo['reminder_time']);
+                                              return DateFormat(
+                                                'yyyy-MM-dd HH:mm',
+                                              ).format(date.toLocal());
+                                            } catch (e) {
+                                              try {
+                                                final date = DateTime.parse(
+                                                  todo['reminder_time'],
+                                                ).toLocal();
+                                                return DateFormat(
+                                                  'yyyy-MM-dd HH:mm',
+                                                ).format(date);
+                                              } catch (e) {
+                                                return 'Invalid reminder time';
+                                              }
+                                            }
+                                          }()
+                                        : 'No reminder',
+                                    style: kBodyStyle.copyWith(
+                                      color: kTextHint,
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Created: ${() {
+                                  try {
+                                    final date = DateTime.parse(todo['CreatedAt']).toLocal();
+                                    return DateFormat('yyyy-MM-dd HH:mm').format(date);
+                                  } catch (e) {
+                                    return 'Unknown';
+                                  }
+                                }()}',
+                                style: kBodyStyle.copyWith(color: kTextHint),
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                  );
+                },
+              ),
       ],
     );
   }

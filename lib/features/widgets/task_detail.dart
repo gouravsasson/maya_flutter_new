@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:my_flutter_app/core/network/api_client.dart'; // Import the ApiClient
+import 'package:Maya/core/network/api_client.dart'; // Import the ApiClient
 
 class TaskDetailPage extends StatefulWidget {
   final String sessionId;
@@ -40,7 +40,8 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
       );
       final data = response['data'] as Map<String, dynamic>? ?? {};
       print(data);
-      if (response['statusCode'] == 200 && (data['success'] as bool? ?? false)) {
+      if (response['statusCode'] == 200 &&
+          (data['success'] as bool? ?? false)) {
         final taskList = (data['data'] as List<dynamic>?) ?? [];
         if (taskList.isNotEmpty) {
           setState(() {
@@ -50,7 +51,8 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         } else {
           setState(() {
             isLoading = false;
-            errorMessage = 'No task details found for session ${widget.sessionId}';
+            errorMessage =
+                'No task details found for session ${widget.sessionId}';
           });
         }
       } else {
@@ -81,63 +83,64 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         child: isLoading
             ? const Center(child: CircularProgressIndicator())
             : errorMessage != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          errorMessage!,
-                          style: const TextStyle(
-                            color: Color(0xFFEF4444),
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: fetchTaskDetail,
-                          child: const Text('Retry'),
-                        ),
-                      ],
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      errorMessage!,
+                      style: const TextStyle(
+                        color: Color(0xFFEF4444),
+                        fontSize: 16,
+                      ),
                     ),
-                  )
-                : ListView(
-                    children: [
-                      const Text(
-                        'Task Details',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF111827),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildDetailRow(
-                        'Query',
-                        (task?['user_payload']?['task'] as String?)?.isNotEmpty == true
-                            ? task!['user_payload']['task'] as String
-                            : 'No query provided',
-                      ),
-                      _buildDetailRow(
-                        'User Payload',
-                        _formatUserPayload(task?['user_payload'] as Map<String, dynamic>? ?? {}),
-                      ),
-                      _buildDetailRow(
-                        'Status',
-                        (task?['status'] as String?)?.isNotEmpty == true
-                            ? task!['status'][0].toUpperCase() + task!['status'].substring(1)
-                            : 'Unknown',
-                      ),
-                      if ((task?['error'] as String?)?.isNotEmpty == true)
-                        _buildDetailRow(
-                          'Error',
-                          task!['error'] as String,
-                        ),
-                      _buildDetailRow(
-                        'Scheduled At',
-                        _formatTimestamp(task?['scheduled_at'] as String? ?? ''),
-                      ),
-                    ],
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: fetchTaskDetail,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
+            : ListView(
+                children: [
+                  const Text(
+                    'Task Details',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827),
+                    ),
                   ),
+                  const SizedBox(height: 8),
+                  _buildDetailRow(
+                    'Query',
+                    (task?['user_payload']?['task'] as String?)?.isNotEmpty ==
+                            true
+                        ? task!['user_payload']['task'] as String
+                        : 'No query provided',
+                  ),
+                  _buildDetailRow(
+                    'User Payload',
+                    _formatUserPayload(
+                      task?['user_payload'] as Map<String, dynamic>? ?? {},
+                    ),
+                  ),
+                  _buildDetailRow(
+                    'Status',
+                    (task?['status'] as String?)?.isNotEmpty == true
+                        ? task!['status'][0].toUpperCase() +
+                              task!['status'].substring(1)
+                        : 'Unknown',
+                  ),
+                  if ((task?['error'] as String?)?.isNotEmpty == true)
+                    _buildDetailRow('Error', task!['error'] as String),
+                  _buildDetailRow(
+                    'Scheduled At',
+                    _formatTimestamp(task?['scheduled_at'] as String? ?? ''),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -185,17 +188,21 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
       return 'No payload data';
     }
     // Dynamically format all key-value pairs in the payload
-    return payload.entries.map((entry) {
-      // Capitalize the first letter of the key and replace underscores with spaces
-      String formattedKey = entry.key
-          .split('_')
-          .map((word) => word.isNotEmpty
-              ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
-              : '')
-          .join(' ');
-      // Handle null or empty values
-      String value = entry.value?.toString() ?? 'N/A';
-      return '$formattedKey: $value';
-    }).join('\n');
+    return payload.entries
+        .map((entry) {
+          // Capitalize the first letter of the key and replace underscores with spaces
+          String formattedKey = entry.key
+              .split('_')
+              .map(
+                (word) => word.isNotEmpty
+                    ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+                    : '',
+              )
+              .join(' ');
+          // Handle null or empty values
+          String value = entry.value?.toString() ?? 'N/A';
+          return '$formattedKey: $value';
+        })
+        .join('\n');
   }
 }

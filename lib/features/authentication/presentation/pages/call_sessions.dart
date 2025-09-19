@@ -3,7 +3,7 @@ import 'package:feather_icons/feather_icons.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 
-import 'package:my_flutter_app/core/network/api_client.dart';
+import 'package:Maya/core/network/api_client.dart';
 
 class Session {
   final int id;

@@ -1,4 +1,4 @@
-package com.yourcompany.my_flutter_app
+package com.yourcompany.Maya
 
 
 import io.flutter.embedding.android.FlutterActivity
