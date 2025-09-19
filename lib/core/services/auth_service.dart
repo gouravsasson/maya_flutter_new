@@ -13,9 +13,11 @@ class AuthService {
   Timer? _refreshTimer;
   final ApiClient _apiClient = getIt<ApiClient>();
 
-  void startTokenManagement() {
-    print('🔑 Starting token management...');
-    _startTokenExpiryCheck();
+  void startTokenManagement(int interval) {
+    print(
+      '🔑 Starting token managementttttttttttttttttttttttttttttttttttttt... $interval',
+    );
+    _startTokenExpiryCheck(interval);
     _startPeriodicTokenRefresh();
   }
 
@@ -25,8 +27,15 @@ class AuthService {
     _refreshTimer?.cancel();
   }
 
-  void _startTokenExpiryCheck() {
-    _tokenExpiryTimer = Timer.periodic(Duration(minutes: 1), (timer) async {
+  void _startTokenExpiryCheck(int interval) {
+    print(
+      '🔑 Starting token expiry checkttttttttttttttttttttttttttttttttttttt +++++++++5... $interval',
+    );
+    interval = interval - 5;
+    print('🔑 Starting token expiry check ----------5... $interval');
+    _tokenExpiryTimer = Timer.periodic(Duration(seconds: interval), (
+      timer,
+    ) async {
       final token = await _storageService.getAccessToken();
       if (token != null) {
         if (JwtDecoder.isExpired(token)) {

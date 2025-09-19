@@ -12,50 +12,58 @@ abstract class StorageService {
   Future<void> clearAll();
   Future<void> setBool(String key, bool value);
   Future<bool?> getBool(String key);
-
+  Future<void> saveTokenExpiryDate(int expiryDate);
+  Future<int?> getTokenExpiryDate();
 }
 
 class StorageServiceImpl implements StorageService {
   final FlutterSecureStorage _secureStorage;
   final SharedPreferences _preferences;
-  
+
   StorageServiceImpl(this._secureStorage, this._preferences);
-  
+
   @override
   Future<void> saveAccessToken(String token) async {
     await _secureStorage.write(key: AppConstants.accessTokenKey, value: token);
   }
-  
+
+  @override
+  Future<void> saveTokenExpiryDate(int expiryDate) async {
+    await _preferences.setInt(AppConstants.tokenExpiryDateKey, expiryDate);
+  }
+
   @override
   Future<void> saveRefreshToken(String token) async {
     await _secureStorage.write(key: AppConstants.refreshTokenKey, value: token);
   }
-  
+
   @override
   Future<void> saveUserData(String userData) async {
     await _preferences.setString(AppConstants.userDataKey, userData);
   }
-  
+
   @override
   Future<String?> getAccessToken() async {
     return await _secureStorage.read(key: AppConstants.accessTokenKey);
   }
-  
+
   @override
   Future<String?> getRefreshToken() async {
     return await _secureStorage.read(key: AppConstants.refreshTokenKey);
   }
-  
+
   @override
   Future<String?> getUserData() async {
     return _preferences.getString(AppConstants.userDataKey);
   }
-  
+
   @override
   Future<void> clearAll() async {
     await _secureStorage.deleteAll();
     await _preferences.remove(AppConstants.userDataKey);
+    await _preferences.remove(AppConstants.tokenExpiryDateKey);
   }
+
   @override
   Future<void> setBool(String key, bool value) async {
     await _preferences.setBool(key, value);
@@ -64,5 +72,10 @@ class StorageServiceImpl implements StorageService {
   @override
   Future<bool?> getBool(String key) async {
     return _preferences.getBool(key);
+  }
+
+  @override
+  Future<int?> getTokenExpiryDate() async {
+    return _preferences.getInt(AppConstants.tokenExpiryDateKey);
   }
 }
