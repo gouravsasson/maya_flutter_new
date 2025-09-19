@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
+import '../injection_container.dart';
+import '../core/services/storage_service.dart';
 
 class TabLayout extends StatefulWidget {
   final Widget child;
@@ -82,9 +84,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
   }
 
   Future<void> _handleLogout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-    await prefs.remove('refresh_token');
+    await sl<StorageService>().clearAll();
     if (mounted) {
       context.go('/login');
     }

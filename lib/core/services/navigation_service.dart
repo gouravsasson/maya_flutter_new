@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'storage_service.dart';
+import '../../injection_container.dart';
 
 class NavigationService {
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
+  // final StorageService _storageService = sl<StorageService>();
 
   static BuildContext get context => GoRouter.of(
-        navigatorKey.currentContext!,
-      ).routerDelegate.navigatorKey.currentContext!;
+    navigatorKey.currentContext!,
+  ).routerDelegate.navigatorKey.currentContext!;
 
   static void go(String location) {
     final currentContext = navigatorKey.currentContext;
@@ -74,7 +79,8 @@ class NavigationService {
           ),
           actions: [
             TextButton(
-              onPressed: () {
+              onPressed: () async {
+                await sl<StorageService>().clearAll();
                 Navigator.of(context).pop();
                 context.go('/login');
               },

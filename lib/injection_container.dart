@@ -7,6 +7,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'core/network/api_client.dart';
 import 'core/network/network_info.dart';
 import 'core/services/auth_service.dart';
+import 'core/services/navigation_service.dart';
 import 'core/services/token_service.dart';
 import 'core/services/storage_service.dart';
 import 'features/authentication/data/datasources/auth_remote_datasource.dart';
@@ -44,6 +45,7 @@ Future<void> init() async {
   sl.registerLazySingleton<TokenService>(() => TokenService(sl()));
   sl.registerLazySingleton<AuthService>(() => AuthService());
   sl.registerLazySingleton<DeepLinkService>(() => DeepLinkService());
+  sl.registerLazySingleton<NavigationService>(() => NavigationService());
 
   // Authentication Feature
   _initAuth();

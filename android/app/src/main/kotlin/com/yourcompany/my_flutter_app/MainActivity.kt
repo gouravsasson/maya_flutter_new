@@ -1,4 +1,4 @@
-package com.yourcompany.Maya
+package com.ravan.Maya
 
 
 import io.flutter.embedding.android.FlutterActivity
