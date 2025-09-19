@@ -1,8 +1,10 @@
-// lib/main.dart - WORKING VERSION
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_core/firebase_core.dart';
+
+import 'package:my_flutter_app/firebase_options.dart';
 
 import 'config/routes/app_router.dart';
 import 'core/services/navigation_service.dart';
@@ -53,6 +55,7 @@ class AuthDebugService {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await di.init();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(MyApp());
 }
 
@@ -72,10 +75,8 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _authBloc = di.sl<AuthBloc>();
     AuthDebugService.startDebugging(_authBloc);
-    // Create router with the auth bloc
     _router = AppRouter.createRouter(_authBloc);
 
-    // Initialize auth state after router is created
     _authBloc.add(AppStarted());
   }
 
