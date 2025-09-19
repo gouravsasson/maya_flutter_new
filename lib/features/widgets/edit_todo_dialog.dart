@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:my_flutter_app/utils/constants.dart';
+import 'package:Maya/utils/constants.dart';
 
 class EditToDoDialog extends StatefulWidget {
   final Map<String, dynamic> todo;
@@ -38,7 +38,8 @@ class _EditToDoDialogState extends State<EditToDoDialog> {
 
   @override
   Widget build(BuildContext context) {
-    bool isValidDateTime = selectedDateTime == null || !selectedDateTime!.isBefore(DateTime.now());
+    bool isValidDateTime =
+        selectedDateTime == null || !selectedDateTime!.isBefore(DateTime.now());
     return AlertDialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -50,7 +51,9 @@ class _EditToDoDialogState extends State<EditToDoDialog> {
             TextField(
               decoration: InputDecoration(
                 labelText: 'Title',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 filled: true,
                 fillColor: kInputBackground,
               ),
@@ -61,7 +64,9 @@ class _EditToDoDialogState extends State<EditToDoDialog> {
             TextField(
               decoration: InputDecoration(
                 labelText: 'Description',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 filled: true,
                 fillColor: kInputBackground,
               ),
@@ -72,16 +77,18 @@ class _EditToDoDialogState extends State<EditToDoDialog> {
             DropdownButtonFormField<String>(
               decoration: InputDecoration(
                 labelText: 'Status',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 filled: true,
                 fillColor: kInputBackground,
               ),
               value: status,
               items: ['Todo', 'in-progress', 'completed', '']
-                  .map((status) => DropdownMenuItem(
-                        value: status,
-                        child: Text(status),
-                      ))
+                  .map(
+                    (status) =>
+                        DropdownMenuItem(value: status, child: Text(status)),
+                  )
                   .toList(),
               onChanged: (val) => setState(() => status = val!),
             ),
@@ -92,12 +99,16 @@ class _EditToDoDialogState extends State<EditToDoDialog> {
                   child: TextField(
                     decoration: InputDecoration(
                       labelText: 'Reminder Time',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       filled: true,
                       fillColor: kInputBackground,
                       hintText: selectedDateTime == null
                           ? 'Select date & time'
-                          : DateFormat('yyyy-MM-dd HH:mm').format(selectedDateTime!),
+                          : DateFormat(
+                              'yyyy-MM-dd HH:mm',
+                            ).format(selectedDateTime!),
                     ),
                     readOnly: true,
                     onTap: () async {
@@ -197,12 +208,16 @@ class _EditToDoDialogState extends State<EditToDoDialog> {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: kPrimaryColor,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
           onPressed: isValidDateTime
               ? () {
                   final reminderTimeStr = selectedDateTime != null
-                      ? DateFormat("yyyy-MM-dd'T'HH:mm:ssZ").format(selectedDateTime!.toUtc())
+                      ? DateFormat(
+                          "yyyy-MM-dd'T'HH:mm:ssZ",
+                        ).format(selectedDateTime!.toUtc())
                       : null;
                   widget.onUpdate(
                     widget.todo['ID'],
@@ -215,14 +230,20 @@ class _EditToDoDialogState extends State<EditToDoDialog> {
                   Navigator.pop(context);
                 }
               : null,
-          child: Text('Update', style: kButtonStyle.copyWith(color: Colors.white)),
+          child: Text(
+            'Update',
+            style: kButtonStyle.copyWith(color: Colors.white),
+          ),
         ),
         TextButton(
           onPressed: () {
             widget.onDelete(widget.todo['ID']);
             Navigator.pop(context);
           },
-          child: Text('Delete', style: kButtonStyle.copyWith(color: kErrorColor)),
+          child: Text(
+            'Delete',
+            style: kButtonStyle.copyWith(color: kErrorColor),
+          ),
         ),
       ],
     );

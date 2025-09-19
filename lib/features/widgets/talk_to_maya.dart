@@ -1,9 +1,9 @@
 // lib/features/home/presentation/pages/widgets/talk_to_maya.dart
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import 'package:my_flutter_app/core/network/api_client.dart';
-import 'package:my_flutter_app/core/services/mic_service.dart';
-import 'package:my_flutter_app/utils/constants.dart';
+import 'package:Maya/core/network/api_client.dart';
+import 'package:Maya/core/services/mic_service.dart';
+import 'package:Maya/utils/constants.dart';
 import 'package:ultravox_client/ultravox_client.dart';
 
 import 'mic_button.dart';
@@ -15,7 +15,8 @@ class TalkToMaya extends StatefulWidget {
   State<TalkToMaya> createState() => _TalkToMayaState();
 }
 
-class _TalkToMayaState extends State<TalkToMaya> with SingleTickerProviderStateMixin {
+class _TalkToMayaState extends State<TalkToMaya>
+    with SingleTickerProviderStateMixin {
   bool _isListening = false;
   String _currentTranscriptChunk = '';
   final List<String> _transcriptChunks = [];
@@ -23,7 +24,7 @@ class _TalkToMayaState extends State<TalkToMaya> with SingleTickerProviderStateM
   String _previousStatus = '';
   AnimationController? _pulseController;
 
-  final ApiClient _apiClient = GetIt.instance<ApiClient>(); 
+  final ApiClient _apiClient = GetIt.instance<ApiClient>();
 
   @override
   void initState() {
@@ -61,8 +62,8 @@ class _TalkToMayaState extends State<TalkToMaya> with SingleTickerProviderStateM
         String newText = lastTranscript.speaker == Role.user
             ? lastTranscript.text
             : (_currentTranscriptChunk.isNotEmpty
-                ? '$_currentTranscriptChunk ${lastTranscript.text}'
-                : lastTranscript.text);
+                  ? '$_currentTranscriptChunk ${lastTranscript.text}'
+                  : lastTranscript.text);
 
         while (newText.length > kMaxDisplayLength) {
           _transcriptChunks.add(newText.substring(0, kMaxDisplayLength));
@@ -109,7 +110,8 @@ class _TalkToMayaState extends State<TalkToMaya> with SingleTickerProviderStateM
         _session!.dataMessageNotifier.addListener(_onDataMessage);
       } else {
         setState(() {
-          _currentTranscriptChunk = 'Error starting session: ${response['statusCode']}';
+          _currentTranscriptChunk =
+              'Error starting session: ${response['statusCode']}';
         });
         _onStop(pulseController);
       }

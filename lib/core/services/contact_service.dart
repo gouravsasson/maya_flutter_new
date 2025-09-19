@@ -1,6 +1,6 @@
 import 'package:flutter_contacts/flutter_contacts.dart'; // New import
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:my_flutter_app/core/services/storage_service.dart';
+import 'package:Maya/core/services/storage_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -32,16 +32,18 @@ class ContactsService {
   static Future<List<Map<String, String>>> fetchContacts() async {
     // Use flutter_contacts to fetch with phone properties
     final List<Contact> contacts = await FlutterContacts.getContacts(
-      withProperties: true,  // Required to include phones/emails
-      withPhoto: false,      // Skip photos to save time/bandwidth
+      withProperties: true, // Required to include phones/emails
+      withPhoto: false, // Skip photos to save time/bandwidth
     );
     return contacts
         .where((contact) => contact.phones.isNotEmpty)
-        .map((contact) => {
-              'name': contact.displayName ?? '',
-              'phone': contact.phones.first.number ?? '',
-              // Add more if needed: 'email': contact.emails.firstOrNull?.address ?? '',
-            })
+        .map(
+          (contact) => {
+            'name': contact.displayName ?? '',
+            'phone': contact.phones.first.number ?? '',
+            // Add more if needed: 'email': contact.emails.firstOrNull?.address ?? '',
+          },
+        )
         .toList();
   }
 

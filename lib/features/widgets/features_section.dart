@@ -1,7 +1,7 @@
 // lib/features/home/presentation/pages/widgets/features_section.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:my_flutter_app/features/widgets/features_card.dart';
+import 'package:Maya/features/widgets/features_card.dart';
 
 class FeaturesSection extends StatelessWidget {
   const FeaturesSection({super.key});

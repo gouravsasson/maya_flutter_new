@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.yourcompany" "\0"
-            VALUE "FileDescription", "my_flutter_app" "\0"
+            VALUE "FileDescription", "Maya" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "my_flutter_app" "\0"
+            VALUE "InternalName", "Maya" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.yourcompany. All rights reserved." "\0"
-            VALUE "OriginalFilename", "my_flutter_app.exe" "\0"
-            VALUE "ProductName", "my_flutter_app" "\0"
+            VALUE "OriginalFilename", "Maya.exe" "\0"
+            VALUE "ProductName", "Maya" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

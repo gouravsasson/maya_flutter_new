@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_core/firebase_core.dart';
 
-import 'package:my_flutter_app/firebase_options.dart';
+import 'package:Maya/firebase_options.dart';
 
 import 'config/routes/app_router.dart';
 import 'core/services/navigation_service.dart';
@@ -13,44 +13,7 @@ import 'features/authentication/presentation/bloc/auth_bloc.dart';
 import 'features/authentication/presentation/bloc/auth_event.dart';
 import 'features/authentication/presentation/bloc/auth_state.dart';
 import 'injection_container.dart' as di;
-
-class AuthDebugService {
-  static StreamSubscription? _subscription;
-
-  static void startDebugging(AuthBloc authBloc) {
-    print('🔍 Starting AuthBloc debugging...');
-
-    _subscription = authBloc.stream.listen(
-      (state) {
-        final timestamp = DateTime.now().toString().substring(11, 19);
-        print('🎯 AUTH STATE CHANGE [$timestamp]: ${state.runtimeType}');
-
-        if (state is AuthAuthenticated) {
-          print('   👤 User: ${state.user.firstName} ${state.user.lastName}');
-          print('   📧 Email: ${state.user.email}');
-        } else if (state is AuthError) {
-          print('   ❌ Error: ${state.message}');
-        }
-
-        print(
-          '   📍 Current location: ${GoRouter.of(NavigationService.navigatorKey.currentContext!).routerDelegate.currentConfiguration.uri.path}',
-        );
-      },
-      onError: (error) {
-        print('❌ AUTH STREAM ERROR: $error');
-      },
-      onDone: () {
-        print('✅ AUTH STREAM DONE');
-      },
-    );
-  }
-
-  static void stopDebugging() {
-    _subscription?.cancel();
-    _subscription = null;
-    print('🛑 AuthBloc debugging stopped');
-  }
-}
+import 'core/services/deep_link_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,15 +32,31 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   late final AuthBloc _authBloc;
   late final GoRouter _router;
+  bool _deepLinkInitialized = false;
 
   @override
   void initState() {
     super.initState();
     _authBloc = di.sl<AuthBloc>();
-    AuthDebugService.startDebugging(_authBloc);
     _router = AppRouter.createRouter(_authBloc);
 
     _authBloc.add(AppStarted());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // ✅ Initialize deep linking here where context is available
+    if (!_deepLinkInitialized && mounted) {
+      _deepLinkInitialized = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          print('🔗 Initializing deep linking...');
+          DeepLinkService.initialize(context);
+        }
+      });
+    }
   }
 
   @override
@@ -85,7 +64,7 @@ class _MyAppState extends State<MyApp> {
     return BlocProvider<AuthBloc>.value(
       value: _authBloc,
       child: MaterialApp.router(
-        title: 'Flutter Auth with GoRouter',
+        title: 'Maya App', // Updated to match your domain
         theme: AppTheme.lightTheme,
         routerConfig: _router,
         debugShowCheckedModeBanner: false,

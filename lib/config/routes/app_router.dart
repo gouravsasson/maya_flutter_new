@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:my_flutter_app/features/authentication/presentation/pages/call_sessions.dart';
-import 'package:my_flutter_app/features/authentication/presentation/pages/integration_page.dart';
-import 'package:my_flutter_app/features/authentication/presentation/pages/tasks_page.dart';
-import 'package:my_flutter_app/features/widgets/ghl.dart';
-import 'package:my_flutter_app/utils/tab_layout.dart';
+import 'package:Maya/features/authentication/presentation/pages/call_sessions.dart';
+import 'package:Maya/features/authentication/presentation/pages/integration_page.dart';
+import 'package:Maya/features/authentication/presentation/pages/tasks_page.dart';
+import 'package:Maya/features/widgets/ghl.dart';
+import 'package:Maya/utils/tab_layout.dart';
 
 import '../../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../../features/authentication/presentation/bloc/auth_state.dart';
@@ -165,7 +165,14 @@ class AppRouter {
   }
 
   static bool _isProtectedRoute(String location) {
-    const protectedRoutes = [home, profile, tasks, integrations, settings, call_sessions];
+    const protectedRoutes = [
+      home,
+      profile,
+      tasks,
+      integrations,
+      settings,
+      call_sessions,
+    ];
     return protectedRoutes.contains(location);
   }
 }

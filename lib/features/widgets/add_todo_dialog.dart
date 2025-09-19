@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:my_flutter_app/utils/constants.dart';
+import 'package:Maya/utils/constants.dart';
 
 class AddToDoDialog extends StatefulWidget {
   final Function(String, String, String?) onAdd;
@@ -19,7 +19,8 @@ class _AddToDoDialogState extends State<AddToDoDialog> {
 
   @override
   Widget build(BuildContext context) {
-    bool isValidDateTime = selectedDateTime == null || !selectedDateTime!.isBefore(DateTime.now());
+    bool isValidDateTime =
+        selectedDateTime == null || !selectedDateTime!.isBefore(DateTime.now());
     return AlertDialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -31,7 +32,9 @@ class _AddToDoDialogState extends State<AddToDoDialog> {
             TextField(
               decoration: InputDecoration(
                 labelText: 'Title',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 filled: true,
                 fillColor: kInputBackground,
               ),
@@ -41,7 +44,9 @@ class _AddToDoDialogState extends State<AddToDoDialog> {
             TextField(
               decoration: InputDecoration(
                 labelText: 'Description',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 filled: true,
                 fillColor: kInputBackground,
               ),
@@ -54,12 +59,16 @@ class _AddToDoDialogState extends State<AddToDoDialog> {
                   child: TextField(
                     decoration: InputDecoration(
                       labelText: 'Reminder Time',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       filled: true,
                       fillColor: kInputBackground,
                       hintText: selectedDateTime == null
                           ? 'Select date & time'
-                          : DateFormat('yyyy-MM-dd HH:mm').format(selectedDateTime!),
+                          : DateFormat(
+                              'yyyy-MM-dd HH:mm',
+                            ).format(selectedDateTime!),
                     ),
                     readOnly: true,
                     onTap: () async {
@@ -155,12 +164,16 @@ class _AddToDoDialogState extends State<AddToDoDialog> {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: kPrimaryColor,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
           onPressed: isValidDateTime
               ? () {
                   final reminderTimeStr = selectedDateTime != null
-                      ? DateFormat("yyyy-MM-dd'T'HH:mm:ssZ").format(selectedDateTime!.toUtc())
+                      ? DateFormat(
+                          "yyyy-MM-dd'T'HH:mm:ssZ",
+                        ).format(selectedDateTime!.toUtc())
                       : null;
                   widget.onAdd(title, description, reminderTimeStr);
                   Navigator.pop(context);
