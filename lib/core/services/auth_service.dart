@@ -82,6 +82,9 @@ class AuthService {
       await _storageService.saveRefreshToken(
         newToken['data']['data']['refresh_token'],
       );
+      await _storageService.saveTokenExpiryDate(
+        newToken['data']['data']['expiry_duration'],
+      );
       print(
         '🔄 New token refresh_token: ${newToken['data']['data']['refresh_token']}',
       );
