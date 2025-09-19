@@ -4,7 +4,7 @@ import 'package:Maya/core/network/api_client.dart'; // Import the ApiClient
 
 class TaskDetailPage extends StatefulWidget {
   final String sessionId;
-  final ApiClient apiClient; // ApiClient passed from TasksPage
+  final ApiClient apiClient;
 
   const TaskDetailPage({
     super.key,
@@ -17,7 +17,7 @@ class TaskDetailPage extends StatefulWidget {
 }
 
 class _TaskDetailPageState extends State<TaskDetailPage> {
-  Map<String, dynamic>? task;
+  List<Map<String, dynamic>> tasks = []; // Changed to handle multiple tasks
   bool isLoading = true;
   String? errorMessage;
 
@@ -34,32 +34,32 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     });
 
     try {
-      // Use ApiClient to fetch task details
       final response = await widget.apiClient.fetchTasksDetail(
         sessionId: widget.sessionId,
       );
-      final data = response['data'] as Map<String, dynamic>? ?? {};
+      final data = response['data']['data'];
       print(data);
       if (response['statusCode'] == 200 &&
-          (data['success'] as bool? ?? false)) {
-        final taskList = (data['data'] as List<dynamic>?) ?? [];
-        if (taskList.isNotEmpty) {
-          setState(() {
-            task = taskList[0] as Map<String, dynamic>? ?? {};
-            isLoading = false;
-          });
-        } else {
+          (response['data']['success'] as bool? ?? false)) {
+        if (data == null || (data is List && data.isEmpty)) {
           setState(() {
             isLoading = false;
             errorMessage =
                 'No task details found for session ${widget.sessionId}';
+          });
+        } else {
+          setState(() {
+            tasks = (data is List)
+                ? List<Map<String, dynamic>>.from(data)
+                : [data as Map<String, dynamic>]; // Handle single object case
+            isLoading = false;
           });
         }
       } else {
         setState(() {
           isLoading = false;
           errorMessage =
-              'Failed to load task details: ${data['message']?.toString() ?? 'Unknown error'}';
+              'Failed to load task details: ${response['message']?.toString() ?? 'Unknown error'}';
         });
       }
     } catch (e) {
@@ -90,56 +90,67 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                     Text(
                       errorMessage!,
                       style: const TextStyle(
-                        color: Color(0xFFEF4444),
+                        color: Color.fromARGB(255, 0, 0, 0),
                         fontSize: 16,
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: fetchTaskDetail,
-                      child: const Text('Retry'),
                     ),
                   ],
                 ),
               )
-            : ListView(
-                children: [
-                  const Text(
-                    'Task Details',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildDetailRow(
-                    'Query',
-                    (task?['user_payload']?['task'] as String?)?.isNotEmpty ==
-                            true
-                        ? task!['user_payload']['task'] as String
-                        : 'No query provided',
-                  ),
-                  _buildDetailRow(
-                    'User Payload',
-                    _formatUserPayload(
-                      task?['user_payload'] as Map<String, dynamic>? ?? {},
-                    ),
-                  ),
-                  _buildDetailRow(
-                    'Status',
-                    (task?['status'] as String?)?.isNotEmpty == true
-                        ? task!['status'][0].toUpperCase() +
-                              task!['status'].substring(1)
-                        : 'Unknown',
-                  ),
-                  if ((task?['error'] as String?)?.isNotEmpty == true)
-                    _buildDetailRow('Error', task!['error'] as String),
-                  _buildDetailRow(
-                    'Scheduled At',
-                    _formatTimestamp(task?['scheduled_at'] as String? ?? ''),
-                  ),
-                ],
+            : tasks.isEmpty
+            ? const Center(
+                child: Text(
+                  'No tasks available',
+                  style: TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
+                ),
+              )
+            : ListView.builder(
+                itemCount: tasks.length,
+                itemBuilder: (context, index) {
+                  final task = tasks[index];
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Task ${index + 1}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildDetailRow(
+                        'Query',
+                        (task['user_payload']?['task'] as String?)
+                                    ?.isNotEmpty ==
+                                true
+                            ? task['user_payload']['task'] as String
+                            : 'No query provided',
+                      ),
+                      _buildDetailRow(
+                        'User Payload',
+                        _formatUserPayload(
+                          task['user_payload'] as Map<String, dynamic>? ?? {},
+                        ),
+                      ),
+                      _buildDetailRow(
+                        'Status',
+                        (task['status'] as String?)?.isNotEmpty == true
+                            ? task['status'][0].toUpperCase() +
+                                  task['status'].substring(1)
+                            : 'Unknown',
+                      ),
+                      if ((task['error'] as String?)?.isNotEmpty == true)
+                        _buildDetailRow('Error', task['error'] as String),
+                      _buildDetailRow(
+                        'Scheduled At',
+                        _formatTimestamp(task['scheduled_at'] as String? ?? ''),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  );
+                },
               ),
       ),
     );
@@ -187,10 +198,8 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     if (payload == null || payload.isEmpty) {
       return 'No payload data';
     }
-    // Dynamically format all key-value pairs in the payload
     return payload.entries
         .map((entry) {
-          // Capitalize the first letter of the key and replace underscores with spaces
           String formattedKey = entry.key
               .split('_')
               .map(
@@ -199,7 +208,6 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                     : '',
               )
               .join(' ');
-          // Handle null or empty values
           String value = entry.value?.toString() ?? 'N/A';
           return '$formattedKey: $value';
         })

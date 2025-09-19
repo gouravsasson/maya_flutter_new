@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "667112847725",
+    "project_id": "maya-efe1e",
+    "storage_bucket": "maya-efe1e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:667112847725:android:bad1cd98ea6f38b3ed8264",
+        "android_client_info": {
+          "package_name": "com.yourcompany.my_flutter_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBYunrWh5gvLnl_bOxmhTA6CV2iYtAATX0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

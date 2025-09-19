@@ -1,8 +1,11 @@
-// lib/main.dart - FIXED VERSION FOR YOUR APP
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_core/firebase_core.dart';
+
+import 'package:Maya/firebase_options.dart';
+
 import 'config/routes/app_router.dart';
 import 'core/services/navigation_service.dart';
 import 'core/theme/app_theme.dart';
@@ -15,6 +18,7 @@ import 'core/services/deep_link_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await di.init();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(MyApp());
 }
 
@@ -34,11 +38,8 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _authBloc = di.sl<AuthBloc>();
-
-    // Create router with the auth bloc (matches your existing pattern)
     _router = AppRouter.createRouter(_authBloc);
 
-    // Initialize auth state after router is created
     _authBloc.add(AppStarted());
   }
 

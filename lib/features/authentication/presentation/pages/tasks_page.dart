@@ -21,9 +21,12 @@ class TaskDetail {
 
   factory TaskDetail.fromJson(Map<String, dynamic> json) {
     final toolCall = json['current_tool_call'] as Map<String, dynamic>? ?? {};
-    final status = toolCall['status']?.toString() ?? '';
-    final success = toolCall['success'] as bool? ?? false;
-    final error = toolCall['error']?.toString() ?? '';
+    final status =
+        toolCall['status']?.toString() ?? json['status']?.toString() ?? '';
+    final success =
+        json['success'] as bool? ?? toolCall['success'] as bool? ?? false;
+    final error =
+        json['error']?.toString() ?? toolCall['error']?.toString() ?? '';
 
     // Format timestamp
     String formattedTimestamp = 'No timestamp';
@@ -36,7 +39,10 @@ class TaskDetail {
 
     return TaskDetail(
       id: json['id']?.toString() ?? 'Unknown',
-      query: json['query']?.toString() ?? 'No query',
+      query:
+          json['user_payload']?['task']?.toString() ??
+          json['query']?.toString() ??
+          'No query',
       status: status.isNotEmpty
           ? status
           : (success ? 'Completed' : (error.isNotEmpty ? 'Failed' : 'Pending')),
@@ -77,11 +83,11 @@ class _TasksPageState extends State<TasksPage> {
     });
 
     try {
-      final response = await apiClient.fetchTasks(); // Use ApiClient
+      final response = await apiClient.fetchTasks();
       final data = response['data'];
       if (response['statusCode'] == 200 && data['success'] == true) {
         final List<dynamic> taskList =
-            data['data']['sessions'] as List<dynamic>? ?? [];
+            data['data']?['sessions'] as List<dynamic>? ?? [];
         setState(() {
           tasks = taskList.map((json) => TaskDetail.fromJson(json)).toList();
           isLoading = false;
