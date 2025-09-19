@@ -1,4 +1,4 @@
-import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -7,11 +7,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:Maya/firebase_options.dart';
 
 import 'config/routes/app_router.dart';
-import 'core/services/navigation_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/authentication/presentation/bloc/auth_bloc.dart';
 import 'features/authentication/presentation/bloc/auth_event.dart';
-import 'features/authentication/presentation/bloc/auth_state.dart';
 import 'injection_container.dart' as di;
 import 'core/services/deep_link_service.dart';
 

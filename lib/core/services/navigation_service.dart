@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'storage_service.dart';
-import '../../injection_container.dart';
+import 'package:Maya/features/authentication/presentation/bloc/auth_bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../features/authentication/presentation/bloc/auth_event.dart';
 
 class NavigationService {
   static final GlobalKey<NavigatorState> navigatorKey =
@@ -79,10 +81,10 @@ class NavigationService {
           ),
           actions: [
             TextButton(
-              onPressed: () async {
-                await sl<StorageService>().clearAll();
-                Navigator.of(context).pop();
-                context.go('/login');
+              onPressed: () {
+                NavigationService.pop(); // Close dialog
+
+                context.read<AuthBloc>().add(LogoutRequested());
               },
               child: Text('Login Again'),
             ),

@@ -4,6 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 import '../injection_container.dart';
 import '../core/services/storage_service.dart';
+import 'package:Maya/features/authentication/presentation/bloc/auth_bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../features/authentication/presentation/bloc/auth_event.dart';
 
 class TabLayout extends StatefulWidget {
   final Widget child;
@@ -84,10 +88,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
   }
 
   Future<void> _handleLogout() async {
-    await sl<StorageService>().clearAll();
-    if (mounted) {
-      context.go('/login');
-    }
+    context.read<AuthBloc>().add(LogoutRequested());
   }
 
   String _getTabTitle() {
