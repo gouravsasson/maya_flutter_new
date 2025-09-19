@@ -64,7 +64,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '667112847725',
     projectId: 'maya-efe1e',
     storageBucket: 'maya-efe1e.firebasestorage.app',
-    iosBundleId: 'com.yourcompany.myFlutterApp',
+    iosBundleId: 'com.ravan.Maya',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -73,7 +73,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '667112847725',
     projectId: 'maya-efe1e',
     storageBucket: 'maya-efe1e.firebasestorage.app',
-    iosBundleId: 'com.yourcompany.myFlutterApp',
+    iosBundleId: 'com.com.ravan.Mayampany.myFlutterApp',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

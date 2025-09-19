@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.yourcompany" "\0"
+            VALUE "CompanyName", "com.com.ravan.Mayampany" "\0"
             VALUE "FileDescription", "Maya" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "Maya" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.yourcompany. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 com.com.ravan.Mayampany. All rights reserved." "\0"
             VALUE "OriginalFilename", "Maya.exe" "\0"
             VALUE "ProductName", "Maya" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
