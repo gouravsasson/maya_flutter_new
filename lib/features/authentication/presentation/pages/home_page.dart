@@ -1,9 +1,9 @@
-// lib/features/home/presentation/pages/home_page.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:Maya/core/network/api_client.dart';
 import 'package:Maya/features/widgets/features_section.dart';
@@ -28,6 +28,7 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> todos = [];
   bool isLoadingTodos = false;
   NotificationServices notificationServices = NotificationServices();
+  String? fcmToken; // Store FCM token
 
   @override
   void initState() {
@@ -38,7 +39,11 @@ class _HomePageState extends State<HomePage> {
     notificationServices.setupInteractMessage(context);
     notificationServices.isTokenRefresh();
 
+    // Fetch and store FCM token
     notificationServices.getDeviceToken().then((value) {
+      setState(() {
+        fcmToken = value;
+      });
       if (kDebugMode) {
         print('device token');
         print(value);
@@ -142,6 +147,16 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // Copy FCM token to clipboard
+  void copyFcmToken() {
+    if (fcmToken != null) {
+      Clipboard.setData(ClipboardData(text: fcmToken!));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('FCM Token copied to clipboard')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
@@ -191,6 +206,47 @@ class _HomePageState extends State<HomePage> {
                       child: ElevatedButton(
                         onPressed: sendNotification,
                         child: const Text("Send Test Notification"),
+                      ),
+                    ),
+
+                    // ✅ FCM Token Display Section
+                    const SizedBox(height: 16),
+                    Card(
+                      elevation: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'FCM Token',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            fcmToken == null
+                                ? const Text('Loading token...')
+                                : SelectableText(
+                                    fcmToken!,
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: ElevatedButton.icon(
+                                onPressed: fcmToken == null ? null : copyFcmToken,
+                                icon: const Icon(Icons.copy, size: 18),
+                                label: const Text('Copy Token'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Theme.of(context).primaryColor,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
