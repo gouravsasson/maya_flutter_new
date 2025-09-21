@@ -50,6 +50,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         );
         await storageService.saveAccessToken(loginResponse.accessToken);
         await storageService.saveRefreshToken(loginResponse.refreshToken);
+        await storageService.saveTokenExpiryDate(loginResponse.expiryDuration);
+        print('🌐 API: Token expiry date: ${loginResponse.expiryDuration}');
         return loginResponse;
       } else {
         throw ServerException(

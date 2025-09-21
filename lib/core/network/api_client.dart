@@ -53,7 +53,26 @@ class ApiClient {
               return handler.next(options);
             },
         onError: (DioException error, ErrorInterceptorHandler handler) async {
-          // You can add token refresh logic here if needed
+          if (error.response?.statusCode == 401) {
+            final encodedRefreshToken = await getIt<StorageService>()
+                .getRefreshToken();
+            if (encodedRefreshToken != null) {
+              final response = await refreshToken(encodedRefreshToken);
+              if (response['statusCode'] == 200) {
+                final tokenData = response['data']['data'];
+                await getIt<StorageService>().saveAccessToken(
+                  tokenData['access_token'],
+                );
+                await getIt<StorageService>().saveRefreshToken(
+                  tokenData['refresh_token'],
+                );
+                await getIt<StorageService>().saveTokenExpiryDate(
+                  tokenData['expiry_duration'],
+                );
+                return handler.resolve(error.response!);
+              }
+            }
+          }
           return handler.next(error);
         },
       ),

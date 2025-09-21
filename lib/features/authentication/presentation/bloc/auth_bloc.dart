@@ -8,6 +8,8 @@ import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/logout_usecase.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
+import '../../../../core/services/storage_service.dart';
+import '../../../../injection_container.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final LoginUseCase loginUseCase;
@@ -31,8 +33,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     print('🚀 App started, checking authentication...');
     emit(AuthLoading());
 
+    // Get storage service and token expiry date
+    final StorageService storageService = sl<StorageService>();
+    final int? expiryDate = await storageService.getTokenExpiryDate();
+
+    // Start token management with expiry date (if available)
+    if (expiryDate != null) {
+      authService.startTokenManagement(expiryDate);
+      
+    } else {
+      print('⚠️ No token expiry date found');
+    }
+
     // Simulate splash screen delay
-    await Future.delayed(Duration(seconds: 3));
+    await Future.delayed(Duration(seconds: 1));
 
     final result = await checkAuthUseCase(NoParams());
 
@@ -44,7 +58,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       (user) {
         if (user != null) {
           print('✅ User found: ${user.firstName} ${user.lastName}');
-          authService.startTokenManagement();
+          // Note: Token management already started above, no need to call again
           emit(AuthAuthenticated(user));
         } else {
           print('ℹ️ No user found');
@@ -55,6 +69,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   void _onLoginRequested(LoginRequested event, Emitter<AuthState> emit) async {
+    final StorageService storageService = sl<StorageService>();
+    final expiryDate = await storageService.getTokenExpiryDate();
     print('🔐 Login requested for: ${event.email}');
     print('📊 BEFORE LOGIN: Current state = ${state.runtimeType}');
 
@@ -86,7 +102,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
           // This is the critical line that should emit AuthAuthenticated
           print('🎯 CRITICAL: About to emit AuthAuthenticated...');
-          authService.startTokenManagement();
+
+          authService.startTokenManagement(expiryDate ?? 0);
 
           emit(AuthAuthenticated(user));
 

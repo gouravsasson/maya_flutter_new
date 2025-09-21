@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -11,7 +10,8 @@ import 'core/theme/app_theme.dart';
 import 'features/authentication/presentation/bloc/auth_bloc.dart';
 import 'features/authentication/presentation/bloc/auth_event.dart';
 import 'injection_container.dart' as di;
-import 'core/services/deep_link_service.dart';
+import 'core/services/storage_service.dart';
+// import 'core/services/deep_link_service.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,7 +30,8 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   late final AuthBloc _authBloc;
   late final GoRouter _router;
-  bool _deepLinkInitialized = false;
+  
+  // bool _deepLinkInitialized = false;
 
   @override
   void initState() {
@@ -41,21 +42,21 @@ class _MyAppState extends State<MyApp> {
     _authBloc.add(AppStarted());
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  // @override
+  // void didChangeDependencies() {
+  //   super.didChangeDependencies();
 
-    // ✅ Initialize deep linking here where context is available
-    if (!_deepLinkInitialized && mounted) {
-      _deepLinkInitialized = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          print('🔗 Initializing deep linking...');
-          DeepLinkService.initialize(context);
-        }
-      });
-    }
-  }
+  //   // ✅ Initialize deep linking here where context is available
+  //   if (!_deepLinkInitialized && mounted) {
+  //     _deepLinkInitialized = true;
+  //     WidgetsBinding.instance.addPostFrameCallback((_) {
+  //       if (mounted) {
+  //         print('🔗 Initializing deep linking...');
+  //         DeepLinkService.initialize(context);
+  //       }
+  //     });
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
