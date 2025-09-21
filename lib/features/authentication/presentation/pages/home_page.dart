@@ -149,16 +149,6 @@ class _HomePageState extends State<HomePage> {
         final user = state is AuthAuthenticated ? state.user : null;
 
         return Scaffold(
-          appBar: AppBar(
-            title: const Text("Flutter Notifications + ToDos"),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.notifications),
-                onPressed: sendNotification, // ✅ Test notification
-              ),
-            ],
-          ),
-
           body: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -194,7 +184,7 @@ class _HomePageState extends State<HomePage> {
                     const FeaturesSection(),
                     const SizedBox(height: 32),
                     const GoRouterDemo(),
-                     const SizedBox(height: 32),
+                    const SizedBox(height: 32),
 
                     // ✅ Button for sending notifications
                     Center(
