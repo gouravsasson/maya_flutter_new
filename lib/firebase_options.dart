@@ -73,7 +73,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '210611802225',
     projectId: 'maya-app-cymake',
     storageBucket: 'maya-app-cymake.firebasestorage.app',
-    iosBundleId: 'com.com.ravan.Mayampany.myFlutterApp',
+    iosBundleId: 'com.ravan.maya',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
