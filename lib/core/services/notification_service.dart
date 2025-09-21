@@ -4,7 +4,7 @@ import 'dart:io';
 import 'dart:math';
 
 
-import 'package:Maya/features/authentication/presentation/pages/message_screen.dart';
+import 'package:Maya/utils/message_screen.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
