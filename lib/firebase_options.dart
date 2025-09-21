@@ -41,48 +41,48 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCXPBZxsGDHpwuCHer9Ik9saUTeWqmJnBc',
-    appId: '1:667112847725:web:a13eaa4c6fe00bb6ed8264',
-    messagingSenderId: '667112847725',
-    projectId: 'maya-efe1e',
-    authDomain: 'maya-efe1e.firebaseapp.com',
-    storageBucket: 'maya-efe1e.firebasestorage.app',
-    measurementId: 'G-HE06EHLHER',
+    apiKey: 'AIzaSyBW01A42LTjCyV3mhy1a1xYrJ6NzkgjdsQ',
+    appId: '1:210611802225:web:5bc53420ff73b5fbe5cbd0',
+    messagingSenderId: '210611802225',
+    projectId: 'maya-app-cymake',
+    authDomain: 'maya-app-cymake.firebaseapp.com',
+    storageBucket: 'maya-app-cymake.firebasestorage.app',
+    measurementId: 'G-YPC7NYVSRT',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBYunrWh5gvLnl_bOxmhTA6CV2iYtAATX0',
-    appId: '1:667112847725:android:bad1cd98ea6f38b3ed8264',
-    messagingSenderId: '667112847725',
-    projectId: 'maya-efe1e',
-    storageBucket: 'maya-efe1e.firebasestorage.app',
+    apiKey: 'AIzaSyAdpSpBQZ5uqTcNhv4EMqU64xKS8e_ns1Y',
+    appId: '1:210611802225:android:f619479b0ef87a32e5cbd0',
+    messagingSenderId: '210611802225',
+    projectId: 'maya-app-cymake',
+    storageBucket: 'maya-app-cymake.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAKrMtV08MrGWQvbVUETPaTWtO2wMTZ81Q',
-    appId: '1:667112847725:ios:7a673fdb8764cde4ed8264',
-    messagingSenderId: '667112847725',
-    projectId: 'maya-efe1e',
-    storageBucket: 'maya-efe1e.firebasestorage.app',
-    iosBundleId: 'com.ravan.Maya',
+    apiKey: 'AIzaSyDYLneOggw4AxxGmTzqGv8CWiuXyq8oyLk',
+    appId: '1:210611802225:ios:9038e512da93ad0ae5cbd0',
+    messagingSenderId: '210611802225',
+    projectId: 'maya-app-cymake',
+    storageBucket: 'maya-app-cymake.firebasestorage.app',
+    iosBundleId: 'com.yourcompany.myFlutterApp',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyAKrMtV08MrGWQvbVUETPaTWtO2wMTZ81Q',
-    appId: '1:667112847725:ios:7a673fdb8764cde4ed8264',
-    messagingSenderId: '667112847725',
-    projectId: 'maya-efe1e',
-    storageBucket: 'maya-efe1e.firebasestorage.app',
+    apiKey: 'AIzaSyDYLneOggw4AxxGmTzqGv8CWiuXyq8oyLk',
+    appId: '1:210611802225:ios:2d81dbf68b37b818e5cbd0',
+    messagingSenderId: '210611802225',
+    projectId: 'maya-app-cymake',
+    storageBucket: 'maya-app-cymake.firebasestorage.app',
     iosBundleId: 'com.com.ravan.Mayampany.myFlutterApp',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyCXPBZxsGDHpwuCHer9Ik9saUTeWqmJnBc',
-    appId: '1:667112847725:web:4597cd6fad2cba98ed8264',
-    messagingSenderId: '667112847725',
-    projectId: 'maya-efe1e',
-    authDomain: 'maya-efe1e.firebaseapp.com',
-    storageBucket: 'maya-efe1e.firebasestorage.app',
-    measurementId: 'G-M29154D4JW',
+    apiKey: 'AIzaSyBW01A42LTjCyV3mhy1a1xYrJ6NzkgjdsQ',
+    appId: '1:210611802225:web:dbc8569875da685fe5cbd0',
+    messagingSenderId: '210611802225',
+    projectId: 'maya-app-cymake',
+    authDomain: 'maya-app-cymake.firebaseapp.com',
+    storageBucket: 'maya-app-cymake.firebasestorage.app',
+    measurementId: 'G-YJ4SPT8TPS',
   );
 }

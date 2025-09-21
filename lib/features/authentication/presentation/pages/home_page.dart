@@ -1,4 +1,8 @@
 // lib/features/home/presentation/pages/home_page.dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:Maya/core/network/api_client.dart';
@@ -11,6 +15,7 @@ import 'package:Maya/features/widgets/welcome_card.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
+import 'package:Maya/core/services/notification_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -22,10 +27,23 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> todos = [];
   bool isLoadingTodos = false;
+  NotificationServices notificationServices = NotificationServices();
 
   @override
   void initState() {
     super.initState();
+    notificationServices.requestNotificationPermission();
+    notificationServices.forgroundMessage();
+    notificationServices.firebaseInit(context);
+    notificationServices.setupInteractMessage(context);
+    notificationServices.isTokenRefresh();
+
+    notificationServices.getDeviceToken().then((value) {
+      if (kDebugMode) {
+        print('device token');
+        print(value);
+      }
+    });
     fetchToDos();
   }
 
@@ -84,6 +102,46 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> sendNotification() async {
+    final token = await notificationServices.getDeviceToken();
+
+    if (token == null) {
+      if (kDebugMode) print("No device token found");
+      return;
+    }
+
+    var data = {
+      'to': token,
+      'notification': {
+        'title': 'Maya App',
+        'body': 'This is a test notification',
+        'sound': 'jetsons_doorbell.mp3',
+      },
+      'android': {
+        'notification': {'notification_count': 1},
+      },
+      'data': {'type': 'custom', 'id': '12345'},
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://fcm.googleapis.com/fcm/send'),
+        body: jsonEncode(data),
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization':
+              'key=YOUR_SERVER_KEY_HERE', // 🔑 Replace with your FCM server key
+        },
+      );
+
+      if (kDebugMode) {
+        print("Notification response: ${response.body}");
+      }
+    } catch (e) {
+      if (kDebugMode) print("Error sending notification: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
@@ -91,6 +149,16 @@ class _HomePageState extends State<HomePage> {
         final user = state is AuthAuthenticated ? state.user : null;
 
         return Scaffold(
+          appBar: AppBar(
+            title: const Text("Flutter Notifications + ToDos"),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.notifications),
+                onPressed: sendNotification, // ✅ Test notification
+              ),
+            ],
+          ),
+
           body: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -126,6 +194,15 @@ class _HomePageState extends State<HomePage> {
                     const FeaturesSection(),
                     const SizedBox(height: 32),
                     const GoRouterDemo(),
+                     const SizedBox(height: 32),
+
+                    // ✅ Button for sending notifications
+                    Center(
+                      child: ElevatedButton(
+                        onPressed: sendNotification,
+                        child: const Text("Send Test Notification"),
+                      ),
+                    ),
                   ],
                 ),
               ),

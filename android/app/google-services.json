@@ -1,21 +1,40 @@
 {
   "project_info": {
-    "project_number": "667112847725",
-    "project_id": "maya-efe1e",
-    "storage_bucket": "maya-efe1e.firebasestorage.app"
+    "project_number": "210611802225",
+    "project_id": "maya-app-cymake",
+    "storage_bucket": "maya-app-cymake.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:667112847725:android:bad1cd98ea6f38b3ed8264",
+        "mobilesdk_app_id": "1:210611802225:android:f619479b0ef87a32e5cbd0",
         "android_client_info": {
-          "package_name": "com.ravan.Maya"
+          "package_name": "com.ravan.maya"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBYunrWh5gvLnl_bOxmhTA6CV2iYtAATX0"
+          "current_key": "AIzaSyAdpSpBQZ5uqTcNhv4EMqU64xKS8e_ns1Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:210611802225:android:51ae7f37958222dde5cbd0",
+        "android_client_info": {
+          "package_name": "com.ravan.maya"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdpSpBQZ5uqTcNhv4EMqU64xKS8e_ns1Y"
         }
       ],
       "services": {

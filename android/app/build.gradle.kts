@@ -9,13 +9,18 @@ plugins {
 }
 
 android {
-    namespace = "com.ravan.Maya"
+    namespace = "com.ravan.maya"
     compileSdk = 36    
     ndkVersion = "29.0.13846066"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+isCoreLibraryDesugaringEnabled = true 
+   }
+    dependencies {
+        implementation("androidx.core:core:1.13.1") 
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     }
 
     kotlinOptions {
@@ -24,7 +29,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.ravan.Maya"
+        applicationId = "com.ravan.maya"
         minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -52,4 +57,19 @@ android {
 
 flutter {
     source = "../.."
+}
+
+
+dependencies {
+  // Import the Firebase BoM
+  implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
+
+
+  // TODO: Add the dependencies for Firebase products you want to use
+  // When using the BoM, don't specify versions in Firebase dependencies
+  implementation("com.google.firebase:firebase-analytics")
+
+
+  // Add the dependencies for any other desired Firebase products
+  // https://firebase.google.com/docs/android/setup#available-libraries
 }
