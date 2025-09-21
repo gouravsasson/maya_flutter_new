@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-
 import 'storage_service.dart';
 import 'navigation_service.dart';
 import '../../injection_container.dart';
@@ -11,12 +10,16 @@ class AuthService {
   final StorageService _storageService = sl<StorageService>();
   Timer? _tokenExpiryTimer;
   Timer? _refreshTimer;
-  final ApiClient _apiClient = getIt<ApiClient>();
+  final ApiClient _apiClient =
+      sl<ApiClient>(); // Fixed: use sl instead of getIt
+
+  // Add flag to prevent multiple refresh attempts
+  bool _isRefreshing = false;
 
   void startTokenManagement(int interval) {
-    print(
-      '🔑 Starting token managementttttttttttttttttttttttttttttttttttttt... $interval',
-    );
+    // CRITICAL: Stop existing timers first to prevent duplicates
+    stopTokenManagement();
+
     _startTokenExpiryCheck(interval);
     _startPeriodicTokenRefresh();
   }
@@ -25,71 +28,119 @@ class AuthService {
     print('🔑 Stopping token management...');
     _tokenExpiryTimer?.cancel();
     _refreshTimer?.cancel();
+    _tokenExpiryTimer = null;
+    _refreshTimer = null;
+    _isRefreshing = false; // Reset refresh flag
   }
 
   void _startTokenExpiryCheck(int interval) {
-    print(
-      '🔑 Starting token expiry checkttttttttttttttttttttttttttttttttttttt +++++++++5... $interval',
-    );
-    interval = interval - 5;
-    print('🔑 Starting token expiry check ----------5... $interval');
+    // Validate interval
+    if (interval <= 5) {
+      print(
+        '⚠️ Warning: Token expiry interval too short, using minimum 10 seconds',
+      );
+      interval = 10;
+    } else {
+      interval = interval - 5; // Check 5 seconds before expiry
+    }
+
+    print('🔑 Starting token expiry check every $interval seconds');
+
     _tokenExpiryTimer = Timer.periodic(Duration(seconds: interval), (
       timer,
     ) async {
-      final token = await _storageService.getAccessToken();
-      if (token != null) {
-        if (JwtDecoder.isExpired(token)) {
-          await _handleTokenExpiry();
-        }
-      }
+      await _checkTokenExpiry();
     });
+  }
+
+  Future<void> _checkTokenExpiry() async {
+    // Prevent multiple simultaneous checks
+    if (_isRefreshing) {
+      print('🔄 Refresh already in progress, skipping check');
+      return;
+    }
+
+    try {
+      final token = await _storageService.getAccessToken();
+      if (token != null && JwtDecoder.isExpired(token)) {
+        print('🔑 Token expired, attempting refresh...');
+        await _handleTokenExpiry();
+      }
+    } catch (e) {
+      print('❌ Error checking token expiry: $e');
+    }
   }
 
   void _startPeriodicTokenRefresh() {
     _refreshTimer = Timer.periodic(Duration(minutes: 10), (timer) async {
-      await _attemptTokenRefresh();
+      if (!_isRefreshing) {
+        await _attemptTokenRefresh();
+      }
     });
   }
 
   Future<void> _handleTokenExpiry() async {
-    print('🔑 Token expired, attempting refresh...');
+    if (_isRefreshing) {
+      print('🔄 Token refresh already in progress');
+      return;
+    }
 
-    final refreshed = await _attemptTokenRefresh();
-    if (!refreshed) {
-      print('❌ Token refresh failed, performing auto logout...');
-      await _performAutoLogout();
+    _isRefreshing = true;
+
+    try {
+      final refreshed = await _attemptTokenRefresh();
+      if (!refreshed) {
+        print('❌ Token refresh failed, performing auto logout...');
+        await _performAutoLogout();
+        return; // Exit early, don't continue the timer
+      }
+    } finally {
+      _isRefreshing = false;
     }
   }
 
   Future<bool> _attemptTokenRefresh() async {
     try {
       final refreshToken = await _storageService.getRefreshToken();
-      if (refreshToken == null || JwtDecoder.isExpired(refreshToken)) {
+
+      if (refreshToken == null) {
+        print('❌ No refresh token available');
         return false;
       }
 
-      print('🔄 Refreshing token... $refreshToken');
+      if (JwtDecoder.isExpired(refreshToken)) {
+        print('❌ Refresh token is expired');
+        return false;
+      }
 
-      // Simulate API call
-      await Future.delayed(Duration(seconds: 2));
+      print('🔄 Refreshing token...');
 
-      // For demo, generate a new mock token
       final newToken = await _apiClient.refreshToken(refreshToken);
-      print('🔄 New token: ${newToken['data']['refreshToken']}');
-      await _storageService.saveAccessToken(
-        newToken['data']['data']['access_token'],
-      );
-      await _storageService.saveRefreshToken(
-        newToken['data']['data']['refresh_token'],
-      );
-      await _storageService.saveTokenExpiryDate(
-        newToken['data']['data']['expiry_duration'],
-      );
-      print(
-        '🔄 New token refresh_token: ${newToken['data']['data']['refresh_token']}',
-      );
+
+      // Validate response structure
+      if (newToken == null ||
+          newToken['data'] == null ||
+          newToken['data']['data'] == null) {
+        print('❌ Invalid token refresh response structure');
+        return false;
+      }
+
+      final tokenData = newToken['data']['data'];
+
+      // Save new tokens
+      await _storageService.saveAccessToken(tokenData['access_token']);
+      await _storageService.saveRefreshToken(tokenData['refresh_token']);
+      await _storageService.saveTokenExpiryDate(tokenData['expiry_duration']);
 
       print('✅ Token refreshed successfully');
+
+      // IMPORTANT: Restart token management with new expiry
+      final newExpiryDuration = tokenData['expiry_duration'] as int?;
+      if (newExpiryDuration != null) {
+        stopTokenManagement();
+        startTokenManagement(newExpiryDuration);
+      }
+
       return true;
     } catch (e) {
       print('❌ Token refresh error: $e');
@@ -100,19 +151,16 @@ class AuthService {
   Future<void> _performAutoLogout() async {
     print('🚪 Performing auto logout...');
 
+    // CRITICAL: Stop token management FIRST to prevent more refresh attempts
+    stopTokenManagement();
+
     // Clear all stored data
     await _storageService.clearAll();
-
-    // Stop token management
-    stopTokenManagement();
 
     // Navigate to login and show dialog
     final currentContext = NavigationService.navigatorKey.currentContext;
     if (currentContext != null) {
-      // Navigate to login first
       currentContext.go('/login');
-
-      // Then show the dialog
       await Future.delayed(Duration(milliseconds: 100));
       NavigationService.showSessionExpiredDialog();
     }
