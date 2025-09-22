@@ -35,12 +35,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     // Get storage service and token expiry date
     final StorageService storageService = sl<StorageService>();
-    final int? expiryDate = await storageService.getTokenExpiryDate();
+    final DateTime? expiryDate = await storageService.getTokenExpiryDate();
 
     // Start token management with expiry date (if available)
     if (expiryDate != null) {
       authService.startTokenManagement(expiryDate);
-      
+
     } else {
       print('⚠️ No token expiry date found');
     }
@@ -103,7 +103,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           // This is the critical line that should emit AuthAuthenticated
           print('🎯 CRITICAL: About to emit AuthAuthenticated...');
 
-          authService.startTokenManagement(expiryDate ?? 0);
+          authService.startTokenManagement(expiryDate ?? DateTime.now());
 
           emit(AuthAuthenticated(user));
 

@@ -16,11 +16,11 @@ class AuthService {
   // Add flag to prevent multiple refresh attempts
   bool _isRefreshing = false;
 
-  void startTokenManagement(int interval) {
+  void startTokenManagement(DateTime expiryDate) {
     // CRITICAL: Stop existing timers first to prevent duplicates
     stopTokenManagement();
 
-    _startTokenExpiryCheck(interval);
+    _startTokenExpiryCheck(expiryDate);
     _startPeriodicTokenRefresh();
   }
 
@@ -33,20 +33,20 @@ class AuthService {
     _isRefreshing = false; // Reset refresh flag
   }
 
-  void _startTokenExpiryCheck(int interval) {
+  void _startTokenExpiryCheck(DateTime expiryDate) {
     // Validate interval
-    if (interval <= 5) {
+    if (expiryDate.isBefore(DateTime.now().add(Duration(seconds: 5)))) {
       print(
         '⚠️ Warning: Token expiry interval too short, using minimum 10 seconds',
       );
-      interval = 10;
+      expiryDate = DateTime.now().add(Duration(seconds: 10));
     } else {
-      interval = interval - 5; // Check 5 seconds before expiry
+      expiryDate = expiryDate.subtract(Duration(seconds: 5)); // Check 5 seconds before expiry
     }
 
-    print('🔑 Starting token expiry check every $interval seconds');
+    print('🔑 Starting token expiry check every ${expiryDate.difference(DateTime.now()).inSeconds} seconds');
 
-    _tokenExpiryTimer = Timer.periodic(Duration(seconds: interval), (
+    _tokenExpiryTimer = Timer.periodic(Duration(seconds: expiryDate.difference(DateTime.now()).inSeconds), (
       timer,
     ) async {
       await _checkTokenExpiry();
@@ -130,7 +130,7 @@ class AuthService {
       // Save new tokens
       await _storageService.saveAccessToken(tokenData['access_token']);
       await _storageService.saveRefreshToken(tokenData['refresh_token']);
-      await _storageService.saveTokenExpiryDate(tokenData['expiry_duration']);
+      await _storageService.saveTokenExpiryDate(DateTime.now().add(Duration(seconds: tokenData['expiry_duration'])));
 
       print('✅ Token refreshed successfully');
 
@@ -138,7 +138,7 @@ class AuthService {
       final newExpiryDuration = tokenData['expiry_duration'] as int?;
       if (newExpiryDuration != null) {
         stopTokenManagement();
-        startTokenManagement(newExpiryDuration);
+        startTokenManagement(DateTime.now().add(Duration(seconds: newExpiryDuration)));
       }
 
       return true;

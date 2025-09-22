@@ -51,7 +51,7 @@
                 <data 
                     android:scheme="https"
                     android:host="maya.ravan.ai"
-                    android:pathPrefix="/app" />
+                    android:pathPrefix="/" />
             </intent-filter>
 
         </activity>

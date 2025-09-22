@@ -48,10 +48,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         await storageService.saveUserData(
           json.encode(loginResponse.user.toJson()),
         );
+        final tokenExpiryDate = DateTime.now().add(
+          Duration(seconds: loginResponse.expiryDuration),
+        );
         await storageService.saveAccessToken(loginResponse.accessToken);
         await storageService.saveRefreshToken(loginResponse.refreshToken);
-        await storageService.saveTokenExpiryDate(loginResponse.expiryDuration);
-        print('🌐 API: Token expiry date: ${loginResponse.expiryDuration}');
+        await storageService.saveTokenExpiryDate(tokenExpiryDate);
+
+        print('🌐 API: Token expiry date: $tokenExpiryDate');
         return loginResponse;
       } else {
         throw ServerException(
@@ -150,13 +154,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     try {
       print('🌐 API: Attempting token refresh');
 
-      
       final response = await getIt<ApiClient>().refreshToken(refreshToken);
 
       // Simulate API call delay
       await Future.delayed(Duration(seconds: 1));
 
-      
       if (response['statusCode'] == 200) {
         return LoginResponseModel.fromJson(response['data']);
       } else {

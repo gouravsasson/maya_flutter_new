@@ -12,8 +12,8 @@ abstract class StorageService {
   Future<void> clearAll();
   Future<void> setBool(String key, bool value);
   Future<bool?> getBool(String key);
-  Future<void> saveTokenExpiryDate(int expiryDate);
-  Future<int?> getTokenExpiryDate();
+  Future<void> saveTokenExpiryDate(DateTime expiryDate);
+  Future<DateTime?> getTokenExpiryDate();
 }
 
 class StorageServiceImpl implements StorageService {
@@ -28,8 +28,8 @@ class StorageServiceImpl implements StorageService {
   }
 
   @override
-  Future<void> saveTokenExpiryDate(int expiryDate) async {
-    await _preferences.setInt(AppConstants.tokenExpiryDateKey, expiryDate);
+  Future<void> saveTokenExpiryDate(DateTime expiryDate) async {
+    await _preferences.setString(AppConstants.tokenExpiryDateKey, expiryDate.toIso8601String());
   }
 
   @override
@@ -75,7 +75,9 @@ class StorageServiceImpl implements StorageService {
   }
 
   @override
-  Future<int?> getTokenExpiryDate() async {
-    return _preferences.getInt(AppConstants.tokenExpiryDateKey);
+  Future<DateTime?> getTokenExpiryDate() async {
+    final expiryDateString = _preferences.getString(AppConstants.tokenExpiryDateKey);
+    if (expiryDateString == null) return null;
+    return DateTime.parse(expiryDateString);
   }
 }
