@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 class MessageScreen extends StatefulWidget {
   final String id ;
-  const MessageScreen({Key? key , required this.id}) : super(key: key);
+  const MessageScreen({super.key , required this.id});
 
   @override
   State<MessageScreen> createState() => _MessageScreenState();
@@ -15,7 +15,7 @@ class _MessageScreenState extends State<MessageScreen> {
   Widget build(BuildContext context) {
     return  Scaffold(
       appBar: AppBar(
-        title: Text('Message Screen' +widget.id)  ,
+        title: Text('Message Screen${widget.id}')  ,
       ),
     );
   }

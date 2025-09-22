@@ -26,10 +26,10 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Initialize Firebase Messaging
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  final FirebaseMessaging messaging = FirebaseMessaging.instance;
 
   // Request permission for notifications (iOS)
-  NotificationSettings settings = await _messaging.requestPermission(
+  NotificationSettings settings = await messaging.requestPermission(
     alert: true,
     badge: true,
     sound: true,
@@ -112,6 +112,8 @@ class _MyAppState extends State<MyApp> {
       child: MaterialApp.router(
         title: 'Maya App',
         theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme, // Added dark theme
+        themeMode: ThemeMode.system, // Follow OS dark/light mode
         routerConfig: _router,
         debugShowCheckedModeBanner: false,
       ),
