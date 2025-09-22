@@ -26,10 +26,10 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Initialize Firebase Messaging
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  final FirebaseMessaging messaging = FirebaseMessaging.instance;
 
   // Request permission for notifications (iOS)
-  NotificationSettings settings = await _messaging.requestPermission(
+  NotificationSettings settings = await messaging.requestPermission(
     alert: true,
     badge: true,
     sound: true,

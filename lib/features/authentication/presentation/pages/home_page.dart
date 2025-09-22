@@ -110,11 +110,6 @@ class _HomePageState extends State<HomePage> {
   Future<void> sendNotification() async {
     final token = await notificationServices.getDeviceToken();
 
-    if (token == null) {
-      if (kDebugMode) print("No device token found");
-      return;
-    }
-
     var data = {
       'to': token,
       'notification': {

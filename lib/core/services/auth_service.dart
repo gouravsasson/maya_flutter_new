@@ -118,8 +118,7 @@ class AuthService {
       final newToken = await _apiClient.refreshToken(refreshToken);
 
       // Validate response structure
-      if (newToken == null ||
-          newToken['data'] == null ||
+      if (newToken['data'] == null ||
           newToken['data']['data'] == null) {
         print('❌ Invalid token refresh response structure');
         return false;
