@@ -132,29 +132,12 @@ class ApiClient {
   }
 
   // Google Access Token Mobile API
-  Future<Map<String, dynamic>> googleAccessTokenMobile(
-    Map<String, dynamic> payload,
-  ) async {
-    final response = await post(
+  Future<Map<String, dynamic>> googleAccessTokenMobile(String code) async {
+    final response = await get(
       _protectedDio,
-      '/crm/google/access-token-mobile',
-      data: payload,
+      '/productivity/callback/google?code=$code',
     );
     return {'statusCode': response.statusCode, 'data': response.data};
-  }
-
-  Map<String, dynamic> prepareGoogleAccessTokenMobilePayload(
-    String accessToken,
-    String refreshToken,
-    String scope,
-    String tokenType,
-  ) {
-    return {
-      'access_token': accessToken,
-      'refresh_token': refreshToken,
-      'scope': scope,
-      'token_type': tokenType,
-    };
   }
 
   // Fetch Tasks API
@@ -249,7 +232,7 @@ class ApiClient {
   // Get To-Do API
   Future<Map<String, dynamic>> getToDo() async {
     print('getToDo');
-    final response = await get(_protectedDio, '/crm/todo/get');
+    final response = await get(_protectedDio, '/productivity/todo/get');
     print('getToDo response: ${response.data}');
     print('getToDo statusCode: ${response.statusCode}');
     return {'statusCode': response.statusCode, 'data': response.data};
@@ -259,7 +242,7 @@ class ApiClient {
   Future<Map<String, dynamic>> updateToDo(Map<String, dynamic> payload) async {
     final response = await put(
       _protectedDio,
-      '/crm/todo/update',
+      '/productivity/todo/update',
       data: payload,
     );
     return {'statusCode': response.statusCode, 'data': response.data};
@@ -287,9 +270,24 @@ class ApiClient {
   Future<Map<String, dynamic>> deleteToDo(int id) async {
     final response = await delete(
       _protectedDio,
-      '/crm/todo/delete',
+      '/productivity/todo/delete',
       data: {'ID': id},
     );
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  // Fetch Notifications API
+  Future<Map<String, dynamic>> sendFcmToken(String fcmToken) async {
+    final response = await post(
+      _protectedDio,
+      '/auth/save-fcm-token',
+      data: {'fcm_token': fcmToken},
+    );
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  Future<Map<String, dynamic>> fetchReminders() async {
+    final response = await get(_protectedDio, '/productivity/reminder/get');
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 

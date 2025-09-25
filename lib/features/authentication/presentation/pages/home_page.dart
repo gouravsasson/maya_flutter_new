@@ -26,7 +26,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> todos = [];
+  List<Map<String, dynamic>> reminders = [];
   bool isLoadingTodos = false;
+  bool isLoadingReminders = false;
   NotificationServices notificationServices = NotificationServices();
   String? fcmToken; // Store FCM token
 
@@ -45,11 +47,26 @@ class _HomePageState extends State<HomePage> {
         fcmToken = value;
       });
       if (kDebugMode) {
+        getIt<ApiClient>().sendFcmToken(value);
         print('device token');
         print(value);
       }
     });
+    fetchReminders();
+
     fetchToDos();
+  }
+
+  Future<void> fetchReminders() async {
+    setState(() => isLoadingReminders = true);
+    final response = await getIt<ApiClient>().fetchReminders();
+    if (response['statusCode'] == 200) {
+      setState(() {
+        reminders = List<Map<String, dynamic>>.from(response['data']);
+      });
+      print("reminders: " + reminders.toString());
+    }
+    setState(() => isLoadingReminders = false);
   }
 
   // ✅ Fetch ToDos using ApiClient
@@ -231,11 +248,15 @@ class _HomePageState extends State<HomePage> {
                             Align(
                               alignment: Alignment.centerRight,
                               child: ElevatedButton.icon(
-                                onPressed: fcmToken == null ? null : copyFcmToken,
+                                onPressed: fcmToken == null
+                                    ? null
+                                    : copyFcmToken,
                                 icon: const Icon(Icons.copy, size: 18),
                                 label: const Text('Copy Token'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Theme.of(context).primaryColor,
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).primaryColor,
                                   foregroundColor: Colors.white,
                                 ),
                               ),
