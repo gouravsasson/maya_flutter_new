@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:Maya/core/network/api_client.dart';
 import 'package:Maya/features/widgets/integration.dart';
 import 'package:Maya/features/widgets/integration_card.dart';
 import 'package:Maya/features/widgets/stat_card.dart';

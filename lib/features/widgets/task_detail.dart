@@ -1,3 +1,4 @@
+import 'dart:convert'; // Added for JSON parsing
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:Maya/core/network/api_client.dart'; // Import the ApiClient
@@ -147,6 +148,12 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                         'Scheduled At',
                         _formatTimestamp(task['scheduled_at'] as String? ?? ''),
                       ),
+                      _buildDetailRow(
+                        'Response',
+                        _formatResponse(
+                          task['response'] as Map<String, dynamic>? ?? {},
+                        ),
+                      ),
                       const SizedBox(height: 16),
                     ],
                   );
@@ -212,5 +219,72 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
           return '$formattedKey: $value';
         })
         .join('\n');
+  }
+
+  String _formatResponse(Map<String, dynamic>? response) {
+    if (response == null || response.isEmpty) {
+      return 'No response data';
+    }
+    // Initialize the result with message and success fields
+    final List<String> formattedEntries = [];
+    if (response['message']?.toString().isNotEmpty == true) {
+      formattedEntries.add('Message: ${response['message']}');
+    }
+    if (response['success'] != null) {
+      formattedEntries.add('Success: ${response['success']}');
+    }
+
+    // Parse and format the data field if it exists
+    if (response['data']?.toString().isNotEmpty == true) {
+      try {
+        final data = jsonDecode(response['data'] as String) as Map<String, dynamic>;
+        // Exclude specific fields
+        final filteredData = data.entries.where((entry) {
+          return ![
+            'id',
+            'CreatedAt',
+            'UpdatedAt',
+            'DeletedAt',
+          ].contains(entry.key.toLowerCase());
+        });
+        final dataFormatted = filteredData.map((entry) {
+          String formattedKey = entry.key
+              .split('_')
+              .map(
+                (word) => word.isNotEmpty
+                    ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+                    : '',
+              )
+              .join(' ');
+          String value = entry.value?.toString() ?? 'N/A';
+          // Check if the value is a date-time string
+          if (value != 'N/A' && _isDateTime(value)) {
+            try {
+              final dateTime = DateTime.parse(value).toLocal();
+              value = DateFormat('MMM d, yyyy h:mm a').format(dateTime);
+            } catch (e) {
+              // If parsing fails, keep the original value
+            }
+          }
+          return '$formattedKey: $value';
+        }).join('\n');
+        if (dataFormatted.isNotEmpty) {
+          formattedEntries.add('Data:\n$dataFormatted');
+        }
+      } catch (e) {
+        formattedEntries.add('Data: ${response['data']}');
+      }
+    }
+
+    return formattedEntries.isEmpty
+        ? 'No response data'
+        : formattedEntries.join('\n');
+  }
+
+  bool _isDateTime(String value) {
+    // Basic check for ISO 8601 or similar date-time format
+    final dateTimePattern = RegExp(
+        r'^\d{4}-\d{2}-\d{2}(T|\s)\d{2}:\d{2}:\d{2}(\.\d+)?([Z+|-]\d{2}:\d{2})?$');
+    return dateTimePattern.hasMatch(value);
   }
 }

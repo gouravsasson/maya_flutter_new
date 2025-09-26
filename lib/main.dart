@@ -9,8 +9,6 @@ import 'core/theme/app_theme.dart';
 import 'features/authentication/presentation/bloc/auth_bloc.dart';
 import 'features/authentication/presentation/bloc/auth_event.dart';
 import 'injection_container.dart' as di;
-import 'core/services/storage_service.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
 
 // Background message handler
 @pragma('vm:entry-point')

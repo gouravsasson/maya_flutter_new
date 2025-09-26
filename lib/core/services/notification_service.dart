@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:Maya/utils/message_screen.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/foundation.dart';

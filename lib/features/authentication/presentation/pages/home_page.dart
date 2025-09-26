@@ -64,7 +64,7 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         reminders = List<Map<String, dynamic>>.from(response['data']);
       });
-      print("reminders: " + reminders.toString());
+      print("reminders: $reminders");
     }
     setState(() => isLoadingReminders = false);
   }
