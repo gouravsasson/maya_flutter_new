@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
+import 'package:geolocator/geolocator.dart'; // Add this dependency: geolocator: ^10.1.0 in pubspec.yaml
+import 'package:flutter_timezone/flutter_timezone.dart'; // Add this dependency: flutter_timezone: ^1.0.8 in pubspec.yaml
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,7 +12,6 @@ import 'package:Maya/features/widgets/go_router_demo.dart';
 import 'package:Maya/features/widgets/talk_to_maya.dart';
 import 'package:Maya/features/widgets/todo_list.dart';
 import 'package:Maya/features/widgets/welcome_card.dart';
-
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
@@ -31,6 +31,7 @@ class _HomePageState extends State<HomePage> {
   bool isLoadingReminders = false;
   NotificationServices notificationServices = NotificationServices();
   String? fcmToken; // Store FCM token
+  String? locationPermissionStatus; // ✅ Track permission status
 
   @override
   void initState() {
@@ -48,13 +49,131 @@ class _HomePageState extends State<HomePage> {
       });
       if (kDebugMode) {
         getIt<ApiClient>().sendFcmToken(value);
-        print('device token');
-        print(value);
+        print('device token: $value');
       }
     });
     fetchReminders();
-
     fetchToDos();
+    // Initialize and save location on page load
+    _initializeAndSaveLocation();
+  }
+
+  // ✅ Initialize and fetch current location + timezone, then save it
+  Future<void> _initializeAndSaveLocation() async {
+    try {
+      // Get the device's local timezone
+      TimezoneInfo timezone = await FlutterTimezone.getLocalTimezone();
+
+      // Check if location services are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() => locationPermissionStatus = 'Location services disabled');
+        if (kDebugMode) print('Location services are disabled.');
+        _showLocationServiceDialog();
+        return;
+      }
+
+      // Check and request location permissions
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        setState(() => locationPermissionStatus = 'Location permission denied');
+        if (kDebugMode) print('Location permission status: Denied');
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _showLocationPermissionDialog();
+          setState(() => locationPermissionStatus = 'Location permission denied after request');
+          if (kDebugMode) print('Location permission status: Denied after request');
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        setState(() => locationPermissionStatus = 'Location permission permanently denied');
+        if (kDebugMode) print('Location permission status: Permanently denied');
+        _showLocationPermissionDialog(permanent: true);
+        return;
+      }
+
+      setState(() => locationPermissionStatus = 'Location permission granted');
+      if (kDebugMode) print('Location permission status: Granted');
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // Save location via API
+      final response = await getIt<ApiClient>().saveLocation(
+        position.latitude,
+        position.longitude,
+        timezone as String,
+      );
+
+      if (response['statusCode'] == 200) {
+        if (kDebugMode) print('Location saved successfully: ${position.latitude}, ${position.longitude}, $timezone');
+      } else {
+        if (kDebugMode) print('Failed to save location: ${response['data']}');
+      }
+    } catch (e) {
+      setState(() => locationPermissionStatus = 'Error checking permission: $e');
+      if (kDebugMode) print('Error saving location: $e');
+    }
+  }
+
+  // ✅ Dialog to prompt enabling location services
+  void _showLocationServiceDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Location Services Disabled'),
+        content: const Text('Please enable location services to save your location.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Geolocator.openLocationSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ Dialog to request location permissions
+  void _showLocationPermissionDialog({bool permanent = false}) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Location Permission Required'),
+        content: Text(permanent
+            ? 'Location permissions are permanently denied. Please enable them in app settings.'
+            : 'Location permission is required to save your location.'),
+        actions: [
+          if (!permanent) ...[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              if (permanent) {
+                Geolocator.openAppSettings();
+              } else {
+                Geolocator.requestPermission();
+              }
+            },
+            child: Text(permanent ? 'Open Settings' : 'Grant Permission'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> fetchReminders() async {
@@ -64,7 +183,7 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         reminders = List<Map<String, dynamic>>.from(response['data']);
       });
-      print("reminders: $reminders");
+      if (kDebugMode) print("reminders: $reminders");
     }
     setState(() => isLoadingReminders = false);
   }
@@ -72,14 +191,12 @@ class _HomePageState extends State<HomePage> {
   // ✅ Fetch ToDos using ApiClient
   Future<void> fetchToDos() async {
     setState(() => isLoadingTodos = true);
-
     final response = await getIt<ApiClient>().getToDo();
     if (response['statusCode'] == 200) {
       setState(() {
         todos = List<Map<String, dynamic>>.from(response['data']['data']);
       });
     }
-
     setState(() => isLoadingTodos = false);
   }
 
@@ -126,7 +243,6 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> sendNotification() async {
     final token = await notificationServices.getDeviceToken();
-
     var data = {
       'to': token,
       'notification': {
@@ -146,14 +262,10 @@ class _HomePageState extends State<HomePage> {
         body: jsonEncode(data),
         headers: {
           'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization':
-              'key=YOUR_SERVER_KEY_HERE', // 🔑 Replace with your FCM server key
+          'Authorization': 'key=YOUR_SERVER_KEY_HERE', // 🔑 Replace with your FCM server key
         },
       );
-
-      if (kDebugMode) {
-        print("Notification response: ${response.body}");
-      }
+      if (kDebugMode) print("Notification response: ${response.body}");
     } catch (e) {
       if (kDebugMode) print("Error sending notification: $e");
     }
@@ -197,8 +309,6 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 32),
                     const TalkToMaya(),
                     const SizedBox(height: 16),
-
-                    // ✅ Hooked ToDoList with ApiClient
                     ToDoList(
                       todos: todos,
                       isLoading: isLoadingTodos,
@@ -206,22 +316,17 @@ class _HomePageState extends State<HomePage> {
                       onUpdate: fetchToDos,
                       onDelete: fetchToDos,
                     ),
-
                     const SizedBox(height: 16),
                     const FeaturesSection(),
                     const SizedBox(height: 32),
                     const GoRouterDemo(),
                     const SizedBox(height: 32),
-
-                    // ✅ Button for sending notifications
                     Center(
                       child: ElevatedButton(
                         onPressed: sendNotification,
                         child: const Text("Send Test Notification"),
                       ),
                     ),
-
-                    // ✅ FCM Token Display Section
                     const SizedBox(height: 16),
                     Card(
                       elevation: 2,
@@ -248,17 +353,32 @@ class _HomePageState extends State<HomePage> {
                             Align(
                               alignment: Alignment.centerRight,
                               child: ElevatedButton.icon(
-                                onPressed: fcmToken == null
-                                    ? null
-                                    : copyFcmToken,
+                                onPressed: fcmToken == null ? null : copyFcmToken,
                                 icon: const Icon(Icons.copy, size: 18),
                                 label: const Text('Copy Token'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).primaryColor,
+                                  backgroundColor: Theme.of(context).primaryColor,
                                   foregroundColor: Colors.white,
                                 ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            // ✅ Display Location Permission Status
+                            const Text(
+                              'Location Permission Status',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              locationPermissionStatus ?? 'Checking permission...',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: locationPermissionStatus?.contains('granted') ?? false
+                                    ? Colors.green
+                                    : Colors.red,
                               ),
                             ),
                           ],

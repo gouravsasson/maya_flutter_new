@@ -6,7 +6,9 @@ list(APPEND FLUTTER_PLUGIN_LIST
   connectivity_plus
   firebase_core
   flutter_secure_storage_windows
+  flutter_timezone
   flutter_webrtc
+  geolocator_windows
   livekit_client
   permission_handler_windows
   url_launcher_windows

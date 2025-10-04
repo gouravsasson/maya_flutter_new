@@ -225,60 +225,90 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     if (response == null || response.isEmpty) {
       return 'No response data';
     }
-    // Initialize the result with message and success fields
-    final List<String> formattedEntries = [];
-    if (response['message']?.toString().isNotEmpty == true) {
-      formattedEntries.add('Message: ${response['message']}');
-    }
-    if (response['success'] != null) {
-      formattedEntries.add('Success: ${response['success']}');
-    }
 
-    // Parse and format the data field if it exists
-    if (response['data']?.toString().isNotEmpty == true) {
-      try {
-        final data = jsonDecode(response['data'] as String) as Map<String, dynamic>;
-        // Exclude specific fields
-        final filteredData = data.entries.where((entry) {
-          return ![
-            'id',
-            'CreatedAt',
-            'UpdatedAt',
-            'DeletedAt',
-          ].contains(entry.key.toLowerCase());
-        });
-        final dataFormatted = filteredData.map((entry) {
-          String formattedKey = entry.key
-              .split('_')
-              .map(
-                (word) => word.isNotEmpty
-                    ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
-                    : '',
-              )
-              .join(' ');
-          String value = entry.value?.toString() ?? 'N/A';
-          // Check if the value is a date-time string
-          if (value != 'N/A' && _isDateTime(value)) {
-            try {
-              final dateTime = DateTime.parse(value).toLocal();
-              value = DateFormat('MMM d, yyyy h:mm a').format(dateTime);
-            } catch (e) {
-              // If parsing fails, keep the original value
-            }
-          }
-          return '$formattedKey: $value';
-        }).join('\n');
-        if (dataFormatted.isNotEmpty) {
-          formattedEntries.add('Data:\n$dataFormatted');
-        }
-      } catch (e) {
-        formattedEntries.add('Data: ${response['data']}');
-      }
-    }
+    List<String> formattedEntries = [];
+
+    // Recursively format all fields in the response
+    response.forEach((key, value) {
+      String formattedKey = key
+          .split('_')
+          .map(
+            (word) => word.isNotEmpty
+                ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+                : '',
+          )
+          .join(' ');
+      String formattedValue = _formatValue(value, indentLevel: 1);
+      formattedEntries.add('$formattedKey: $formattedValue');
+    });
 
     return formattedEntries.isEmpty
         ? 'No response data'
         : formattedEntries.join('\n');
+  }
+
+  String _formatValue(dynamic value, {int indentLevel = 0}) {
+    const String indent = '  '; // Two spaces per indent level
+
+    if (value == null) {
+      return 'N/A';
+    } else if (value is String) {
+      // Check if the string is a JSON object or array
+      try {
+        final decoded = jsonDecode(value);
+        return _formatValue(decoded, indentLevel: indentLevel);
+      } catch (e) {
+        // Check if the string is a date-time
+        if (_isDateTime(value)) {
+          try {
+            final dateTime = DateTime.parse(value).toLocal();
+            return DateFormat('MMM d, yyyy h:mm a').format(dateTime);
+          } catch (e) {
+            return value;
+          }
+        }
+        return value.isEmpty ? 'N/A' : value;
+      }
+    } else if (value is Map<String, dynamic>) {
+      if (value.isEmpty) {
+        return 'Empty object';
+      }
+      final entries = value.entries.map((entry) {
+        String formattedKey = entry.key
+            .split('_')
+            .map(
+              (word) => word.isNotEmpty
+                  ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+                  : '',
+            )
+            .join(' ');
+        String formattedValue = _formatValue(entry.value, indentLevel: indentLevel + 1);
+        return '${indent * (indentLevel + 1)}$formattedKey: $formattedValue';
+      }).join('\n');
+      return '\n$entries';
+    } else if (value is List) {
+      if (value.isEmpty) {
+        return 'Empty list';
+      }
+      final entries = value.asMap().entries.map((entry) {
+        int index = entry.key;
+        dynamic item = entry.value;
+        String formattedItem = _formatValue(item, indentLevel: indentLevel + 1);
+        return '${indent * (indentLevel + 1)}[$index]: $formattedItem';
+      }).join('\n');
+      return '\n$entries';
+    } else if (value is bool || value is num) {
+      return value.toString();
+    } else {
+      // Try to handle as JSON string if possible
+      try {
+        final jsonString = jsonEncode(value);
+        final decoded = jsonDecode(jsonString);
+        return _formatValue(decoded, indentLevel: indentLevel);
+      } catch (e) {
+        return value.toString();
+      }
+    }
   }
 
   bool _isDateTime(String value) {

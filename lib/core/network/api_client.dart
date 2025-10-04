@@ -291,7 +291,24 @@ class ApiClient {
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
+  Future<Map<String, dynamic>> saveLocation(double latitude, double longitude, String timezone) async {
+    final payload = {
+      'latitude': latitude,
+      'longitude': longitude,
+      'timezone': timezone,
+    };
+    final response = await post(
+      _protectedDio,
+      '/auth/save-location',
+      data: payload,
+    );
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+
+
   Map<String, dynamic> prepareDeleteToDoPayload(int id) {
     return {'ID': id};
   }
 }
+
