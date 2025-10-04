@@ -83,7 +83,7 @@ class _EditToDoDialogState extends State<EditToDoDialog> {
                 filled: true,
                 fillColor: kInputBackground,
               ),
-              value: status,
+              initialValue: status,
               items: ['Todo', 'in-progress', 'completed', '']
                   .map(
                     (status) =>

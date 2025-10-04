@@ -291,7 +291,11 @@ class ApiClient {
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
-  Future<Map<String, dynamic>> saveLocation(double latitude, double longitude, String timezone) async {
+  Future<Map<String, dynamic>> saveLocation(
+    double latitude,
+    double longitude,
+    String timezone,
+  ) async {
     final payload = {
       'latitude': latitude,
       'longitude': longitude,
@@ -305,10 +309,75 @@ class ApiClient {
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
-
-
   Map<String, dynamic> prepareDeleteToDoPayload(int id) {
     return {'ID': id};
   }
-}
 
+  // Google Search API
+  Future<Map<String, dynamic>> googleSearch(
+    String question, {
+    String? mode,
+  }) async {
+    final payload = prepareGoogleSearchPayload(question, mode: mode);
+    final response = await post(
+      _protectedDio,
+      '/productivity/google/search',
+      data: payload,
+    );
+    print('googleSearch response: ${response.data}');
+    print('googleSearch statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  Map<String, dynamic> prepareGoogleSearchPayload(
+    String question, {
+    String? mode,
+  }) {
+    final payload = {'question': question};
+    if (mode != null) {
+      payload['mode'] = mode;
+    }
+    return payload;
+  }
+
+  Future<Map<String, dynamic>> createGeneration(
+    Map<String, dynamic> payload,
+  ) async {
+    final response = await post(_protectedDio, '/productivity/generations', data: payload);
+    print('createGeneration response: ${response.data}');
+    print('createGeneration statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  Map<String, dynamic> prepareCreateGenerationPayload(
+    String type,
+    Map<String, dynamic> input,
+    String createdBy,
+  ) {
+    return {'type': type, 'input': input, 'createdBy': createdBy};
+  }
+
+  // Get Generation API
+  Future<Map<String, dynamic>> getGeneration(String id) async {
+    final response = await get(_protectedDio, '/productivity/generations/$id');
+    print('getGeneration response: ${response.data}');
+    print('getGeneration statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  // Approve Generation API
+  Future<Map<String, dynamic>> approveGeneration(String id) async {
+    final response = await post(_protectedDio, '/productivity/generations/$id/approve');
+    print('approveGeneration response: ${response.data}');
+    print('approveGeneration statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  // Regenerate Generation API
+  Future<Map<String, dynamic>> regenerateGeneration(String id) async {
+    final response = await post(_protectedDio, '/productivity/generations/$id/regenerate');
+    print('regenerateGeneration response: ${response.data}');
+    print('regenerateGeneration statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+}

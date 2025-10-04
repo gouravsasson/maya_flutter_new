@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:Maya/features/widgets/generations.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart'; // Add this dependency: geolocator: ^10.1.0 in pubspec.yaml
 import 'package:flutter_timezone/flutter_timezone.dart'; // Add this dependency: flutter_timezone: ^1.0.8 in pubspec.yaml
@@ -16,6 +17,7 @@ import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
 import 'package:Maya/core/services/notification_service.dart';
+import 'package:Maya/features/widgets/google_search.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -81,14 +83,21 @@ class _HomePageState extends State<HomePage> {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           _showLocationPermissionDialog();
-          setState(() => locationPermissionStatus = 'Location permission denied after request');
-          if (kDebugMode) print('Location permission status: Denied after request');
+          setState(
+            () => locationPermissionStatus =
+                'Location permission denied after request',
+          );
+          if (kDebugMode)
+            print('Location permission status: Denied after request');
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        setState(() => locationPermissionStatus = 'Location permission permanently denied');
+        setState(
+          () => locationPermissionStatus =
+              'Location permission permanently denied',
+        );
         if (kDebugMode) print('Location permission status: Permanently denied');
         _showLocationPermissionDialog(permanent: true);
         return;
@@ -110,12 +119,17 @@ class _HomePageState extends State<HomePage> {
       );
 
       if (response['statusCode'] == 200) {
-        if (kDebugMode) print('Location saved successfully: ${position.latitude}, ${position.longitude}, $timezone');
+        if (kDebugMode)
+          print(
+            'Location saved successfully: ${position.latitude}, ${position.longitude}, $timezone',
+          );
       } else {
         if (kDebugMode) print('Failed to save location: ${response['data']}');
       }
     } catch (e) {
-      setState(() => locationPermissionStatus = 'Error checking permission: $e');
+      setState(
+        () => locationPermissionStatus = 'Error checking permission: $e',
+      );
       if (kDebugMode) print('Error saving location: $e');
     }
   }
@@ -126,7 +140,9 @@ class _HomePageState extends State<HomePage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Location Services Disabled'),
-        content: const Text('Please enable location services to save your location.'),
+        content: const Text(
+          'Please enable location services to save your location.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -150,9 +166,11 @@ class _HomePageState extends State<HomePage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Location Permission Required'),
-        content: Text(permanent
-            ? 'Location permissions are permanently denied. Please enable them in app settings.'
-            : 'Location permission is required to save your location.'),
+        content: Text(
+          permanent
+              ? 'Location permissions are permanently denied. Please enable them in app settings.'
+              : 'Location permission is required to save your location.',
+        ),
         actions: [
           if (!permanent) ...[
             TextButton(
@@ -262,7 +280,8 @@ class _HomePageState extends State<HomePage> {
         body: jsonEncode(data),
         headers: {
           'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization': 'key=YOUR_SERVER_KEY_HERE', // 🔑 Replace with your FCM server key
+          'Authorization':
+              'key=YOUR_SERVER_KEY_HERE', // 🔑 Replace with your FCM server key
         },
       );
       if (kDebugMode) print("Notification response: ${response.body}");
@@ -307,7 +326,12 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     const WelcomeCard(),
                     const SizedBox(height: 32),
+                    const GoogleSearchBar(),
+                    const SizedBox(height: 16),
+
                     const TalkToMaya(),
+                    const SizedBox(height: 16),
+                     const Generations(), 
                     const SizedBox(height: 16),
                     ToDoList(
                       todos: todos,
@@ -353,11 +377,15 @@ class _HomePageState extends State<HomePage> {
                             Align(
                               alignment: Alignment.centerRight,
                               child: ElevatedButton.icon(
-                                onPressed: fcmToken == null ? null : copyFcmToken,
+                                onPressed: fcmToken == null
+                                    ? null
+                                    : copyFcmToken,
                                 icon: const Icon(Icons.copy, size: 18),
                                 label: const Text('Copy Token'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Theme.of(context).primaryColor,
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).primaryColor,
                                   foregroundColor: Colors.white,
                                 ),
                               ),
@@ -373,10 +401,15 @@ class _HomePageState extends State<HomePage> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              locationPermissionStatus ?? 'Checking permission...',
+                              locationPermissionStatus ??
+                                  'Checking permission...',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: locationPermissionStatus?.contains('granted') ?? false
+                                color:
+                                    locationPermissionStatus?.contains(
+                                          'granted',
+                                        ) ??
+                                        false
                                     ? Colors.green
                                     : Colors.red,
                               ),
