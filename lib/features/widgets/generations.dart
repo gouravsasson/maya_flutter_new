@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 import 'package:Maya/core/network/api_client.dart';
 
 class Generations extends StatefulWidget {
@@ -28,7 +27,7 @@ class _GenerationsState extends State<Generations> {
     try {
       // Since we don't have a list endpoint, we'll fetch a sample generation
       // In a real app, you might want to add a list endpoint or modify this
-      final response = await getIt<ApiClient>().getGeneration('sample-id');
+      final response = await getIt<ApiClient>().getGeneration('2a443278-fab0-4e51-9e6f-f8160b03683e');
       if (response['statusCode'] == 200) {
         setState(() {
           generations = [response['data']];

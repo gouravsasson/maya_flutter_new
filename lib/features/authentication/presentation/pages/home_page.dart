@@ -87,8 +87,9 @@ class _HomePageState extends State<HomePage> {
             () => locationPermissionStatus =
                 'Location permission denied after request',
           );
-          if (kDebugMode)
+          if (kDebugMode) {
             print('Location permission status: Denied after request');
+          }
           return;
         }
       }
@@ -119,10 +120,11 @@ class _HomePageState extends State<HomePage> {
       );
 
       if (response['statusCode'] == 200) {
-        if (kDebugMode)
+        if (kDebugMode) {
           print(
             'Location saved successfully: ${position.latitude}, ${position.longitude}, $timezone',
           );
+        }
       } else {
         if (kDebugMode) print('Failed to save location: ${response['data']}');
       }
@@ -326,12 +328,8 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     const WelcomeCard(),
                     const SizedBox(height: 32),
-                    const GoogleSearchBar(),
-                    const SizedBox(height: 16),
 
                     const TalkToMaya(),
-                    const SizedBox(height: 16),
-                     const Generations(), 
                     const SizedBox(height: 16),
                     ToDoList(
                       todos: todos,

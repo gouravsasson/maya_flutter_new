@@ -1,6 +1,7 @@
-import 'dart:convert'; // Added for JSON parsing
+import 'dart:convert'; // For JSON parsing
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:audioplayers/audioplayers.dart'; // Import audioplayers
 import 'package:Maya/core/network/api_client.dart'; // Import the ApiClient
 
 class TaskDetailPage extends StatefulWidget {
@@ -18,7 +19,7 @@ class TaskDetailPage extends StatefulWidget {
 }
 
 class _TaskDetailPageState extends State<TaskDetailPage> {
-  List<Map<String, dynamic>> tasks = []; // Changed to handle multiple tasks
+  List<Map<String, dynamic>> tasks = [];
   bool isLoading = true;
   String? errorMessage;
 
@@ -52,7 +53,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
           setState(() {
             tasks = (data is List)
                 ? List<Map<String, dynamic>>.from(data)
-                : [data as Map<String, dynamic>]; // Handle single object case
+                : [data as Map<String, dynamic>];
             isLoading = false;
           });
         }
@@ -148,13 +149,9 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                         'Scheduled At',
                         _formatTimestamp(task['scheduled_at'] as String? ?? ''),
                       ),
-                      _buildDetailRow(
-                        'Response',
-                        _formatResponse(
-                          task['response'] as Map<String, dynamic>? ?? {},
-                        ),
+                      ..._formatResponse(
+                        task['response'] as Map<String, dynamic>? ?? {},
                       ),
-                      const SizedBox(height: 16),
                     ],
                   );
                 },
@@ -163,7 +160,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, dynamic value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -181,10 +178,20 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF374151)),
-            ),
+            child: value is String
+                ? Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF374151),
+                    ),
+                  )
+                : value is Widget
+                ? value
+                : const Text(
+                    'Invalid data',
+                    style: TextStyle(fontSize: 14, color: Color(0xFF374151)),
+                  ),
           ),
         ],
       ),
@@ -221,14 +228,13 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         .join('\n');
   }
 
-  String _formatResponse(Map<String, dynamic>? response) {
+  List<Widget> _formatResponse(Map<String, dynamic>? response) {
     if (response == null || response.isEmpty) {
-      return 'No response data';
+      return [_buildDetailRow('Response', 'No response data')];
     }
 
-    List<String> formattedEntries = [];
+    List<Widget> formattedEntries = [];
 
-    // Recursively format all fields in the response
     response.forEach((key, value) {
       String formattedKey = key
           .split('_')
@@ -238,13 +244,69 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 : '',
           )
           .join(' ');
-      String formattedValue = _formatValue(value, indentLevel: 1);
-      formattedEntries.add('$formattedKey: $formattedValue');
+
+      if (key == 'data' && value is String) {
+        // Parse the JSON string in the 'data' field
+        try {
+          final decodedData = jsonDecode(value) as Map<String, dynamic>;
+          print(decodedData['s3_url']);
+          if (decodedData.containsKey('s3_url') &&
+              decodedData['s3_url'] is String &&
+              (decodedData['s3_url'] as String).endsWith('.mp3')) {
+            // Handle s3_url as an MP3 file
+            formattedEntries.add(
+              _buildDetailRow(
+                'Audio',
+                AudioPlayerWidget(url: decodedData['s3_url'] as String),
+              ),
+            );
+          } else {
+            // Format other fields in the decoded data
+            decodedData.forEach((subKey, subValue) {
+              String formattedSubKey = subKey
+                  .split('_')
+                  .map(
+                    (word) => word.isNotEmpty
+                        ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+                        : '',
+                  )
+                  .join(' ');
+              if (subKey == 's3_url' &&
+                  subValue is String &&
+                  subValue.endsWith('.mp3')) {
+                formattedEntries.add(
+                  _buildDetailRow(
+                    formattedSubKey,
+                    AudioPlayerWidget(url: subValue),
+                  ),
+                );
+              } else {
+                String formattedSubValue = _formatValue(
+                  subValue,
+                  indentLevel: 1,
+                );
+                formattedEntries.add(
+                  _buildDetailRow(formattedSubKey, formattedSubValue),
+                );
+              }
+            });
+          }
+        } catch (e) {
+          // If parsing fails, treat as a regular string
+          String formattedValue = _formatValue(value, indentLevel: 1);
+          formattedEntries.add(_buildDetailRow(formattedKey, formattedValue));
+        }
+      } else if (key == 's3_url' && value is String && value.endsWith('.mp3')) {
+        formattedEntries.add(
+          _buildDetailRow(formattedKey, AudioPlayerWidget(url: value)),
+        );
+      } else {
+        String formattedValue = _formatValue(value, indentLevel: 1);
+        formattedEntries.add(_buildDetailRow(formattedKey, formattedValue));
+      }
     });
 
-    return formattedEntries.isEmpty
-        ? 'No response data'
-        : formattedEntries.join('\n');
+    return formattedEntries;
   }
 
   String _formatValue(dynamic value, {int indentLevel = 0}) {
@@ -273,34 +335,45 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
       if (value.isEmpty) {
         return 'Empty object';
       }
-      final entries = value.entries.map((entry) {
-        String formattedKey = entry.key
-            .split('_')
-            .map(
-              (word) => word.isNotEmpty
-                  ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
-                  : '',
-            )
-            .join(' ');
-        String formattedValue = _formatValue(entry.value, indentLevel: indentLevel + 1);
-        return '${indent * (indentLevel + 1)}$formattedKey: $formattedValue';
-      }).join('\n');
+      final entries = value.entries
+          .map((entry) {
+            String formattedKey = entry.key
+                .split('_')
+                .map(
+                  (word) => word.isNotEmpty
+                      ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+                      : '',
+                )
+                .join(' ');
+            String formattedValue = _formatValue(
+              entry.value,
+              indentLevel: indentLevel + 1,
+            );
+            return '${indent * (indentLevel + 1)}$formattedKey: $formattedValue';
+          })
+          .join('\n');
       return '\n$entries';
     } else if (value is List) {
       if (value.isEmpty) {
         return 'Empty list';
       }
-      final entries = value.asMap().entries.map((entry) {
-        int index = entry.key;
-        dynamic item = entry.value;
-        String formattedItem = _formatValue(item, indentLevel: indentLevel + 1);
-        return '${indent * (indentLevel + 1)}[$index]: $formattedItem';
-      }).join('\n');
+      final entries = value
+          .asMap()
+          .entries
+          .map((entry) {
+            int index = entry.key;
+            dynamic item = entry.value;
+            String formattedItem = _formatValue(
+              item,
+              indentLevel: indentLevel + 1,
+            );
+            return '${indent * (indentLevel + 1)}[$index]: $formattedItem';
+          })
+          .join('\n');
       return '\n$entries';
     } else if (value is bool || value is num) {
       return value.toString();
     } else {
-      // Try to handle as JSON string if possible
       try {
         final jsonString = jsonEncode(value);
         final decoded = jsonDecode(jsonString);
@@ -312,9 +385,107 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   }
 
   bool _isDateTime(String value) {
-    // Basic check for ISO 8601 or similar date-time format
     final dateTimePattern = RegExp(
-        r'^\d{4}-\d{2}-\d{2}(T|\s)\d{2}:\d{2}:\d{2}(\.\d+)?([Z+|-]\d{2}:\d{2})?$');
+      r'^\d{4}-\d{2}-\d{2}(T|\s)\d{2}:\d{2}:\d{2}(\.\d+)?([Z+|-]\d{2}:\d{2})?$',
+    );
     return dateTimePattern.hasMatch(value);
+  }
+}
+
+// Widget to handle audio playback
+class AudioPlayerWidget extends StatefulWidget {
+  final String url;
+
+  const AudioPlayerWidget({super.key, required this.url});
+
+  @override
+  _AudioPlayerWidgetState createState() => _AudioPlayerWidgetState();
+}
+
+class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
+  late AudioPlayer _audioPlayer;
+  bool isPlaying = false;
+  Duration duration = Duration.zero;
+  Duration position = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _audioPlayer = AudioPlayer();
+
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (mounted) {
+        setState(() {
+          isPlaying = state == PlayerState.playing;
+        });
+      }
+    });
+
+    _audioPlayer.onDurationChanged.listen((newDuration) {
+      if (mounted) {
+        setState(() {
+          duration = newDuration;
+        });
+      }
+    });
+
+    _audioPlayer.onPositionChanged.listen((newPosition) {
+      if (mounted) {
+        setState(() {
+          position = newPosition;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            IconButton(
+              icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+              onPressed: () async {
+                if (isPlaying) {
+                  await _audioPlayer.pause();
+                } else {
+                  await _audioPlayer.play(UrlSource(widget.url));
+                }
+              },
+            ),
+            Expanded(
+              child: Slider(
+                min: 0,
+                max: duration.inSeconds.toDouble(),
+                value: position.inSeconds.toDouble(),
+                onChanged: (value) async {
+                  final position = Duration(seconds: value.toInt());
+                  await _audioPlayer.seek(position);
+                },
+              ),
+            ),
+          ],
+        ),
+        Text(
+          '${_formatDuration(position)} / ${_formatDuration(duration)}',
+          style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+        ),
+      ],
+    );
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
   }
 }
