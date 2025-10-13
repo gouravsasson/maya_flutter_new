@@ -254,18 +254,18 @@ class _GoogleSearchBarState extends State<GoogleSearchBar> with SingleTickerProv
                   ),
                 ),
                 const SizedBox(width: 12),
-                if (_fadeAnimation != null) // Safety check
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Text(
-                      statusMessage,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontStyle: FontStyle.italic,
-                        color: Theme.of(context).primaryColor,
-                      ),
+                // Safety check
+                FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Text(
+                    statusMessage,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                      color: Theme.of(context).primaryColor,
                     ),
                   ),
+                ),
               ],
             ),
           )

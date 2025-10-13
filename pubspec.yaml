@@ -79,6 +79,7 @@ dependencies:
   geolocator: ^14.0.2
   timezone: ^0.10.1
   http: ^1.5.0
+  audioplayers: ^6.5.1
 
 dev_dependencies:
   flutter_test:
