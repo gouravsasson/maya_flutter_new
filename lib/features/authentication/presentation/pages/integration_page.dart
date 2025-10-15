@@ -129,7 +129,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
         serverClientId:
             '452755436213-5d2ujo6g7d4tthk86adluob7q4frege6.apps.googleusercontent.com',
       );
-      await _checkStoredTokens();
+      await _checkStoredTokens(); 
       _googleSignIn.authenticationEvents.listen((event) {
         setState(() {
           if (event is GoogleSignInAuthenticationEventSignIn) {
