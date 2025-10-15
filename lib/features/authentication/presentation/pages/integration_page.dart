@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Added for clipboard functionality
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:Maya/features/widgets/integration.dart';
@@ -15,9 +16,7 @@ class IntegrationsPage extends StatefulWidget {
 
 Future<void> _launchURL(String url) async {
   try {
-    // Encode the URL properly
     final Uri uri = Uri.parse(Uri.encodeFull(url));
-
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
@@ -25,7 +24,6 @@ Future<void> _launchURL(String url) async {
     }
   } catch (e) {
     print('Error launching URL: $e');
-    // Show user-friendly error message
   }
 }
 
@@ -48,23 +46,8 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
         'https://www.googleapis.com/auth/calendar',
         'email',
         'profile',
-        'https://www.googleapis.com/auth/gmail.modify',
       ],
     ),
-    // Integration(
-    //   id: 'gmail',
-    //   name: 'Gmail',
-    //   description: 'Send and receive emails automatically',
-    //   icon: Icons.email,
-    //   iconColor: const Color(0xFFEA4335),
-    //   connected: false,
-    //   category: 'communication',
-    //   scopes: [
-    //     'https://www.googleapis.com/auth/gmail.modify',
-    //     'email',
-    //     'profile',
-    //   ],
-    // ),
     Integration(
       id: 'gohighlevel',
       name: 'GoHighLevel',
@@ -73,7 +56,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       iconColor: const Color(0xFF00C4B4),
       connected: false,
       category: 'crm',
-      scopes: ['api_key'], // GHL uses API keys
+      scopes: ['api_key'],
     ),
     Integration(
       id: 'salesforce',
@@ -83,7 +66,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       iconColor: const Color(0xFF00A1E0),
       connected: false,
       category: 'crm',
-      scopes: ['api', 'refresh_token'], // Salesforce OAuth scopes
+      scopes: ['api', 'refresh_token'],
     ),
     Integration(
       id: 'hubspot',
@@ -93,7 +76,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       iconColor: const Color(0xFFFF7A59),
       connected: false,
       category: 'crm',
-      scopes: ['crm.objects.contacts', 'crm.schemas.custom'], // HubSpot scopes
+      scopes: ['crm.objects.contacts', 'crm.schemas.custom'],
     ),
     Integration(
       id: 'ai-calling',
@@ -103,7 +86,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       iconColor: const Color(0xFF8B5CF6),
       connected: false,
       category: 'ai',
-      scopes: ['ai.calling'], // Placeholder for AI calling service
+      scopes: ['ai.calling'],
     ),
     Integration(
       id: 'ai-widgets',
@@ -113,7 +96,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       iconColor: const Color(0xFFEC4899),
       connected: false,
       category: 'ai',
-      scopes: ['ai.widgets'], // Placeholder for AI widgets service
+      scopes: ['ai.widgets'],
     ),
   ];
 
@@ -142,19 +125,19 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     try {
       await _googleSignIn.initialize(
         clientId:
-            '440337844851-d2tb6hfqubdb8cv582glsgbapkd0hipt.apps.googleusercontent.com',
+            '452755436213-5hcr78ntadqv75462th9qb3oue5hdgtg.apps.googleusercontent.com',
         serverClientId:
-            '440337844851-9alt2hubtvq7195lh0ma2j04sdaqs59c.apps.googleusercontent.com',
+            '452755436213-5d2ujo6g7d4tthk86adluob7q4frege6.apps.googleusercontent.com',
       );
       await _checkStoredTokens();
       _googleSignIn.authenticationEvents.listen((event) {
         setState(() {
           if (event is GoogleSignInAuthenticationEventSignIn) {
             _currentUser = event.user;
-            _updateIntegrationStatus(true, ['google-calendar', 'gmail']);
+            _updateIntegrationStatus(true, ['google-calendar', 'calendar']);
           } else if (event is GoogleSignInAuthenticationEventSignOut) {
             _currentUser = null;
-            _updateIntegrationStatus(false, ['google-calendar', 'gmail']);
+            _updateIntegrationStatus(false, ['google-calendar', 'calendar']);
           } else if (event is Error) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Google Sign-In error: $event')),
@@ -162,14 +145,6 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
           }
         });
       });
-
-      // final account = await _googleSignIn.attemptLightweightAuthentication();
-      // if (account != null) {
-      //   setState(() {
-      //     _currentUser = account;
-      //     _updateIntegrationStatus(true, ['google-calendar', 'gmail']);
-      //   });
-      // }
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -204,6 +179,79 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     });
   }
 
+  // New method to show tokens in a dialog
+  void _showTokensDialog(String integrationId, String accessToken, String? serverAuthCode) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('$integrationId Tokens'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Access Token:', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        accessToken,
+                        style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: accessToken));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Access Token copied to clipboard')),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                if (serverAuthCode != null) ...[
+                  const SizedBox(height: 16),
+                  Text('Server Auth Code:', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          serverAuthCode,
+                          style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.copy),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: serverAuthCode));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Server Auth Code copied to clipboard')),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _handleGoogleSignIn(Integration integration) async {
     try {
       GoogleSignInAccount? account = _currentUser;
@@ -225,7 +273,9 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
         );
         return;
       }
-      print(auth);
+
+      // Show tokens in dialog
+      _showTokensDialog(integration.id, auth.accessToken, serverAuth.serverAuthCode);
 
       await _sendTokensToApi(
         integration.id,
@@ -276,11 +326,8 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     String scopes,
   ) async {
     try {
-      // final response = await getIt<ApiClient>().googleAccessTokenMobile(
-      //   serverAuthCode,
-      // );
       print(
-        "serverAuthCode hahahahahahahahahahahahahahhahaahahha: $serverAuthCode",
+        "serverAuthCode: $serverAuthCode",
       );
       ScaffoldMessenger.of(
         context,
@@ -296,11 +343,11 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     try {
       await _storage.delete(key: '${integrationId}_access_token');
       await _storage.delete(key: '${integrationId}_server_auth_code');
-      if (integrationId == 'google-calendar' || integrationId == 'gmail') {
+      if (integrationId == 'google-calendar' || integrationId == 'calendar') {
         await _googleSignIn.signOut();
         setState(() {
           _currentUser = null;
-          _updateIntegrationStatus(false, ['google-calendar', 'gmail']);
+          _updateIntegrationStatus(false, ['google-calendar', 'calendar']);
         });
       } else {
         setState(() {
@@ -381,7 +428,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
                               onConnect: () {
                                 if (integration.id == 'gohighlevel') {
                                   _launchURL(
-                                    'https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=https://maya.ravan.ai/api/crm/leadconnector/code&client_id=68755e91a1a7f90cd15877d5-me8gas4x&scope=socialplanner%2Fpost.readonly+saas%2Flocation.write+socialplanner%2Foauth.readonly+saas%2Flocation.read+socialplanner%2Foauth.write+conversations%2Freports.readonly+calendars%2Fresources.write+campaigns.readonly+conversations.readonly+conversations.write+conversations%2Fmessage.readonly+conversations%2Fmessage.write+calendars%2Fgroups.readonly+calendars%2Fgroups.write+calendars%2Fresources.readonly+calendars%2Fevents.write+calendars%2Fevents.readonly+calendars.write+calendars.readonly+businesses.write+businesses.readonly+conversations%2Flivechat.write+contacts.readonly+contacts.write+objects%2Fschema.readonly+objects%2Fschema.write+objects%2Frecord.readonly+objects%2Frecord.write+associations.write+associations.readonly+associations%2Frelation.readonly+associations%2Frelation.write+courses.write+courses.readonly+forms.readonly+forms.write+invoices.readonly+invoices.write+invoices%2Fschedule.readonly+invoices%2Fschedule.write+invoices%2Ftemplate.readonly+invoices%2Ftemplate.write+invoices%2Festimate.readonly+invoices%2Festimate.write+links.readonly+lc-email.readonly+links.write+locations%2FcustomValues.readonly+medias.write+medias.readonly+locations%2Ftemplates.readonly+locations%2Ftags.write+funnels%2Fredirect.readonly+funnels%2Fpage.readonly+funnels%2Ffunnel.readonly+oauth.write+oauth.readonly+opportunities.readonly+opportunities.write+socialplanner%2Fpost.write+socialplanner%2Faccount.readonly+socialplanner%2Faccount.write+socialplanner%2Fcsv.readonly+socialplanner%2Fcsv.write+socialplanner%2Fcategory.readonly+socialplanner%2Ftag.readonly+store%2Fshipping.readonly+socialplanner%2Fstatistics.readonly+store%2Fshipping.write+store%2Fsetting.readonly+surveys.readonly+store%2Fsetting.write+workflows.readonly+emails%2Fschedule.readonly+emails%2Fbuilder.write+emails%2Fbuilder.readonly+wordpress.site.readonly+blogs%2Fpost.write+blogs%2Fpost-update.write+blogs%2Fcheck-slug.readonly+blogs%2Fcategory.readonly+blogs%2Fauthor.readonly+socialplanner%2Fcategory.write+socialplanner%2Ftag.write+blogs%2Fposts.readonly+blogs%2Flist.readonly+charges.readonly+charges.write+marketplace-installer-details.readonly+twilioaccount.read+documents_contracts%2Flist.readonly+documents_contracts%2FsendLink.write+documents_contracts_template%2FsendLink.write+documents_contracts_template%2Flist.readonly+products%2Fcollection.write+products%2Fcollection.readonly+products%2Fprices.write+products%2Fprices.readonly+products.write+products.readonly+payments%2Fcustom-provider.write+payments%2Fcoupons.write+payments%2Fcustom-provider.readonly+payments%2Fcoupons.readonly+payments%2Fsubscriptions.readonly+payments%2Ftransactions.readonly+payments%2Fintegration.write+payments%2Fintegration.readonly+payments%2Forders.write+payments%2Forders.readonly+funnels%2Fredirect.write+funnels%2Fpagecount.readonly&state=1',
+                                    'https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=https://maya.ravan.ai/api/crm/leadconnector/code&client_id=68755e91a1a7f90cd15877d5-me8gas4x&scope=socialplanner%2Fpost.readonly+saas%2Flocation.write+socialplanner%2Foauth.readonly+saas%2Flocation.read+socialplanner%2Foauth.write+conversations%2Freports.readonly+calendars%2Fresources.edit+campaigns.readonly+conversations.readonly+conversations.edit+conversations%2Fmessage.readonly+conversations%2Fmessage.edit+calendars%2Fgroups.readonly+calendars%2Fgroups.edit+calendars%2Fresources.readonly+calendars%2Fevents.edit+calendars%2Fevents.readonly+calendars.edit+calendars.readonly+businesses.edit+businesses.readonly+conversations%2Flivechat.edit+contacts.readonly+contacts.edit+objects%2Fschema.readonly+objects%2Fschema.edit+objects%2Frecord.readonly+objects%2Frecord.edit+associations.edit+associations.readonly+associations%2Frelation.readonly+associations%2Frelation.edit+courses.edit+courses.readonly+forms.readonly+forms.edit+invoices.readonly+invoices.edit+invoices%2Fschedule.readonly+invoices%2Fschedule.edit+invoices%2Ftemplate.readonly+invoices%2Ftemplate.edit+invoices%2Festimate.readonly+invoices%2Festimate.edit+links.readonly+lc-email.readonly+links.edit+locations%2FcustomValues.readonly+medias.edit+medias.readonly+locations%2Ftemplates.readonly+locations%2Ftags.edit+funnels%2Fredirect.readonly+funnels%2Fpage.readonly+funnels%2Ffunnel.readonly+oauth.edit+oauth.readonly+opportunities.readonly+opportunities.edit+socialplanner%2Fpost.edit+socialplanner%2Faccount.readonly+socialplanner%2Faccount.edit+socialplanner%2Fcsv.readonly+socialplanner%2Fcsv.edit+socialplanner%2Fcategory.readonly+socialplanner%2Ftag.readonly+store%2Fshipping.readonly+socialplanner%2Fstatistics.readonly+store%2Fshipping.edit+store%2Fsetting.readonly+surveys.readonly+store%2Fsetting.edit+workflows.readonly+emails%2Fschedule.readonly+emails%2Fbuilder.edit+emails%2Fbuilder.readonly+wordpress.site.readonly+blogs%2Fpost.edit+blogs%2Fpost-update.edit+blogs%2Fcheck-slug.readonly+blogs%2Fcategory.readonly+blogs%2Fauthor.readonly+socialplanner%2Fcategory.edit+socialplanner%2Ftag.edit+blogs%2Fposts.readonly+blogs%2Flist.readonly+charges.readonly+charges.edit+marketplace-installer-details.readonly+twilioaccount.read+documents_contracts%2Flist.readonly+documents_contracts%2FsendLink.edit+documents_contracts_template%2FsendLink.edit+documents_contracts_template%2Flist.readonly+products%2Fcollection.edit+products%2Fcollection.readonly+products%2Fprices.edit+products%2Fprices.readonly+products.edit+products.readonly+payments%2Fcustom-provider.edit+payments%2Fcoupons.edit+payments%2Fcustom-provider.readonly+payments%2Fcoupons.readonly+payments%2Fsubscriptions.readonly+payments%2Ftransactions.readonly+payments%2Fintegration.edit+payments%2Fintegration.readonly+payments%2Forders.edit+payments%2Forders.readonly+funnels%2Fredirect.edit+funnels%2Fpagecount.readonly&state=1',
                                   );
                                 } else if (integration.id ==
                                     'google-calendar') {

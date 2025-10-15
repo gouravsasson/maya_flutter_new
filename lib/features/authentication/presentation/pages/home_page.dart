@@ -1,23 +1,23 @@
-import 'dart:convert';
-import 'package:Maya/features/widgets/generations.dart';
-import 'package:http/http.dart' as http;
-import 'package:geolocator/geolocator.dart'; // Add this dependency: geolocator: ^10.1.0 in pubspec.yaml
-import 'package:flutter_timezone/flutter_timezone.dart'; // Add this dependency: flutter_timezone: ^1.0.8 in pubspec.yaml
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:Maya/core/network/api_client.dart';
 import 'package:Maya/features/widgets/features_section.dart';
 import 'package:Maya/features/widgets/go_router_demo.dart';
 import 'package:Maya/features/widgets/talk_to_maya.dart';
 import 'package:Maya/features/widgets/todo_list.dart';
-import 'package:Maya/features/widgets/welcome_card.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
 import 'package:Maya/core/services/notification_service.dart';
-import 'package:Maya/features/widgets/google_search.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -32,8 +32,8 @@ class _HomePageState extends State<HomePage> {
   bool isLoadingTodos = false;
   bool isLoadingReminders = false;
   NotificationServices notificationServices = NotificationServices();
-  String? fcmToken; // Store FCM token
-  String? locationPermissionStatus; // ✅ Track permission status
+  String? fcmToken;
+  String? locationPermissionStatus;
 
   @override
   void initState() {
@@ -44,11 +44,8 @@ class _HomePageState extends State<HomePage> {
     notificationServices.setupInteractMessage(context);
     notificationServices.isTokenRefresh();
 
-    // Fetch and store FCM token
     notificationServices.getDeviceToken().then((value) {
-      setState(() {
-        fcmToken = value;
-      });
+      setState(() => fcmToken = value);
       if (kDebugMode) {
         getIt<ApiClient>().sendFcmToken(value);
         print('device token: $value');
@@ -56,17 +53,12 @@ class _HomePageState extends State<HomePage> {
     });
     fetchReminders();
     fetchToDos();
-    // Initialize and save location on page load
     _initializeAndSaveLocation();
   }
 
-  // ✅ Initialize and fetch current location + timezone, then save it
   Future<void> _initializeAndSaveLocation() async {
     try {
-      // Get the device's local timezone
-      TimezoneInfo timezone = await FlutterTimezone.getLocalTimezone();
-
-      // Check if location services are enabled
+      String timezone = (await FlutterTimezone.getLocalTimezone()) as String;
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         setState(() => locationPermissionStatus = 'Location services disabled');
@@ -75,7 +67,6 @@ class _HomePageState extends State<HomePage> {
         return;
       }
 
-      // Check and request location permissions
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         setState(() => locationPermissionStatus = 'Location permission denied');
@@ -87,9 +78,8 @@ class _HomePageState extends State<HomePage> {
             () => locationPermissionStatus =
                 'Location permission denied after request',
           );
-          if (kDebugMode) {
+          if (kDebugMode)
             print('Location permission status: Denied after request');
-          }
           return;
         }
       }
@@ -107,24 +97,20 @@ class _HomePageState extends State<HomePage> {
       setState(() => locationPermissionStatus = 'Location permission granted');
       if (kDebugMode) print('Location permission status: Granted');
 
-      // Get current position
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-
-      // Save location via API
       final response = await getIt<ApiClient>().saveLocation(
         position.latitude,
         position.longitude,
-        timezone as String,
+        timezone,
       );
 
       if (response['statusCode'] == 200) {
-        if (kDebugMode) {
+        if (kDebugMode)
           print(
             'Location saved successfully: ${position.latitude}, ${position.longitude}, $timezone',
           );
-        }
       } else {
         if (kDebugMode) print('Failed to save location: ${response['data']}');
       }
@@ -136,7 +122,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ✅ Dialog to prompt enabling location services
   void _showLocationServiceDialog() {
     showDialog(
       context: context,
@@ -162,7 +147,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ✅ Dialog to request location permissions
   void _showLocationPermissionDialog({bool permanent = false}) {
     showDialog(
       context: context,
@@ -174,20 +158,18 @@ class _HomePageState extends State<HomePage> {
               : 'Location permission is required to save your location.',
         ),
         actions: [
-          if (!permanent) ...[
+          if (!permanent)
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancel'),
             ),
-          ],
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              if (permanent) {
+              if (permanent)
                 Geolocator.openAppSettings();
-              } else {
+              else
                 Geolocator.requestPermission();
-              }
             },
             child: Text(permanent ? 'Open Settings' : 'Grant Permission'),
           ),
@@ -198,29 +180,59 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> fetchReminders() async {
     setState(() => isLoadingReminders = true);
-    final response = await getIt<ApiClient>().fetchReminders();
-    if (response['statusCode'] == 200) {
-      setState(() {
-        reminders = List<Map<String, dynamic>>.from(response['data']);
-      });
-      if (kDebugMode) print("reminders: $reminders");
+    try {
+      final response = await getIt<ApiClient>().fetchReminders();
+      if (response['statusCode'] == 200 && response['data'] is List) {
+        List<Map<String, dynamic>> fetchedReminders =
+            List<Map<String, dynamic>>.from(response['data']);
+        fetchedReminders.sort((a, b) {
+          DateTime timeA = DateTime.parse(a['reminder_time']);
+          DateTime timeB = DateTime.parse(b['reminder_time']);
+          return timeA.compareTo(timeB);
+        });
+        setState(() {
+          reminders = fetchedReminders
+              .where(
+                (reminder) => DateTime.parse(
+                  reminder['reminder_time'],
+                ).isAfter(DateTime.now()),
+              )
+              .toList();
+          isLoadingReminders = false;
+        });
+        if (kDebugMode) print("Reminders after update: $reminders");
+      } else {
+        setState(() => isLoadingReminders = false);
+        if (kDebugMode)
+          print("Failed to fetch reminders: ${response['message']}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Failed to fetch reminders: ${response['message'] ?? 'Unknown error'}",
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => isLoadingReminders = false);
+      if (kDebugMode) print("Error fetching reminders: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error fetching reminders: $e")));
     }
-    setState(() => isLoadingReminders = false);
   }
 
-  // ✅ Fetch ToDos using ApiClient
   Future<void> fetchToDos() async {
     setState(() => isLoadingTodos = true);
     final response = await getIt<ApiClient>().getToDo();
     if (response['statusCode'] == 200) {
-      setState(() {
-        todos = List<Map<String, dynamic>>.from(response['data']['data']);
-      });
+      setState(
+        () => todos = List<Map<String, dynamic>>.from(response['data']['data']),
+      );
     }
     setState(() => isLoadingTodos = false);
   }
 
-  // ✅ Add ToDo
   Future<void> addToDo(
     String title,
     String description, {
@@ -232,12 +244,9 @@ class _HomePageState extends State<HomePage> {
       reminder,
     );
     final response = await getIt<ApiClient>().createToDo(payload);
-    if (response['statusCode'] == 200) {
-      fetchToDos();
-    }
+    if (response['statusCode'] == 200) fetchToDos();
   }
 
-  // ✅ Update ToDo
   Future<void> updateToDo(Map<String, dynamic> todo) async {
     final payload = getIt<ApiClient>().prepareUpdateToDoPayload(
       todo['ID'],
@@ -250,15 +259,60 @@ class _HomePageState extends State<HomePage> {
     final response = await getIt<ApiClient>().updateToDo(payload);
     if (response['statusCode'] == 200) {
       fetchToDos();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('To-Do updated successfully'),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update To-Do: ${response['message'] ?? 'Unknown error'}'),
+        ),
+      );
     }
   }
 
-  // ✅ Delete ToDo
+  Future<void> completeToDo(Map<String, dynamic> todo) async {
+    setState(() => isLoadingTodos = true);
+    try {
+      final payload = getIt<ApiClient>().prepareUpdateToDoPayload(
+        todo['ID'],
+        title: todo['title'],
+        description: todo['description'],
+        status: 'completed',
+        reminder: todo['reminder'] ?? false,
+        reminder_time: todo['reminder_time'],
+      );
+      final response = await getIt<ApiClient>().updateToDo(payload);
+      if (response['statusCode'] == 200) {
+        await fetchToDos();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('To-Do marked as completed'),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to complete To-Do: ${response['message'] ?? 'Unknown error'}'),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error completing To-Do: $e'),
+        ),
+      );
+    } finally {
+      setState(() => isLoadingTodos = false);
+    }
+  }
+
   Future<void> deleteToDo(int id) async {
     final response = await getIt<ApiClient>().deleteToDo(id);
-    if (response['statusCode'] == 200) {
-      fetchToDos();
-    }
+    if (response['statusCode'] == 200) fetchToDos();
   }
 
   Future<void> sendNotification() async {
@@ -282,8 +336,7 @@ class _HomePageState extends State<HomePage> {
         body: jsonEncode(data),
         headers: {
           'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization':
-              'key=YOUR_SERVER_KEY_HERE', // 🔑 Replace with your FCM server key
+          'Authorization': 'key=YOUR_SERVER_KEY_HERE',
         },
       );
       if (kDebugMode) print("Notification response: ${response.body}");
@@ -292,7 +345,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Copy FCM token to clipboard
   void copyFcmToken() {
     if (fcmToken != null) {
       Clipboard.setData(ClipboardData(text: fcmToken!));
@@ -304,6 +356,13 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final DateTime now = DateTime.now();
+    String greeting = now.hour < 12
+        ? 'Good Morning'
+        : now.hour < 18
+        ? 'Good Afternoon'
+        : 'Good Evening';
+
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final user = state is AuthAuthenticated ? state.user : null;
@@ -312,117 +371,425 @@ class _HomePageState extends State<HomePage> {
           body: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: [
-                  Theme.of(context).primaryColor.withOpacity(0.1),
-                  Colors.white,
+                  Color(0xFFDBEAFE), // blue-100
+                  Color(0xFFF3E8FF), // purple-100
+                  Color(0xFFFCE7F3), // pink-100
                 ],
               ),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const WelcomeCard(),
-                    const SizedBox(height: 32),
-
-                    const TalkToMaya(),
-                    const SizedBox(height: 16),
-                    ToDoList(
-                      todos: todos,
-                      isLoading: isLoadingTodos,
-                      onAdd: fetchToDos,
-                      onUpdate: fetchToDos,
-                      onDelete: fetchToDos,
-                    ),
-                    const SizedBox(height: 16),
-                    const FeaturesSection(),
-                    const SizedBox(height: 32),
-                    const GoRouterDemo(),
-                    const SizedBox(height: 32),
-                    Center(
-                      child: ElevatedButton(
-                        onPressed: sendNotification,
-                        child: const Text("Send Test Notification"),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Card(
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'FCM Token',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            fcmToken == null
-                                ? const Text('Loading token...')
-                                : SelectableText(
-                                    fcmToken!,
-                                    style: const TextStyle(fontSize: 14),
-                                  ),
-                            const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: ElevatedButton.icon(
-                                onPressed: fcmToken == null
-                                    ? null
-                                    : copyFcmToken,
-                                icon: const Icon(Icons.copy, size: 18),
-                                label: const Text('Copy Token'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).primaryColor,
-                                  foregroundColor: Colors.white,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            // ✅ Display Location Permission Status
-                            const Text(
-                              'Location Permission Status',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              locationPermissionStatus ??
-                                  'Checking permission...',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color:
-                                    locationPermissionStatus?.contains(
-                                          'granted',
-                                        ) ??
-                                        false
-                                    ? Colors.green
-                                    : Colors.red,
-                              ),
-                            ),
-                          ],
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.topCenter,
+                  radius: 1.0,
+                  colors: [
+                    Color(0x66BFDBFE), // blue-200 with 40% opacity
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 40),
+                      Text(
+                        '$greeting, ${"User"}',
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      Text(
+                        "Here's what's happening today",
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Recent Activity Section
+                      _buildSection(
+                        title: 'Recent Activity',
+                        icon: LucideIcons.clock,
+                        color: Colors.purple,
+                        children: [
+                          _buildActivityItem({
+                            'type': 'success',
+                            'action': 'Completed task',
+                            'detail': 'Update website design',
+                            'time': '5h ago',
+                          }),
+                          _buildActivityItem({
+                            'type': 'info',
+                            'action': 'New task assigned',
+                            'detail': 'Prepare quarterly report',
+                            'time': '3h ago',
+                          }),
+                          _buildActivityItem({
+                            'type': 'error',
+                            'action': 'Task failed',
+                            'detail': 'Book meeting with client',
+                            'time': '1d ago',
+                          }),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Active Tasks Section
+                      _buildSection(
+                        title: 'Active Tasks',
+                        icon: LucideIcons.zap,
+                        color: Colors.blue,
+                        children: [
+                          _buildTaskItem({
+                            'id': 1,
+                            'query': 'Generate email and send to Om',
+                            'status': 'needsApproval',
+                            'timestamp': '2 hours ago',
+                          }),
+                        ],
+                        trailing: TextButton(
+                          onPressed: () => context.go('/other'),
+                          child: const Text(
+                            'View All',
+                            style: TextStyle(color: Colors.blue),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Upcoming Section
+                      _buildSection(
+                        title: 'Upcoming',
+                        icon: LucideIcons.calendar,
+                        color: Colors.amber,
+                        children: isLoadingReminders
+                            ? [const Center(child: CircularProgressIndicator())]
+                            : reminders.isEmpty
+                            ? [
+                                const Text(
+                                  'No upcoming reminders',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ]
+                            : reminders
+                                  .where((reminder) {
+                                    final reminderTime = DateTime.parse(
+                                      reminder['reminder_time'],
+                                    );
+                                    return reminderTime.isAfter(DateTime.now());
+                                  })
+                                  .take(3)
+                                  .map((reminder) {
+                                    return _buildReminderItem(reminder);
+                                  })
+                                  .toList(),
+                        trailing: TextButton(
+                          onPressed: () => context.go('/other'),
+                          child: const Text(
+                            'View All',
+                            style: TextStyle(color: Colors.amber),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // To-Do Section
+                      _buildSection(
+                        title: 'To-Do',
+                        icon: LucideIcons.checkSquare,
+                        color: Colors.green,
+                        children: isLoadingTodos
+                            ? [const Center(child: CircularProgressIndicator())]
+                            : todos.isEmpty
+                            ? [
+                                const Text(
+                                  'No to-dos available',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ]
+                            : todos.take(3).map((todo) {
+                                return _buildToDoItem(todo);
+                              }).toList(),
+                        trailing: TextButton(
+                          onPressed: () => context.go('/other'),
+                          child: const Text(
+                            'View All',
+                            style: TextStyle(color: Colors.green),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSection({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required List<Widget> children,
+    Widget? trailing,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: color.withOpacity(0.3)),
+                      ),
+                      child: Icon(icon, size: 20, color: color),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+                if (trailing != null) trailing,
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActivityItem(Map<String, dynamic> activity) {
+    Color dotColor = activity['type'] == 'success'
+        ? Colors.green
+        : activity['type'] == 'error'
+        ? Colors.red
+        : Colors.blue;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.4)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '${activity['action']} - ${activity['detail']}',
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
+            ),
+          ),
+          Text(
+            activity['time'],
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaskItem(Map<String, dynamic> task) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.4)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              task['query'],
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              'Needs Approval',
+              style: TextStyle(fontSize: 12, color: Colors.blue),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            task['timestamp'],
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReminderItem(Map<String, dynamic> reminder) {
+    final utcTime = DateTime.parse(reminder['reminder_time']);
+    final localTime = utcTime.toLocal();
+    final formattedTime = DateFormat('MMM d, yyyy h:mm a').format(localTime);
+
+    return GestureDetector(
+      onTap: () => context.go('/other'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.4)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: Colors.amber,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    reminder['title'] ?? 'Reminder',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    formattedTime,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToDoItem(Map<String, dynamic> todo) {
+    return GestureDetector(
+      onTap: todo['status'] == 'completed' 
+          ? null 
+          : () => completeToDo(todo),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.4)),
+        ),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: todo['status'] == 'completed' 
+                  ? null 
+                  : () => completeToDo(todo),
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: todo['status'] == 'completed' ? Colors.green : Colors.grey,
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(4),
+                  color: todo['status'] == 'completed'
+                      ? Colors.green.withOpacity(0.2)
+                      : Colors.transparent,
+                ),
+                child: todo['status'] == 'completed'
+                    ? const Icon(
+                        LucideIcons.checkCircle2,
+                        size: 14,
+                        color: Colors.green,
+                      )
+                    : null,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                todo['title'],
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.black87,
+                  decoration: todo['status'] == 'completed'
+                      ? TextDecoration.lineThrough
+                      : TextDecoration.none,
+                  decorationColor: Colors.grey,
+                ),
+              ),
+            ),
+            if (todo['status'] != 'completed' && todo['priority'] == 'high')
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                child: const Text(
+                  'High',
+                  style: TextStyle(fontSize: 12, color: Colors.red),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 

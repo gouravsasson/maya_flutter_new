@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:go_router/go_router.dart';
-import 'package:Maya/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../../../features/authentication/presentation/bloc/auth_event.dart';
+
+// Define static color constants to avoid method invocation in constant expressions
+const Color inactiveGradientStart = Color(0x66FFFFFF); // White with 40% opacity
+const Color inactiveGradientEnd = Color(0x33FFFFFF);   // White with 20% opacity
 
 class TabLayout extends StatefulWidget {
   final Widget child;
@@ -22,14 +26,13 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this); // 5 for central button
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
         setState(() {
           _currentIndex = _tabController.index;
         });
 
-        // Navigate to corresponding tab route
         switch (_tabController.index) {
           case 0:
             context.go('/home');
@@ -38,11 +41,13 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
             context.go('/tasks');
             break;
           case 2:
-            context.go('/integrations');
+            context.go('/maya');
             break;
           case 3:
-            // Add settings route if needed
             context.go('/settings');
+            break;
+          case 4:
+            context.go('/integrations');
             break;
         }
       }
@@ -66,11 +71,14 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
       case '/tasks':
         newIndex = 1;
         break;
-      case '/integrations':
+      case '/maya':
         newIndex = 2;
         break;
       case '/settings':
         newIndex = 3;
+        break;
+      case '/integrations':
+        newIndex = 4;
         break;
       default:
         newIndex = 0;
@@ -84,40 +92,24 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _handleLogout() async {
-    context.read<AuthBloc>().add(LogoutRequested());
-  }
-
-  String _getTabTitle() {
-    switch (_currentIndex) {
-      case 0:
-        return 'Home';
-      case 1:
-        return 'Tasks';
-      case 2:
-        return 'Integrations';
-      case 3:
-        return 'Settings';
-      default:
-        return 'Maya App';
-    }
-  }
-
-  // Handle system back button
   Future<bool> _onPopInvoked() async {
     final currentLocation = GoRouterState.of(context).uri.path;
-    // If on a tab route (/home, /tasks, /integrations), prevent app exit
     if (currentLocation == '/home' ||
         currentLocation == '/tasks' ||
-        currentLocation == '/integrations' ||
-        currentLocation == '/settings') {
+        currentLocation == '/maya' ||
+        currentLocation == '/settings' ||
+        currentLocation == '/integrations') {
       if (currentLocation == '/home') {
-        return true; // Allow app to close from home
+        return true;
       }
-      context.go('/home'); // Navigate to home instead of closing
-      return false; // Prevent app exit
+      context.go('/home');
+      return false;
     }
-    return true; // Allow back navigation for other routes
+    return true;
+  }
+
+  Future<void> _handleLogout() async {
+    context.read<AuthBloc>().add(LogoutRequested());
   }
 
   @override
@@ -127,7 +119,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
     });
 
     return PopScope(
-      canPop: false, // Control pop behavior manually
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         final shouldPop = await _onPopInvoked();
@@ -136,223 +128,120 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
         }
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(_getTabTitle()),
-          leading: Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(FeatherIcons.menu),
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(FeatherIcons.bell, size: 24),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Notifications clicked')),
-                );
-              },
-            ),
-          ],
-          backgroundColor: const Color(0xFF6366F1),
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        drawer: Drawer(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              DrawerHeader(
-                decoration: const BoxDecoration(
-                  color: Color(0xFF6366F1),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: const [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: Colors.white24,
-                      child: Icon(
-                        FeatherIcons.user,
-                        color: Colors.white,
-                        size: 30,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      'Maya Assistant',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      'AI-Powered Productivity',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
-              _buildDrawerItem(
-                icon: FeatherIcons.user,
-                title: 'Profile',
-                onTap: () {
-                  Navigator.pop(context);
-                  context.push('/profile'); // Use push instead of go
-                },
-              ),
-              _buildDrawerItem(
-                icon: FeatherIcons.phone,
-                title: 'Call Sessions',
-                onTap: () {
-                  Navigator.pop(context);
-                  context.push('/call_sessions'); // Use push instead of go
-                },
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Divider(),
-              ),
-              _buildDrawerItem(
-                icon: FeatherIcons.helpCircle,
-                title: 'Help & Support',
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-              _buildDrawerItem(
-                icon: FeatherIcons.info,
-                title: 'About',
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-              const SizedBox(height: 20),
-              _buildDrawerItem(
-                icon: FeatherIcons.logOut,
-                title: 'Logout',
-                onTap: () {
-                  Navigator.pop(context);
-                  _handleLogout();
-                },
-                isDestructive: true,
-              ),
-            ],
-          ),
-        ),
         body: widget.child,
         bottomNavigationBar: Container(
+          margin: const EdgeInsets.all(6),
+          padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.3)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 20,
                 offset: const Offset(0, -2),
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(FeatherIcons.home, 'Home', 0, '/home'),
+              _buildNavItem(FeatherIcons.checkSquare, 'Tasks', 1, '/tasks'),
+              _buildCentralButton(),
+              _buildNavItem(FeatherIcons.settings, 'Settings', 3, '/settings'),
+              _buildNavItem(FeatherIcons.moreHorizontal, 'Integrations', 4, '/integrations'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(IconData icon, String label, int index, String route) {
+    final isActive = _currentIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _currentIndex = index;
+          });
+          context.go(route);
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isActive ? Colors.blue[100]?.withOpacity(0.6) : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: isActive ? Colors.blue[700] : Colors.grey[600],
+              ),
             ),
-            child: TabBar(
-              controller: _tabController,
-              labelColor: const Color(0xFF6366F1),
-              unselectedLabelColor: const Color(0xFF9CA3AF),
-              labelStyle: const TextStyle(
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                color: isActive ? Colors.blue[700] : Colors.grey[600],
               ),
-              unselectedLabelStyle: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w400,
-              ),
-              indicator: const BoxDecoration(),
-              indicatorPadding: EdgeInsets.zero,
-              tabs: [
-                _buildTab(FeatherIcons.home, 'Home', 0),
-                _buildTab(FeatherIcons.checkSquare, 'Tasks', 1),
-                _buildTab(FeatherIcons.zap, 'Connect', 2),
-                _buildTab(FeatherIcons.settings, 'Settings', 3),
-              ],
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildDrawerItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    bool isDestructive = false,
-  }) {
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isDestructive ? Colors.red : const Color(0xFF6366F1),
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: isDestructive ? Colors.red : Colors.black87,
-          fontWeight: FontWeight.w500,
+  Widget _buildCentralButton() {
+    final isActive = _currentIndex == 2;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _currentIndex = 2;
+        });
+        context.go('/maya');
+      },
+      child: Transform.translate(
+        offset: const Offset(0, -20), // Replace negative margin with translate
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: isActive
+                ? const LinearGradient(
+                    colors: [Color(0xFF4F46E5), Color(0xFF9333EA)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : LinearGradient(
+                    colors: [inactiveGradientStart, inactiveGradientEnd],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withOpacity(0.4)),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: Colors.blue[400]!.withOpacity(0.5),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : [],
+          ),
+          child: Icon(
+            FeatherIcons.star,
+            size: 26,
+            color: Colors.white,
+          ),
         ),
-      ),
-      onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-    );
-  }
-
-  Widget _buildTab(IconData icon, String label, int index) {
-    final isSelected = _currentIndex == index;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? const Color(0xFF6366F1).withOpacity(0.1)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              size: 22,
-              color: isSelected
-                  ? const Color(0xFF6366F1)
-                  : const Color(0xFF9CA3AF),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              color: isSelected
-                  ? const Color(0xFF6366F1)
-                  : const Color(0xFF9CA3AF),
-            ),
-          ),
-        ],
       ),
     );
   }

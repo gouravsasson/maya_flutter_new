@@ -94,6 +94,9 @@ class ApiClient {
   Future<Response> put(Dio dio, String path, {dynamic data}) async {
     return await dio.put(path, data: data);
   }
+  Future<Response> patch(Dio dio, String path, {dynamic data}) async {
+    return await dio.patch(path, data: data);
+  }
 
   Future<Response> delete(Dio dio, String path, {dynamic data}) async {
     return await dio.delete(path, data: data);
@@ -240,7 +243,7 @@ class ApiClient {
 
   // Update To-Do API
   Future<Map<String, dynamic>> updateToDo(Map<String, dynamic> payload) async {
-    final response = await put(
+    final response = await patch(
       _protectedDio,
       '/productivity/todo/update',
       data: payload,

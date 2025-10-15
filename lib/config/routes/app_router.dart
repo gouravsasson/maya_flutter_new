@@ -1,3 +1,7 @@
+import 'package:Maya/core/services/navigation_service.dart';
+import 'package:Maya/features/widgets/talk_to_maya.dart';
+import 'package:Maya/features/widgets/task_detail.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:Maya/features/authentication/presentation/pages/call_sessions.dart';
@@ -5,14 +9,13 @@ import 'package:Maya/features/authentication/presentation/pages/integration_page
 import 'package:Maya/features/authentication/presentation/pages/tasks_page.dart';
 import 'package:Maya/features/widgets/ghl.dart';
 import 'package:Maya/utils/tab_layout.dart';
-
 import '../../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../../features/authentication/presentation/bloc/auth_state.dart';
 import '../../features/authentication/presentation/pages/splash_page.dart';
 import '../../features/authentication/presentation/pages/login_page.dart';
 import '../../features/authentication/presentation/pages/home_page.dart';
 import '../../features/authentication/presentation/pages/profile_page.dart';
-import '../../core/services/navigation_service.dart';
+import '../../core/network/api_client.dart';
 
 class AppRouter {
   static const String splash = '/';
@@ -20,9 +23,11 @@ class AppRouter {
   static const String home = '/home';
   static const String profile = '/profile';
   static const String tasks = '/tasks';
+  static const String taskDetail = '/tasks/:taskId';
   static const String integrations = '/integrations';
   static const String settings = '/settings';
   static const String call_sessions = '/call_sessions';
+  static const String maya = '/maya';
 
   static final ValueNotifier<AuthState> authStateNotifier = ValueNotifier(
     AuthInitial(),
@@ -117,6 +122,18 @@ class AppRouter {
             return CallSessionsPage();
           },
         ),
+        // Task Detail route
+        GoRoute(
+          path: taskDetail,
+          name: 'task_detail',
+          builder: (BuildContext context, GoRouterState state) {
+            final taskId = state.pathParameters['taskId']!;
+            return TaskDetailPage(
+              sessionId: taskId,
+              apiClient: ApiClient(Dio(), Dio()),
+            );
+          },
+        ),
         // GHL WebView route
         GoRoute(
           path: '/ghl',
@@ -143,6 +160,13 @@ class AppRouter {
               },
             ),
             GoRoute(
+              path: maya,
+              name: 'maya',
+              builder: (BuildContext context, GoRouterState state) {
+                return TalkToMaya();
+              },
+            ),
+            GoRoute(
               path: integrations,
               name: 'integrations',
               builder: (BuildContext context, GoRouterState state) {
@@ -165,14 +189,15 @@ class AppRouter {
   }
 
   static bool _isProtectedRoute(String location) {
-    const protectedRoutes = [
+    final protectedRoutes = [
       home,
       profile,
       tasks,
+      taskDetail,
       integrations,
       settings,
       call_sessions,
     ];
-    return protectedRoutes.contains(location);
+    return protectedRoutes.contains(location) || location.startsWith('/tasks/');
   }
 }

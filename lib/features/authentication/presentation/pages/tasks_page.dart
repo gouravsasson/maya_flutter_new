@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:Maya/core/network/api_client.dart';
-import '../../../widgets/task_detail.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../widgets/task_detail.dart';
+import 'package:Maya/core/network/api_client.dart';
+import 'package:flutter_blurhash/flutter_blurhash.dart';
 
 class TaskDetail {
   final String id;
@@ -28,7 +30,6 @@ class TaskDetail {
     final error =
         json['error']?.toString() ?? toolCall['error']?.toString() ?? '';
 
-    // Format timestamp
     String formattedTimestamp = 'No timestamp';
     try {
       final createdAt = DateTime.parse(json['created_at']?.toString() ?? '');
@@ -45,7 +46,7 @@ class TaskDetail {
           'No query',
       status: status.isNotEmpty
           ? status
-          : (success ? 'Completed' : (error.isNotEmpty ? 'Failed' : 'Pending')),
+          : (success ? 'completed' : (error.isNotEmpty ? 'failed' : 'pending')),
       error: error.isNotEmpty ? error : 'None',
       timestamp: formattedTimestamp,
     );
@@ -64,12 +65,11 @@ class _TasksPageState extends State<TasksPage> {
   List<TaskDetail> tasks = [];
   bool isLoading = true;
   String? errorMessage;
-  late ApiClient apiClient; // Declare ApiClient
+  late ApiClient apiClient;
 
   @override
   void initState() {
     super.initState();
-    // Initialize Dio instances and ApiClient
     final publicDio = Dio();
     final protectedDio = Dio();
     apiClient = ApiClient(publicDio, protectedDio);
@@ -114,31 +114,82 @@ class _TasksPageState extends State<TasksPage> {
         return const Color(0xFF10B981);
       case 'failed':
         return const Color(0xFFEF4444);
+      case 'approval_pending':
+        return const Color(0xFF3B82F6);
       case 'pending':
       default:
-        return const Color(0xFF6B7280);
+        return const Color(0xFFF59E0B);
     }
   }
 
-  Widget getStatusIcon(String status) {
-    switch (status.toLowerCase()) {
-      case 'succeeded':
-      case 'completed':
-        return Icon(
-          Icons.check_circle,
-          size: 18,
-          color: getStatusColor(status),
-        );
-      case 'failed':
-        return Icon(
-          Icons.error_outline,
-          size: 18,
-          color: getStatusColor(status),
-        );
-      case 'pending':
-      default:
-        return Icon(Icons.access_time, size: 18, color: getStatusColor(status));
-    }
+  Widget getStatusBadge(String status) {
+    final statusConfig = {
+      'succeeded': {
+        'label': 'Completed',
+        'icon': Icons.check_circle,
+        'bgColor': const Color(0xFF10B981).withOpacity(0.2),
+        'borderColor': const Color(0xFF10B981).withOpacity(0.3),
+        'textColor': const Color(0xFF10B981),
+      },
+      'completed': {
+        'label': 'Completed',
+        'icon': Icons.check_circle,
+        'bgColor': const Color(0xFF10B981).withOpacity(0.2),
+        'borderColor': const Color(0xFF10B981).withOpacity(0.3),
+        'textColor': const Color(0xFF10B981),
+      },
+      'pending': {
+        'label': 'In Progress',
+        'bgColor': const Color(0xFFF59E0B).withOpacity(0.2),
+        'borderColor': const Color(0xFFF59E0B).withOpacity(0.3),
+        'textColor': const Color(0xFFF59E0B),
+        'icon': Icons.access_time,
+      },
+      'failed': {
+        'label': 'Failed',
+        'bgColor': const Color(0xFFEF4444).withOpacity(0.2),
+        'borderColor': const Color(0xFFEF4444).withOpacity(0.3),
+        'textColor': const Color(0xFFEF4444),
+        'icon': Icons.error_outline,
+      },
+      'approval_pending': {
+        'label': 'Needs Approval',
+        'bgColor': const Color(0xFF3B82F6).withOpacity(0.2),
+        'borderColor': const Color(0xFF3B82F6).withOpacity(0.3),
+        'textColor': const Color(0xFF3B82F6),
+        'icon': Icons.warning_amber,
+      },
+    };
+
+    final config =
+        statusConfig[status.toLowerCase()] ?? statusConfig['pending']!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: config['bgColor'] as Color,
+        border: Border.all(color: config['borderColor'] as Color),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            config['icon'] as IconData,
+            size: 14,
+            color: config['textColor'] as Color,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            config['label'] as String,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: config['textColor'] as Color,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -148,263 +199,313 @@ class _TasksPageState extends State<TasksPage> {
       return task.status.toLowerCase() == selectedFilter;
     }).toList();
 
-    final filterButtons = [
-      {'key': 'all', 'label': 'All'},
-      {'key': 'pending', 'label': 'Pending'},
-      {'key': 'failed', 'label': 'Failed'},
-      {'key': 'succeeded', 'label': 'Completed'},
+    final filterOptions = [
+      {'value': 'all', 'label': 'All Tasks', 'color': Colors.grey},
+      {
+        'value': 'approval_pending',
+        'label': 'Needs Approval',
+        'color': Colors.blue,
+      },
+      {'value': 'pending', 'label': 'In Progress', 'color': Colors.amber},
+      {'value': 'succeeded', 'label': 'Completed', 'color': Colors.green},
+      {'value': 'failed', 'label': 'Failed', 'color': Colors.red},
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
-        title: const Text(
-          'Tasks',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF111827),
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFF6366F1)),
-            onPressed: fetchTasks,
-          ),
-        ],
-      ),
-      body: Column(
+      body: Stack(
         children: [
-          // Filter Tabs
+          // Gradient Background
           Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: filterButtons.map((filter) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: FilterChip(
-                      label: Text(
-                        filter['label']!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: selectedFilter == filter['key']
-                              ? Colors.white
-                              : const Color(0xFF6B7280),
-                        ),
-                      ),
-                      selected: selectedFilter == filter['key'],
-                      selectedColor: const Color(0xFF6366F1),
-                      backgroundColor: const Color(0xFFF3F4F6),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      onSelected: (selected) {
-                        setState(() {
-                          selectedFilter = filter['key']!;
-                        });
-                      },
-                    ),
-                  );
-                }).toList(),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFE0F2FE), // Blue-100
+                  Color(0xFFF3E8FF), // Purple-100
+                  Color(0xFFFDE2E2), // Pink-100
+                ],
               ),
             ),
           ),
-
-          // Tasks List
-          Expanded(
-            child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : errorMessage != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          errorMessage!,
-                          style: const TextStyle(
-                            color: Color(0xFFEF4444),
-                            fontSize: 16,
+          // Radial Gradient Overlay
+          Container(
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.topCenter,
+                radius: 1.5,
+                colors: [
+                  Color(0x66DBEAFE), // Blue-200/40
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tasks',
+                            style: TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[800],
+                            ),
                           ),
+                          Text(
+                            'Manage all your AI-assisted tasks',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.refresh,
+                          color: Colors.blue[700],
+                          size: 28,
                         ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: fetchTasks,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  )
-                : filteredTasks.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No tasks available',
-                      style: TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 16,
-                    ),
-                    itemCount: filteredTasks.length,
-                    itemBuilder: (context, index) {
-                      final task = filteredTasks[index];
-                      return Card(
-                        elevation: 3,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Task Header
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      getStatusIcon(task.status),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        task.status[0].toUpperCase() +
-                                            task.status
-                                                .substring(1)
-                                                .replaceAll('-', ' '),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: getStatusColor(task.status),
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF0F4FF),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                  ),
-                                ],
+                        onPressed: fetchTasks,
+                      ),
+                    ],
+                  ),
+                ),
+                // Filter Tabs
+                Container(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 8,
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    border: Border.all(color: Colors.white.withOpacity(0.3)),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: filterOptions.map((option) {
+                        final isSelected = selectedFilter == option['value'];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                selectedFilter = option['value'] as String;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
                               ),
-                              const SizedBox(height: 12),
-
-                              // Task Query
-                              Text(
-                                task.query.isNotEmpty
-                                    ? task.query
-                                    : 'No query provided',
-                                style: const TextStyle(
-                                  fontSize: 18,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? (option['color'] as Color).withOpacity(
+                                        0.2,
+                                      )
+                                    : Colors.white.withOpacity(0.3),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? (option['color'] as Color).withOpacity(
+                                          0.3,
+                                        )
+                                      : Colors.white.withOpacity(0.4),
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                option['label'] as String,
+                                style: TextStyle(
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF111827),
+                                  color: isSelected
+                                      ? option['color'] as Color
+                                      : Colors.grey[600],
                                 ),
                               ),
-                              const SizedBox(height: 6),
-
-                              // Task Error (if any)
-                              if (task.error != 'None')
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+                // Tasks List
+                // Tasks List
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : errorMessage != null
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
                                 Text(
-                                  'Error: ${task.error}',
+                                  errorMessage!,
                                   style: const TextStyle(
-                                    fontSize: 14,
                                     color: Color(0xFFEF4444),
-                                    height: 1.43,
+                                    fontSize: 16,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: fetchTasks,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue[700],
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Retry',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
-                              if (task.error != 'None')
-                                const SizedBox(height: 6),
-
-                              // Task Meta
-                              Column(
-                                children: [
-                                  Row(
+                              ],
+                            ),
+                          )
+                        : filteredTasks.isEmpty
+                        ? Container(
+                            margin: const EdgeInsets.only(top: 16),
+                            padding: const EdgeInsets.all(32),
+                            child: Text(
+                              'No tasks found with this filter',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[500],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            itemCount: filteredTasks.length,
+                            itemBuilder: (context, index) {
+                              final task = filteredTasks[index];
+                              return GestureDetector(
+                                onTap: () {
+                                  context.go('/tasks/${task.id}');
+                                },
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                  child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const SizedBox(
-                                        width: 80,
-                                        child: Text(
-                                          'Created:',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Color(0xFF9CA3AF),
-                                            fontWeight: FontWeight.w600,
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              task.query.isNotEmpty
+                                                  ? task.query
+                                                  : 'No query provided',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.grey[800],
+                                              ),
+                                            ),
                                           ),
-                                        ),
+                                          getStatusBadge(task.status),
+                                        ],
                                       ),
-                                      Expanded(
-                                        child: Text(
-                                          task.timestamp,
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.access_time,
+                                            size: 12,
+                                            color: Colors.grey[500],
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            task.timestamp,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[500],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (task.error != 'None') ...[
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Error: ${task.error}',
                                           style: const TextStyle(
                                             fontSize: 12,
-                                            color: Color(0xFF374151),
+                                            color: Color(0xFFEF4444),
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-
-                              // Task Footer
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => TaskDetailPage(
-                                          sessionId: task.id,
-                                          apiClient:
-                                              apiClient, // Pass ApiClient
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: const [
-                                      Text(
-                                        'View Details',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Color(0xFF6366F1),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      SizedBox(width: 4),
-                                      Icon(
-                                        Icons.chevron_right,
-                                        size: 16,
-                                        color: Color(0xFF6366F1),
+                                      ],
+                                      const SizedBox(height: 16),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            'View details',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.blue[700],
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            Icons.chevron_right,
+                                            size: 16,
+                                            color: Colors.blue[700],
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
                                 ),
-                              ),
-                            ],
+                              );
+                            },
                           ),
-                        ),
-                      );
-                    },
                   ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

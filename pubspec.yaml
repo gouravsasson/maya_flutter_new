@@ -80,6 +80,8 @@ dependencies:
   timezone: ^0.10.1
   http: ^1.5.0
   audioplayers: ^6.5.1
+  lucide_icons: ^0.257.0
+  flutter_blurhash: ^0.9.1
 
 dev_dependencies:
   flutter_test:
