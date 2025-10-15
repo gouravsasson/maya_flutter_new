@@ -119,7 +119,7 @@ Widget build(BuildContext context) {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      value: priority,
+                      initialValue: priority,
                       items: ['low', 'medium', 'high']
                           .map((p) => DropdownMenuItem(value: p, child: Text(p)))
                           .toList(),

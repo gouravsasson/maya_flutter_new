@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:Maya/core/network/api_client.dart';
 import 'package:Maya/core/services/mic_service.dart';
-import 'package:Maya/utils/constants.dart';
 import 'package:ultravox_client/ultravox_client.dart';
 
 class TalkToMaya extends StatefulWidget {

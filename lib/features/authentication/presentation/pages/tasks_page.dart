@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../../widgets/task_detail.dart';
 import 'package:Maya/core/network/api_client.dart';
-import 'package:flutter_blurhash/flutter_blurhash.dart';
 
 class TaskDetail {
   final String id;

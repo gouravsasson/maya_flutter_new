@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:Maya/core/network/api_client.dart';
-import 'package:get_it/get_it.dart';
 
 class GoogleSearchBar extends StatefulWidget {
   const GoogleSearchBar({super.key});

@@ -47,7 +47,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
             context.go('/settings');
             break;
           case 4:
-            context.go('/integrations');
+            context.go('/other');
             break;
         }
       }
@@ -77,7 +77,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
       case '/settings':
         newIndex = 3;
         break;
-      case '/integrations':
+      case '/other':
         newIndex = 4;
         break;
       default:
@@ -98,7 +98,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
         currentLocation == '/tasks' ||
         currentLocation == '/maya' ||
         currentLocation == '/settings' ||
-        currentLocation == '/integrations') {
+        currentLocation == '/other') {
       if (currentLocation == '/home') {
         return true;
       }
@@ -151,7 +151,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
               _buildNavItem(FeatherIcons.checkSquare, 'Tasks', 1, '/tasks'),
               _buildCentralButton(),
               _buildNavItem(FeatherIcons.settings, 'Settings', 3, '/settings'),
-              _buildNavItem(FeatherIcons.moreHorizontal, 'Integrations', 4, '/integrations'),
+              _buildNavItem(FeatherIcons.moreHorizontal, 'other', 4, '/other'),
             ],
           ),
         ),

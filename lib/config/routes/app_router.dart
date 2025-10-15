@@ -1,4 +1,6 @@
 import 'package:Maya/core/services/navigation_service.dart';
+import 'package:Maya/features/authentication/presentation/pages/other_page.dart';
+import 'package:Maya/features/authentication/presentation/pages/settings_page.dart';
 import 'package:Maya/features/widgets/talk_to_maya.dart';
 import 'package:Maya/features/widgets/task_detail.dart';
 import 'package:dio/dio.dart';
@@ -9,6 +11,9 @@ import 'package:Maya/features/authentication/presentation/pages/integration_page
 import 'package:Maya/features/authentication/presentation/pages/tasks_page.dart';
 import 'package:Maya/features/widgets/ghl.dart';
 import 'package:Maya/utils/tab_layout.dart';
+import 'package:Maya/features/authentication/presentation/pages/generations_page.dart';
+import 'package:Maya/features/authentication/presentation/pages/todos_page.dart';
+import 'package:Maya/features/authentication/presentation/pages/reminders_page.dart';
 import '../../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../../features/authentication/presentation/bloc/auth_state.dart';
 import '../../features/authentication/presentation/pages/splash_page.dart';
@@ -28,6 +33,10 @@ class AppRouter {
   static const String settings = '/settings';
   static const String call_sessions = '/call_sessions';
   static const String maya = '/maya';
+  static const String other = '/other';
+  static const String generations = '/generations';
+  static const String todos = '/todos';
+  static const String reminders = '/reminders';
 
   static final ValueNotifier<AuthState> authStateNotifier = ValueNotifier(
     AuthInitial(),
@@ -122,7 +131,6 @@ class AppRouter {
             return CallSessionsPage();
           },
         ),
-        // Task Detail route
         GoRoute(
           path: taskDetail,
           name: 'task_detail',
@@ -167,6 +175,13 @@ class AppRouter {
               },
             ),
             GoRoute(
+              path: settings,
+              name: 'settings',
+              builder: (BuildContext context, GoRouterState state) {
+                return SettingsPage();
+              },
+            ),
+            GoRoute(
               path: integrations,
               name: 'integrations',
               builder: (BuildContext context, GoRouterState state) {
@@ -174,12 +189,31 @@ class AppRouter {
               },
             ),
             GoRoute(
-              path: settings,
-              name: 'settings',
+              path: other,
+              name: 'other',
               builder: (BuildContext context, GoRouterState state) {
-                return Scaffold(
-                  body: Center(child: Text('Settings Page')),
-                ); // Replace with actual SettingsPage
+                return OtherPage();
+              },
+            ),
+            GoRoute(
+              path: generations,
+              name: 'generations',
+              builder: (BuildContext context, GoRouterState state) {
+                return GenerationsPage();
+              },
+            ),
+            GoRoute(
+              path: todos,
+              name: 'todos',
+              builder: (BuildContext context, GoRouterState state) {
+                return TodosPage();
+              },
+            ),
+            GoRoute(
+              path: reminders,
+              name: 'reminders',
+              builder: (BuildContext context, GoRouterState state) {
+                return RemindersPage();
               },
             ),
           ],
@@ -197,6 +231,9 @@ class AppRouter {
       integrations,
       settings,
       call_sessions,
+      generations,
+      todos,
+      reminders,
     ];
     return protectedRoutes.contains(location) || location.startsWith('/tasks/');
   }

@@ -82,6 +82,7 @@ dependencies:
   audioplayers: ^6.5.1
   lucide_icons: ^0.257.0
   flutter_blurhash: ^0.9.1
+  flutter_svg: ^2.2.1
 
 dev_dependencies:
   flutter_test:

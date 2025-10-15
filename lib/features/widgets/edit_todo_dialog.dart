@@ -139,7 +139,7 @@ class _EditToDoDialogState extends State<EditToDoDialog> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        value: status,
+                        initialValue: status,
                         items: ['Todo', 'in-progress', 'completed']
                             .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                             .toList(),
@@ -161,7 +161,7 @@ class _EditToDoDialogState extends State<EditToDoDialog> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        value: priority,
+                        initialValue: priority,
                         items: ['low', 'medium', 'high']
                             .map((p) => DropdownMenuItem(value: p, child: Text(p)))
                             .toList(),

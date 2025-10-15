@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Added for clipboard functionality
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:Maya/features/widgets/integration.dart';
@@ -42,11 +43,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       iconColor: const Color(0xFF4285F4),
       connected: false,
       category: 'calendar',
-      scopes: [
-        'https://www.googleapis.com/auth/calendar',
-        'email',
-        'profile',
-      ],
+      scopes: ['https://www.googleapis.com/auth/calendar', 'email', 'profile'],
     ),
     Integration(
       id: 'gohighlevel',
@@ -123,13 +120,14 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
 
   Future<void> _initializeGoogleSignIn() async {
     try {
+      setState(() => _isInitializing = true);
       await _googleSignIn.initialize(
         clientId:
             '452755436213-5hcr78ntadqv75462th9qb3oue5hdgtg.apps.googleusercontent.com',
         serverClientId:
             '452755436213-5d2ujo6g7d4tthk86adluob7q4frege6.apps.googleusercontent.com',
       );
-      await _checkStoredTokens(); 
+      await _checkStoredTokens();
       _googleSignIn.authenticationEvents.listen((event) {
         setState(() {
           if (event is GoogleSignInAuthenticationEventSignIn) {
@@ -150,9 +148,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
         context,
       ).showSnackBar(SnackBar(content: Text('Initialization failed: $e')));
     } finally {
-      setState(() {
-        _isInitializing = false;
-      });
+      setState(() => _isInitializing = false);
     }
   }
 
@@ -179,72 +175,116 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     });
   }
 
-  // New method to show tokens in a dialog
-  void _showTokensDialog(String integrationId, String accessToken, String? serverAuthCode) {
+  void _showTokensDialog(
+    String integrationId,
+    String accessToken,
+    String? serverAuthCode,
+  ) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('$integrationId Tokens'),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Access Token:', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
+          backgroundColor: Colors.white.withOpacity(0.9),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: Colors.white.withOpacity(0.5)),
+          ),
+          contentPadding: const EdgeInsets.all(16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$integrationId Tokens',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Text(
+                        'Access Token: $accessToken',
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy, color: Color(0xFF3B82F6)),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: accessToken));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Access Token copied to clipboard'),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              if (serverAuthCode != null) ...[
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        accessToken,
-                        style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-                        overflow: TextOverflow.ellipsis,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Text(
+                          'Server Auth Code: $serverAuthCode',
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.copy),
+                      icon: const Icon(Icons.copy, color: Color(0xFF3B82F6)),
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: accessToken));
+                        Clipboard.setData(ClipboardData(text: serverAuthCode));
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Access Token copied to clipboard')),
+                          const SnackBar(
+                            content: Text(
+                              'Server Auth Code copied to clipboard',
+                            ),
+                          ),
                         );
                       },
                     ),
                   ],
                 ),
-                if (serverAuthCode != null) ...[
-                  const SizedBox(height: 16),
-                  Text('Server Auth Code:', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          serverAuthCode,
-                          style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.copy),
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: serverAuthCode));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Server Auth Code copied to clipboard')),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ],
               ],
-            ),
+            ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0x66E5E7EB),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Close',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+              ),
             ),
           ],
         );
@@ -274,8 +314,11 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
         return;
       }
 
-      // Show tokens in dialog
-      _showTokensDialog(integration.id, auth.accessToken, serverAuth.serverAuthCode);
+      _showTokensDialog(
+        integration.id,
+        auth.accessToken,
+        serverAuth.serverAuthCode
+      );
 
       await _sendTokensToApi(
         integration.id,
@@ -326,9 +369,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     String scopes,
   ) async {
     try {
-      print(
-        "serverAuthCode: $serverAuthCode",
-      );
+      print("serverAuthCode: $serverAuthCode");
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Tokens sent for $integrationId')));
@@ -368,83 +409,206 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _isInitializing
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      StatCard(
-                        number: integrations
-                            .where((i) => i.connected)
-                            .length
-                            .toString(),
-                        label: 'Connected',
-                      ),
-                      const SizedBox(width: 8),
-                      StatCard(
-                        number: integrations
-                            .where((i) => !i.connected)
-                            .length
-                            .toString(),
-                        label: 'Available',
-                      ),
-                      const SizedBox(width: 8),
-                      StatCard(
-                        number: integrations.length.toString(),
-                        label: 'Total',
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: ListView(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: const Text('Integrations'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          color: const Color(0xFF1F2937), // gray-800
+          onPressed: () => context.pop(),
+        ),
+      ),
+      body: Stack(
+        children: [
+          // Gradient background
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFE3F2FD), // blue-100
+                  Color(0xFFF3E8FF), // purple-100
+                  Color(0xFFFDE2F3), // pink-100
+                ],
+              ),
+            ),
+          ),
+          // Radial gradient overlay
+          Container(
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.topCenter,
+                radius: 1.5,
+                colors: [
+                  Color(0x66BBDEFB), // blue-200/40
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+          // Main content
+          SafeArea(
+            child: _isInitializing
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 8,
                     ),
-                    children: groupedIntegrations.entries.map((entry) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              left: 8,
-                              top: 16,
-                              bottom: 8,
-                            ),
-                            child: Text(
-                              categoryTitles[entry.key] ?? 'Unknown Category',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.w600),
-                            ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Integrations',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1F2937), // gray-800
                           ),
-                          ...entry.value.map(
-                            (integration) => IntegrationCard(
-                              integration: integration,
-                              onConnect: () {
-                                if (integration.id == 'gohighlevel') {
-                                  _launchURL(
-                                    'https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=https://maya.ravan.ai/api/crm/leadconnector/code&client_id=68755e91a1a7f90cd15877d5-me8gas4x&scope=socialplanner%2Fpost.readonly+saas%2Flocation.write+socialplanner%2Foauth.readonly+saas%2Flocation.read+socialplanner%2Foauth.write+conversations%2Freports.readonly+calendars%2Fresources.edit+campaigns.readonly+conversations.readonly+conversations.edit+conversations%2Fmessage.readonly+conversations%2Fmessage.edit+calendars%2Fgroups.readonly+calendars%2Fgroups.edit+calendars%2Fresources.readonly+calendars%2Fevents.edit+calendars%2Fevents.readonly+calendars.edit+calendars.readonly+businesses.edit+businesses.readonly+conversations%2Flivechat.edit+contacts.readonly+contacts.edit+objects%2Fschema.readonly+objects%2Fschema.edit+objects%2Frecord.readonly+objects%2Frecord.edit+associations.edit+associations.readonly+associations%2Frelation.readonly+associations%2Frelation.edit+courses.edit+courses.readonly+forms.readonly+forms.edit+invoices.readonly+invoices.edit+invoices%2Fschedule.readonly+invoices%2Fschedule.edit+invoices%2Ftemplate.readonly+invoices%2Ftemplate.edit+invoices%2Festimate.readonly+invoices%2Festimate.edit+links.readonly+lc-email.readonly+links.edit+locations%2FcustomValues.readonly+medias.edit+medias.readonly+locations%2Ftemplates.readonly+locations%2Ftags.edit+funnels%2Fredirect.readonly+funnels%2Fpage.readonly+funnels%2Ffunnel.readonly+oauth.edit+oauth.readonly+opportunities.readonly+opportunities.edit+socialplanner%2Fpost.edit+socialplanner%2Faccount.readonly+socialplanner%2Faccount.edit+socialplanner%2Fcsv.readonly+socialplanner%2Fcsv.edit+socialplanner%2Fcategory.readonly+socialplanner%2Ftag.readonly+store%2Fshipping.readonly+socialplanner%2Fstatistics.readonly+store%2Fshipping.edit+store%2Fsetting.readonly+surveys.readonly+store%2Fsetting.edit+workflows.readonly+emails%2Fschedule.readonly+emails%2Fbuilder.edit+emails%2Fbuilder.readonly+wordpress.site.readonly+blogs%2Fpost.edit+blogs%2Fpost-update.edit+blogs%2Fcheck-slug.readonly+blogs%2Fcategory.readonly+blogs%2Fauthor.readonly+socialplanner%2Fcategory.edit+socialplanner%2Ftag.edit+blogs%2Fposts.readonly+blogs%2Flist.readonly+charges.readonly+charges.edit+marketplace-installer-details.readonly+twilioaccount.read+documents_contracts%2Flist.readonly+documents_contracts%2FsendLink.edit+documents_contracts_template%2FsendLink.edit+documents_contracts_template%2Flist.readonly+products%2Fcollection.edit+products%2Fcollection.readonly+products%2Fprices.edit+products%2Fprices.readonly+products.edit+products.readonly+payments%2Fcustom-provider.edit+payments%2Fcoupons.edit+payments%2Fcustom-provider.readonly+payments%2Fcoupons.readonly+payments%2Fsubscriptions.readonly+payments%2Ftransactions.readonly+payments%2Fintegration.edit+payments%2Fintegration.readonly+payments%2Forders.edit+payments%2Forders.readonly+funnels%2Fredirect.edit+funnels%2Fpagecount.readonly&state=1',
-                                  );
-                                } else if (integration.id ==
-                                    'google-calendar') {
-                                  _handleGoogleSignIn(integration);
-                                }
-                              },
-                              onReset: () => _resetConnection(integration.id),
-                            ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Connect Google, CRMs, and other services',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Color(0xFF4B5563), // gray-600
                           ),
-                        ],
-                      );
-                    }).toList(),
+                        ),
+                        const SizedBox(height: 24),
+                        // Stats
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                            ),
+                            boxShadow: const [
+                              BoxShadow(blurRadius: 10, color: Colors.black12),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _buildStatCard(
+                                number: integrations
+                                    .where((i) => i.connected)
+                                    .length
+                                    .toString(),
+                                label: 'Connected',
+                                color: const Color(0xFF10B981), // green-700
+                              ),
+                              const SizedBox(width: 8),
+                              _buildStatCard(
+                                number: integrations
+                                    .where((i) => !i.connected)
+                                    .length
+                                    .toString(),
+                                label: 'Available',
+                                color: const Color(0xFFA855F7), // purple-700
+                              ),
+                              const SizedBox(width: 8),
+                              _buildStatCard(
+                                number: integrations.length.toString(),
+                                label: 'Total',
+                                color: const Color(0xFF3B82F6), // blue-700
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Integrations List
+                        ...groupedIntegrations.entries.map((entry) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 8,
+                                  top: 16,
+                                  bottom: 8,
+                                ),
+                                child: Text(
+                                  categoryTitles[entry.key] ??
+                                      'Unknown Category',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1F2937),
+                                  ),
+                                ),
+                              ),
+                              ...entry.value.map(
+                                (integration) => Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  child: IntegrationCard(
+                                    integration: integration,
+                                    onConnect: () {
+                                      if (integration.id == 'gohighlevel') {
+                                        _launchURL(
+                                          'https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=https://maya.ravan.ai/api/crm/leadconnector/code&client_id=68755e91a1a7f90cd15877d5-me8gas4x&scope=socialplanner%2Fpost.readonly+saas%2Flocation.edit+socialplanner%2Foauth.readonly+saas%2Flocation.read+socialplanner%2Foauth.edit+conversations%2Freports.readonly+calendars%2Fresources.edit+campaigns.readonly+conversations.readonly+conversations.edit+conversations%2Fmessage.readonly+conversations%2Fmessage.edit+calendars%2Fgroups.readonly+calendars%2Fgroups.edit+calendars%2Fresources.readonly+calendars%2Fevents.edit+calendars%2Fevents.readonly+calendars.edit+calendars.readonly+businesses.edit+businesses.readonly+conversations%2Flivechat.edit+contacts.readonly+contacts.edit+objects%2Fschema.readonly+objects%2Fschema.edit+objects%2Frecord.readonly+objects%2Frecord.edit+associations.edit+associations.readonly+associations%2Frelation.readonly+associations%2Frelation.edit+courses.edit+courses.readonly+forms.readonly+forms.edit+invoices.readonly+invoices.edit+invoices%2Fschedule.readonly+invoices%2Fschedule.edit+invoices%2Ftemplate.readonly+invoices%2Ftemplate.edit+invoices%2Festimate.readonly+invoices%2Festimate.edit+links.readonly+lc-email.readonly+links.edit+locations%2FcustomValues.readonly+medias.edit+medias.readonly+locations%2Ftemplates.readonly+locations%2Ftags.edit+funnels%2Fredirect.readonly+funnels%2Fpage.readonly+funnels%2Ffunnel.readonly+oauth.edit+oauth.readonly+opportunities.readonly+opportunities.edit+socialplanner%2Fpost.edit+socialplanner%2Faccount.readonly+socialplanner%2Faccount.edit+socialplanner%2Fcsv.readonly+socialplanner%2Fcsv.edit+socialplanner%2Fcategory.readonly+socialplanner%2Ftag.readonly+store%2Fshipping.readonly+socialplanner%2Fstatistics.readonly+store%2Fshipping.edit+store%2Fsetting.readonly+surveys.readonly+store%2Fsetting.edit+workflows.readonly+emails%2Fschedule.readonly+emails%2Fbuilder.edit+emails%2Fbuilder.readonly+wordpress.site.readonly+blogs%2Fpost.edit+blogs%2Fpost-update.edit+blogs%2Fcheck-slug.readonly+blogs%2Fcategory.readonly+blogs%2Fauthor.readonly+socialplanner%2Fcategory.edit+socialplanner%2Ftag.edit+blogs%2Fposts.readonly+blogs%2Flist.readonly+charges.readonly+charges.edit+marketplace-installer-details.readonly+twilioaccount.read+documents_contracts%2Flist.readonly+documents_contracts%2FsendLink.edit+documents_contracts_template%2FsendLink.edit+documents_contracts_template%2Flist.readonly+products%2Fcollection.edit+products%2Fcollection.readonly+products%2Fprices.edit+products%2Fprices.readonly+products.edit+products.readonly+payments%2Fcustom-provider.edit+payments%2Fcoupons.edit+payments%2Fcustom-provider.readonly+payments%2Fcoupons.readonly+payments%2Fsubscriptions.readonly+payments%2Ftransactions.readonly+payments%2Fintegration.edit+payments%2Fintegration.readonly+payments%2Forders.edit+payments%2Forders.readonly+funnels%2Fredirect.edit+funnels%2Fpagecount.readonly&state=1',
+                                        );
+                                      } else if (integration.id ==
+                                          'google-calendar') {
+                                        _handleGoogleSignIn(integration);
+                                      }
+                                    },
+                                    onReset: () =>
+                                        _resetConnection(integration.id),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required String number,
+    required String label,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.4)),
+          boxShadow: const [BoxShadow(blurRadius: 10, color: Colors.black12)],
+        ),
+        child: Column(
+          children: [
+            Text(
+              number,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF4B5563), // gray-600
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
