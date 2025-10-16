@@ -2,10 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:Maya/core/network/api_client.dart';
-import 'package:Maya/features/widgets/features_section.dart';
-import 'package:Maya/features/widgets/go_router_demo.dart';
-import 'package:Maya/features/widgets/talk_to_maya.dart';
-import 'package:Maya/features/widgets/todo_list.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
@@ -185,9 +181,24 @@ class _HomePageState extends State<HomePage> {
     setState(() => isLoadingReminders = true);
     try {
       final response = await getIt<ApiClient>().fetchReminders();
-      if (response['statusCode'] == 200 && response['data'] is List) {
-        List<Map<String, dynamic>> fetchedReminders =
-            List<Map<String, dynamic>>.from(response['data']);
+      if (response['success'] == true) {
+        dynamic data = response['data'];
+        List<Map<String, dynamic>> fetchedReminders = [];
+
+        if (data is List) {
+          fetchedReminders = List<Map<String, dynamic>>.from(data);
+        } else if (data is Map) {
+          // Check if data contains a list under a key (e.g., 'data' or 'items')
+          var listData = data['data'] ?? data['items'] ?? [];
+          if (listData is List) {
+            fetchedReminders = List<Map<String, dynamic>>.from(listData);
+          } else {
+            throw Exception('Unexpected data format: $data');
+          }
+        } else {
+          throw Exception('Unexpected data type: ${data.runtimeType}');
+        }
+
         fetchedReminders.sort((a, b) {
           DateTime timeA = DateTime.parse(a['reminder_time']);
           DateTime timeB = DateTime.parse(b['reminder_time']);
@@ -263,15 +274,15 @@ class _HomePageState extends State<HomePage> {
     final response = await getIt<ApiClient>().updateToDo(payload);
     if (response['statusCode'] == 200) {
       fetchToDos();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('To-Do updated successfully'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('To-Do updated successfully')));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to update To-Do: ${response['message'] ?? 'Unknown error'}'),
+          content: Text(
+            'Failed to update To-Do: ${response['message'] ?? 'Unknown error'}',
+          ),
         ),
       );
     }
@@ -292,23 +303,21 @@ class _HomePageState extends State<HomePage> {
       if (response['statusCode'] == 200) {
         await fetchToDos();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('To-Do marked as completed'),
-          ),
+          const SnackBar(content: Text('To-Do marked as completed')),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to complete To-Do: ${response['message'] ?? 'Unknown error'}'),
+            content: Text(
+              'Failed to complete To-Do: ${response['message'] ?? 'Unknown error'}',
+            ),
           ),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error completing To-Do: $e'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error completing To-Do: $e')));
     } finally {
       setState(() => isLoadingTodos = false);
     }
@@ -725,9 +734,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildToDoItem(Map<String, dynamic> todo) {
     return GestureDetector(
-      onTap: todo['status'] == 'completed' 
-          ? null 
-          : () => completeToDo(todo),
+      onTap: todo['status'] == 'completed' ? null : () => completeToDo(todo),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
@@ -739,15 +746,17 @@ class _HomePageState extends State<HomePage> {
         child: Row(
           children: [
             GestureDetector(
-              onTap: todo['status'] == 'completed' 
-                  ? null 
+              onTap: todo['status'] == 'completed'
+                  ? null
                   : () => completeToDo(todo),
               child: Container(
                 width: 20,
                 height: 20,
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: todo['status'] == 'completed' ? Colors.green : Colors.grey,
+                    color: todo['status'] == 'completed'
+                        ? Colors.green
+                        : Colors.grey,
                     width: 2,
                   ),
                   borderRadius: BorderRadius.circular(4),

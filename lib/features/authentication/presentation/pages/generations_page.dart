@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class GenerationsPage extends StatelessWidget {
-  const GenerationsPage({Key? key}) : super(key: key);
+  const GenerationsPage({super.key});
 
   @override
   Widget build(BuildContext context) {

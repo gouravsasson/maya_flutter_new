@@ -565,7 +565,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
                               ),
                             ],
                           );
-                        }).toList(),
+                        }),
                       ],
                     ),
                   ),

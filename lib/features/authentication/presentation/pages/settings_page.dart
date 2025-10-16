@@ -1,5 +1,6 @@
+import 'package:Maya/core/network/api_client.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:get_it/get_it.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -16,12 +17,221 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _wakeWordEnabled = true;
   bool _showShutdownModal = false;
   bool _showRestartModal = false;
+  bool _isLoading = false; // To show loading state during API calls
+
+
+
+  final ApiClient _apiClient = GetIt.instance<ApiClient>(); // Get ApiClient instance
 
   final List<Map<String, dynamic>> wifiNetworks = [
     {'name': 'Home Network', 'signal': 'Excellent', 'connected': true},
     {'name': 'Guest WiFi', 'signal': 'Good', 'connected': false},
     {'name': 'Office_5G', 'signal': 'Fair', 'connected': false},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchInitialAudioSettings(); // Fetch initial speaker, mic volumes, and wake word status
+  }
+
+  // Fetch initial speaker, microphone volumes, and wake word status
+  Future<void> _fetchInitialAudioSettings() async {
+    setState(() => _isLoading = true);
+    try {
+      // Fetch speaker volume
+      final volumeResponse = await _apiClient.getVolume();
+      if (volumeResponse['statusCode'] == 200) {
+        final volumeData = volumeResponse['data'];
+        if (volumeData != null && volumeData['level'] != null) {
+          setState(() {
+            _volume = (volumeData['level'] as num).toDouble();
+          });
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to fetch volume: ${volumeResponse['statusCode']}')),
+        );
+      }
+
+      // Fetch microphone volume
+      final micVolumeResponse = await _apiClient.getMicVolume();
+      if (micVolumeResponse['statusCode'] == 200) {
+        final micVolumeData = micVolumeResponse['data'];
+        if (micVolumeData != null && micVolumeData['level'] != null) {
+          setState(() {
+            _micVolume = (micVolumeData['level'] as num).toDouble();
+          });
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to fetch mic volume: ${micVolumeResponse['statusCode']}')),
+        );
+      }
+
+      // Fetch wake word status
+      final wakeWordResponse = await _apiClient.getWakeWord();
+      if (wakeWordResponse['statusCode'] == 200) {
+        final wakeWordData = wakeWordResponse['data'];
+        if (wakeWordData != null && wakeWordData['mode'] != null) {
+          setState(() {
+            _wakeWordEnabled = wakeWordData['mode'] == 'on';
+          });
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to fetch wake word status: ${wakeWordResponse['statusCode']}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching audio settings: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Set the speaker volume on the device
+  Future<void> _setVolume(double value) async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _apiClient.setVolume(value.round());
+      if (response['statusCode'] == 200) {
+        setState(() => _volume = value);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Volume updated successfully')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to set volume: ${response['statusCode']}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error setting volume: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Set the microphone volume on the device
+  Future<void> _setMicVolume(double value) async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _apiClient.setMicVolume(value.round());
+      if (response['statusCode'] == 200) {
+        setState(() => _micVolume = value);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Microphone volume updated successfully')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to set mic volume: ${response['statusCode']}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error setting mic volume: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Set wake word detection on or off
+  Future<void> _setWakeWord(bool value) async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _apiClient.setWakeWord(value ? 'on' : 'off');
+      if (response['statusCode'] == 200) {
+        setState(() => _wakeWordEnabled = value);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Wake word detection ${value ? 'enabled' : 'disabled'} successfully')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to set wake word: ${response['statusCode']}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error setting wake word: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Wake Maya
+  Future<void> _wakeMaya() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _apiClient.wakeMaya();
+      if (response['statusCode'] == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Maya activated successfully')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to wake Maya: ${response['statusCode']}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error waking Maya: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Reboot the device
+  Future<void> _rebootDevice() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _apiClient.rebootDevice();
+      if (response['statusCode'] == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Restarting Maya Doll...')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to restart device: ${response['statusCode']}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error restarting device: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Shutdown the device
+  Future<void> _shutdownDevice() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _apiClient.shutdownDevice();
+      if (response['statusCode'] == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Shutting down Maya Doll...')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to shutdown device: ${response['statusCode']}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error shutting down device: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +297,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   // Audio Controls
                   _buildAudioControls(),
                   const SizedBox(height: 16),
+                  // Wake Maya
+                  _buildWakeMaya(),
+                  const SizedBox(height: 16),
                   // WiFi Connection
                   _buildWifiConnection(),
                   const SizedBox(height: 16),
@@ -105,6 +318,14 @@ class _SettingsPageState extends State<SettingsPage> {
           // Modals
           if (_showShutdownModal) _buildShutdownModal(),
           if (_showRestartModal) _buildRestartModal(),
+          // Loading overlay
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.4),
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
         ],
       ),
     );
@@ -255,14 +476,20 @@ class _SettingsPageState extends State<SettingsPage> {
             label: 'Speaker Volume',
             value: _volume,
             valueColor: const Color(0xFF3B82F6),
-            onChanged: (value) => setState(() => _volume = value),
+            onChanged: (value) {
+              setState(() => _volume = value);
+              _setVolume(value); // Call API to set speaker volume
+            },
           ),
           const SizedBox(height: 16),
           _buildSlider(
             label: 'Microphone Sensitivity',
             value: _micVolume,
             valueColor: const Color(0xFFA855F7), // purple-700
-            onChanged: (value) => setState(() => _micVolume = value),
+            onChanged: (value) {
+              setState(() => _micVolume = value);
+              _setMicVolume(value); // Call API to set mic volume
+            },
           ),
           const SizedBox(height: 16),
           _buildSwitchTile(
@@ -270,7 +497,85 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: 'Activate with "Hey Maya"',
             value: _wakeWordEnabled,
             activeColor: const Color(0xFF3B82F6),
-            onChanged: (value) => setState(() => _wakeWordEnabled = value),
+            onChanged: (value) {
+              _setWakeWord(value); // Call API to set wake word
+            },
+          ),
+          if (!_wakeWordEnabled) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'When wake word detection is off, use the Wake Maya button below to activate Maya.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFF4B5563),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWakeMaya() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+        boxShadow: const [BoxShadow(blurRadius: 10, color: Colors.black12)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0x66FECACA), // rose-200/60
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0x66FCA5A5)), // rose-300/40
+                ),
+                child: const Icon(
+                  Icons.mic,
+                  size: 20,
+                  color: Color(0xFFBE123C), // rose-700
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Wake Maya',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: _wakeMaya,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0x66FECACA), // rose-100/60
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0x66FCA5A5)), // rose-200/60
+              ),
+              child: const Center(
+                child: Text(
+                  'Wake Maya',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFBE123C), // rose-700
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -858,9 +1163,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: TextButton(
                       onPressed: () {
                         setState(() => _showShutdownModal = false);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Shutting down Maya Doll...')),
-                        );
+                        _shutdownDevice(); // Call shutdown API
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -950,9 +1253,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: TextButton(
                       onPressed: () {
                         setState(() => _showRestartModal = false);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Restarting Maya Doll...')),
-                        );
+                        _rebootDevice(); // Call reboot API
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),

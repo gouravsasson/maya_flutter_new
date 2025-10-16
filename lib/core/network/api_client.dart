@@ -94,6 +94,7 @@ class ApiClient {
   Future<Response> put(Dio dio, String path, {dynamic data}) async {
     return await dio.put(path, data: data);
   }
+
   Future<Response> patch(Dio dio, String path, {dynamic data}) async {
     return await dio.patch(path, data: data);
   }
@@ -346,7 +347,11 @@ class ApiClient {
   Future<Map<String, dynamic>> createGeneration(
     Map<String, dynamic> payload,
   ) async {
-    final response = await post(_protectedDio, '/productivity/generations', data: payload);
+    final response = await post(
+      _protectedDio,
+      '/productivity/generations',
+      data: payload,
+    );
     print('createGeneration response: ${response.data}');
     print('createGeneration statusCode: ${response.statusCode}');
     return {'statusCode': response.statusCode, 'data': response.data};
@@ -370,7 +375,10 @@ class ApiClient {
 
   // Approve Generation API
   Future<Map<String, dynamic>> approveGeneration(String id) async {
-    final response = await post(_protectedDio, '/productivity/generations/$id/approve');
+    final response = await post(
+      _protectedDio,
+      '/productivity/generations/$id/approve',
+    );
     print('approveGeneration response: ${response.data}');
     print('approveGeneration statusCode: ${response.statusCode}');
     return {'statusCode': response.statusCode, 'data': response.data};
@@ -378,9 +386,245 @@ class ApiClient {
 
   // Regenerate Generation API
   Future<Map<String, dynamic>> regenerateGeneration(String id) async {
-    final response = await post(_protectedDio, '/productivity/generations/$id/regenerate');
+    final response = await post(
+      _protectedDio,
+      '/productivity/generations/$id/regenerate',
+    );
     print('regenerateGeneration response: ${response.data}');
     print('regenerateGeneration statusCode: ${response.statusCode}');
     return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  // Publish MQTT Message API
+  Future<Map<String, dynamic>> publishMqttMessage({
+    required String message,
+    int qos = 2,
+    bool retain = false,
+  }) async {
+    final payload = prepareMqttPublishPayload(message, qos, retain);
+    final response =
+        await post(_publicDio, '/device/mqtt/publish', data: payload).then((
+          response,
+        ) {
+          print('publishMqttMessage response: ${response.data}');
+          print('publishMqttMessage statusCode: ${response.statusCode}');
+          return {'statusCode': response.statusCode, 'data': response.data};
+        });
+
+    return response;
+  }
+
+  // Set Volume API
+  Future<Map<String, dynamic>> setVolume(int level) async {
+    final payload = prepareSetVolumePayload(level);
+    final options = Options(headers: {'X-Device-ID': 'maya-india-26b'});
+    final response = await _publicDio.post(
+      '/device/mqtt/publish',
+      data: payload,
+      options: options,
+    );
+    print('setVolume response: ${response.data}');
+    print('setVolume statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  // Get Volume API
+  Future<Map<String, dynamic>> getVolume() async {
+    final payload = prepareGetVolumePayload();
+    final options = Options(headers: {'X-Device-ID': 'maya-india-26b'});
+    final response = await _publicDio.post(
+      '/device/mqtt/publish',
+      data: payload,
+      options: options,
+    );
+    print('getVolume response: ${response.data}');
+    print('getVolume statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+
+  Future<Map<String, dynamic>> setMicVolume(int level) async {
+    final payload = prepareSetMicVolumePayload(level);
+    final options = Options(headers: {'X-Device-ID': 'maya-india-26b'});
+    final response = await _publicDio.post(
+      '/device/mqtt/publish',
+      data: payload,
+      options: options,
+    );
+    print('setMicVolume response: ${response.data}');
+    print('setMicVolume statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  // Get Microphone Volume API
+  Future<Map<String, dynamic>> getMicVolume() async {
+    final payload = prepareGetMicVolumePayload();
+    final options = Options(headers: {'X-Device-ID': 'maya-india-26b'});
+    final response = await _publicDio.post(
+      '/device/mqtt/publish',
+      data: payload,
+      options: options,
+    );
+    print('getMicVolume response: ${response.data}');
+    print('getMicVolume statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  // Prepare MQTT Publish Payload
+  Map<String, dynamic> prepareMqttPublishPayload(
+    String message, [
+    int qos = 2,
+    bool retain = false,
+  ]) {
+    return {'message': message, 'qos': qos, 'retain': retain};
+  }
+
+  // Prepare Set Volume Payload
+  Map<String, dynamic> prepareSetVolumePayload(int level) {
+    return prepareMqttPublishPayload(
+      '{"action":"set_speaker_volume","level":$level}',
+      2,
+      false,
+    );
+  }
+
+  // Prepare Get Volume Payload
+  Map<String, dynamic> prepareGetVolumePayload() {
+    return prepareMqttPublishPayload('{"action":"get_speaker_volume"}', 2, false);
+  }
+
+   Map<String, dynamic> prepareSetMicVolumePayload(int level) {
+    return prepareMqttPublishPayload(
+      '{"action":"set_mic_volume","level":$level}',
+      2,
+      false,
+    );
+  }
+
+  // Prepare Get Microphone Volume Payload
+  Map<String, dynamic> prepareGetMicVolumePayload() {
+    return prepareMqttPublishPayload(
+      '{"action":"get_mic_volume"}',
+      2,
+      false,
+    );
+  }
+
+
+    Future<Map<String, dynamic>> rebootDevice() async {
+    final payload = prepareRebootPayload();
+    final options = Options(headers: {'X-Device-ID': 'maya-india-26b'});
+    final response = await _publicDio.post(
+      '/device/mqtt/publish',
+      data: payload,
+      options: options,
+    );
+    print('rebootDevice response: ${response.data}');
+    print('rebootDevice statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  // Shutdown Device API
+  Future<Map<String, dynamic>> shutdownDevice() async {
+    final payload = prepareShutdownPayload();
+    final options = Options(headers: {'X-Device-ID': 'maya-india-26b'});
+    final response = await _publicDio.post(
+      '/device/mqtt/publish',
+      data: payload,
+      options: options,
+    );
+    print('shutdownDevice response: ${response.data}');
+    print('shutdownDevice statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+
+   Map<String, dynamic> prepareRebootPayload() {
+    return prepareMqttPublishPayload(
+      '{"action":"reboot"}',
+      2,
+      false,
+    );
+  }
+
+  // Prepare Shutdown Payload
+  Map<String, dynamic> prepareShutdownPayload() {
+    return prepareMqttPublishPayload(
+      '{"action":"shutdown"}',
+      2,
+      false,
+    );
+  }
+
+    // Set Wake Word API
+  Future<Map<String, dynamic>> setWakeWord(String mode) async {
+    final payload = prepareSetWakeWordPayload(mode);
+    final options = Options(headers: {'X-Device-ID': 'maya-india-26b'});
+    final response = await _publicDio.post(
+      '/device/mqtt/publish',
+      data: payload,
+      options: options,
+    );
+    print('setWakeWord response: ${response.data}');
+    print('setWakeWord statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  // Get Wake Word API
+  Future<Map<String, dynamic>> getWakeWord() async {
+    final payload = prepareGetWakeWordPayload();
+    final options = Options(headers: {'X-Device-ID': 'maya-india-26b'});
+    final response = await _publicDio.post(
+      '/device/mqtt/publish',
+      data: payload,
+      options: options,
+    );
+    print('getWakeWord response: ${response.data}');
+    print('getWakeWord statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  // Wake Maya API
+  Future<Map<String, dynamic>> wakeMaya() async {
+    final payload = prepareWakeMayaPayload();
+    final options = Options(headers: {'X-Device-ID': 'maya-india-26b'});
+    final response = await _publicDio.post(
+      '/device/mqtt/publish',
+      data: payload,
+      options: options,
+    );
+    print('wakeMaya response: ${response.data}');
+    print('wakeMaya statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  // Prepare Set Wake Word Payload
+  Map<String, dynamic> prepareSetWakeWordPayload(String mode) {
+    if (mode != 'on' && mode != 'off') {
+      throw ArgumentError('Mode must be either "on" or "off"');
+    }
+    return prepareMqttPublishPayload(
+      '{"action":"set_wake_word","mode":"$mode"}',
+      2,
+      false,
+    );
+  }
+
+  // Prepare Get Wake Word Payload
+  Map<String, dynamic> prepareGetWakeWordPayload() {
+    return prepareMqttPublishPayload(
+      '{"action":"get_wake_word"}',
+      2,
+      false,
+    );
+  }
+
+  // Prepare Wake Maya Payload
+  Map<String, dynamic> prepareWakeMayaPayload() {
+    return prepareMqttPublishPayload(
+      '{"action":"wake_maya"}',
+      2,
+      false,
+    );
   }
 }

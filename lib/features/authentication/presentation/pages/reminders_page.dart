@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class RemindersPage extends StatefulWidget {
-  const RemindersPage({Key? key}) : super(key: key);
+  const RemindersPage({super.key});
 
   @override
   _RemindersPageState createState() => _RemindersPageState();

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class OtherPage extends StatelessWidget {
-  const OtherPage({Key? key}) : super(key: key);
+  const OtherPage({super.key});
 
   @override
   Widget build(BuildContext context) {
