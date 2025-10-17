@@ -84,6 +84,7 @@ dependencies:
   flutter_blurhash: ^0.9.1
   flutter_svg: ^2.2.1
   timeago: ^3.7.1
+  animate_do: ^4.2.0
 
 dev_dependencies:
   flutter_test:

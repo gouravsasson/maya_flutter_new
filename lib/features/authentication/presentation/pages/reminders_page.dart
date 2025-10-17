@@ -1,5 +1,8 @@
+import 'package:Maya/core/network/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:get_it/get_it.dart';
+import 'package:intl/intl.dart';
 
 class RemindersPage extends StatefulWidget {
   const RemindersPage({super.key});
@@ -9,14 +12,71 @@ class RemindersPage extends StatefulWidget {
 }
 
 class _RemindersPageState extends State<RemindersPage> {
-  final List<Map<String, dynamic>> reminders = List.generate(
-    5,
-    (index) => {
-      'title': 'Reminder ${index + 1}',
-      'description': 'Event on ${DateTime.now().add(Duration(days: index)).toString().split('.')[0]}',
-      'dismissed': false,
-    },
-  );
+  List<Map<String, dynamic>> reminders = [];
+  bool isLoadingReminders = false;
+  bool isLoadingMore = false;
+  int currentPage = 1;
+  bool hasMore = true;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    fetchReminders();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> fetchReminders({int page = 1}) async {
+    if (page == 1) {
+      setState(() => isLoadingReminders = true);
+    } else {
+      setState(() => isLoadingMore = true);
+    }
+
+    try {
+      final response = await GetIt.I<ApiClient>().getReminders(page: page);
+      if (response['statusCode'] == 200) {
+        final newReminders = List<Map<String, dynamic>>.from(response['data']['data']);
+        setState(() {
+          if (page == 1) {
+            reminders = newReminders;
+          } else {
+            reminders.addAll(newReminders);
+          }
+          hasMore = newReminders.isNotEmpty; // Assuming API returns empty list when no more data
+          currentPage = page;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to fetch reminders: ${response['message'] ?? 'Unknown error'}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching reminders: $e')),
+      );
+    } finally {
+      setState(() {
+        isLoadingReminders = false;
+        isLoadingMore = false;
+      });
+    }
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200 &&
+        !isLoadingMore &&
+        hasMore) {
+      fetchReminders(page: currentPage + 1);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,93 +122,93 @@ class _RemindersPageState extends State<RemindersPage> {
           ),
           // Main content
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Reminders',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1F2937), // gray-800
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Set and manage all your reminders',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFF4B5563), // gray-600
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Reminders List
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: reminders.length,
-                    itemBuilder: (context, index) {
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withOpacity(0.4)),
-                          boxShadow: const [BoxShadow(blurRadius: 10, color: Colors.black12)],
-                        ),
-                        child: Row(
+            child: isLoadingReminders
+                ? const Center(child: CircularProgressIndicator())
+                : reminders.isEmpty
+                    ? const Center(child: Text('No reminders available', style: TextStyle(color: Colors.grey)))
+                    : SingleChildScrollView(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.notifications_off,
-                                color: reminders[index]['dismissed']
-                                    ? const Color(0xFFD97706) // amber-700
-                                    : const Color(0xFF6B7280), // gray-500
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Reminders',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1F2937), // gray-800
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  reminders[index]['dismissed'] = !reminders[index]['dismissed'];
-                                });
-                              },
                             ),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    reminders[index]['title'],
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                      color: const Color(0xFF1F2937),
-                                      decoration: reminders[index]['dismissed']
-                                          ? TextDecoration.lineThrough
-                                          : null,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    reminders[index]['description'],
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Color(0xFF4B5563),
-                                    ),
-                                  ),
-                                ],
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Set and manage all your reminders',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF4B5563), // gray-600
                               ),
+                            ),
+                            const SizedBox(height: 24),
+                            // Reminders List
+                            ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: reminders.length + (isLoadingMore ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (index == reminders.length) {
+                                  return const Center(child: CircularProgressIndicator());
+                                }
+                                final utcTime = DateTime.parse(reminders[index]['reminder_time']);
+                                final localTime = utcTime.toLocal();
+                                final formattedTime = DateFormat('MMM d, yyyy h:mm a').format(localTime);
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.3),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: Colors.white.withOpacity(0.4)),
+                                    boxShadow: const [BoxShadow(blurRadius: 10, color: Colors.black12)],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.notifications,
+                                        color: Color(0xFF6B7280), // gray-500
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              reminders[index]['title'] ?? 'Reminder',
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                                color: Color(0xFF1F2937),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              formattedTime,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Color(0xFF4B5563),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
+                      ),
           ),
         ],
       ),

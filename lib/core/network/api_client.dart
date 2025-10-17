@@ -145,10 +145,10 @@ class ApiClient {
   }
 
   // Fetch Tasks API
-  Future<Map<String, dynamic>> fetchTasks() async {
+  Future<Map<String, dynamic>> fetchTasks({int page=1}) async {
     final response = await get(
       _protectedDio,
-      '/thunder/get-tool-call-sessions',
+    '/thunder/get-tool-call-sessions?page=$page',
     );
     print('fetchTasks response: ${response.data}');
     print('fetchTasks statusCode: ${response.statusCode}');
@@ -234,9 +234,9 @@ class ApiClient {
   }
 
   // Get To-Do API
-  Future<Map<String, dynamic>> getToDo() async {
+  Future<Map<String, dynamic>> getToDo({int page=1}) async {
     print('getToDo');
-    final response = await get(_protectedDio, '/productivity/todo/get');
+    final response = await get(_protectedDio, '/productivity/todo/get?page=$page');
     print('getToDo response: ${response.data}');
     print('getToDo statusCode: ${response.statusCode}');
     return {'statusCode': response.statusCode, 'data': response.data};
@@ -290,8 +290,8 @@ class ApiClient {
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
-  Future<Map<String, dynamic>> getReminders() async {
-    final response = await get(_protectedDio, '/productivity/reminder/get');
+  Future<Map<String, dynamic>> getReminders({int page=1}) async {
+    final response = await get(_protectedDio, '/productivity/reminder/get?page=$page');
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 

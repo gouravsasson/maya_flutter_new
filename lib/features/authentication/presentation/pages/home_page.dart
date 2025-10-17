@@ -14,6 +14,54 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:dio/dio.dart';
+
+class TaskDetail {
+  final String id;
+  final String query;
+  final String status;
+  final String error;
+  final String timestamp;
+
+  TaskDetail({
+    required this.id,
+    required this.query,
+    required this.status,
+    required this.error,
+    required this.timestamp,
+  });
+
+  factory TaskDetail.fromJson(Map<String, dynamic> json) {
+    final toolCall = json['current_tool_call'] as Map<String, dynamic>? ?? {};
+    final status =
+        toolCall['status']?.toString() ?? json['status']?.toString() ?? '';
+    final success =
+        json['success'] as bool? ?? toolCall['success'] as bool? ?? false;
+    final error =
+        json['error']?.toString() ?? toolCall['error']?.toString() ?? '';
+
+    String formattedTimestamp = 'No timestamp';
+    try {
+      final createdAt = DateTime.parse(json['created_at']?.toString() ?? '');
+      formattedTimestamp = DateFormat('MMM dd, yyyy HH:mm').format(createdAt);
+    } catch (e) {
+      // Keep default if parsing fails
+    }
+
+    return TaskDetail(
+      id: json['id']?.toString() ?? 'Unknown',
+      query:
+          json['user_payload']?['task']?.toString() ??
+          json['query']?.toString() ??
+          'No query',
+      status: status.isNotEmpty
+          ? status
+          : (success ? 'completed' : (error.isNotEmpty ? 'failed' : 'pending')),
+      error: error.isNotEmpty ? error : 'None',
+      timestamp: formattedTimestamp,
+    );
+  }
+}
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -25,15 +73,21 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> todos = [];
   List<Map<String, dynamic>> reminders = [];
+  List<TaskDetail> tasks = [];
   bool isLoadingTodos = false;
   bool isLoadingReminders = false;
+  bool isLoadingTasks = false;
   NotificationServices notificationServices = NotificationServices();
   String? fcmToken;
   String? locationPermissionStatus;
+  late ApiClient apiClient;
 
   @override
   void initState() {
     super.initState();
+    final publicDio = Dio();
+    final protectedDio = Dio();
+    apiClient = ApiClient(publicDio, protectedDio);
     notificationServices.requestNotificationPermission();
     notificationServices.forgroundMessage();
     notificationServices.firebaseInit(context);
@@ -49,6 +103,7 @@ class _HomePageState extends State<HomePage> {
     });
     fetchReminders();
     fetchToDos();
+    fetchTasks();
     _initializeAndSaveLocation();
   }
 
@@ -206,6 +261,30 @@ class _HomePageState extends State<HomePage> {
     setState(() => isLoadingTodos = false);
   }
 
+  Future<void> fetchTasks() async {
+    setState(() => isLoadingTasks = true);
+    try {
+      final response = await apiClient.fetchTasks(page: 1);
+      final data = response['data'];
+      if (response['statusCode'] == 200 && data['success'] == true) {
+        final List<dynamic> taskList =
+            data['data']?['sessions'] as List<dynamic>? ?? [];
+        setState(() {
+          tasks = taskList.map((json) => TaskDetail.fromJson(json)).toList();
+          isLoadingTasks = false;
+        });
+      } else {
+        setState(() => isLoadingTasks = false);
+        if (kDebugMode) {
+          print('Failed to load tasks: ${data['message'] ?? 'Unknown error'}');
+        }
+      }
+    } catch (e) {
+      setState(() => isLoadingTasks = false);
+      if (kDebugMode) print('Error fetching tasks: $e');
+    }
+  }
+
   Future<void> addToDo(
     String title,
     String description, {
@@ -331,8 +410,8 @@ class _HomePageState extends State<HomePage> {
     String greeting = now.hour < 12
         ? 'Good Morning'
         : now.hour < 18
-        ? 'Good Afternoon'
-        : 'Good Evening';
+            ? 'Good Afternoon'
+            : 'Good Evening';
 
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
@@ -417,19 +496,27 @@ class _HomePageState extends State<HomePage> {
                         title: 'Active Tasks',
                         icon: LucideIcons.zap,
                         color: Colors.blue,
-                        children: [
-                          _buildTaskItem({
-                            'id': 1,
-                            'query': 'Generate email and send to Om',
-                            'status': 'needsApproval',
-                            'timestamp': '2 hours ago',
-                          }),
-                        ],
+                        children: isLoadingTasks
+                            ? [const Center(child: CircularProgressIndicator())]
+                            : tasks.isEmpty
+                                ? [
+                                    const Text(
+                                      'No active tasks',
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  ]
+                                : tasks.take(3).map((task) {
+                                    return _buildTaskItem(task);
+                                  }).toList(),
                         trailing: TextButton(
-                          onPressed: () => context.go('/other'),
-                          child: const Text(
+                          onPressed: () => context.go('/tasks'),
+                          child: Text(
                             'View All',
-                            style: TextStyle(color: Colors.blue),
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
                       ),
@@ -443,17 +530,17 @@ class _HomePageState extends State<HomePage> {
                         children: isLoadingReminders
                             ? [const Center(child: CircularProgressIndicator())]
                             : reminders.isEmpty
-                            ? [
-                                const Text(
-                                  'No upcoming reminders',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ]
-                            : reminders.take(3).map((reminder) {
-                                return _buildReminderItem(reminder);
-                              }).toList(),
+                                ? [
+                                    const Text(
+                                      'No upcoming reminders',
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  ]
+                                : reminders.take(3).map((reminder) {
+                                    return _buildReminderItem(reminder);
+                                  }).toList(),
                         trailing: TextButton(
-                          onPressed: () => context.go('/other'),
+                          onPressed: () => context.go('/todos'),
                           child: const Text(
                             'View All',
                             style: TextStyle(color: Colors.amber),
@@ -470,17 +557,17 @@ class _HomePageState extends State<HomePage> {
                         children: isLoadingTodos
                             ? [const Center(child: CircularProgressIndicator())]
                             : todos.isEmpty
-                            ? [
-                                const Text(
-                                  'No to-dos available',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ]
-                            : todos.take(3).map((todo) {
-                                return _buildToDoItem(todo);
-                              }).toList(),
+                                ? [
+                                    const Text(
+                                      'No to-dos available',
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  ]
+                                : todos.take(3).map((todo) {
+                                    return _buildToDoItem(todo);
+                                  }).toList(),
                         trailing: TextButton(
-                          onPressed: () => context.go('/other'),
+                          onPressed: () => context.go('/reminders'),
                           child: const Text(
                             'View All',
                             style: TextStyle(color: Colors.green),
@@ -513,7 +600,7 @@ class _HomePageState extends State<HomePage> {
         border: Border.all(color: Colors.white.withOpacity(0.3)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -532,7 +619,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       child: Icon(icon, size: 20, color: color),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     Text(
                       title,
                       style: const TextStyle(
@@ -546,7 +633,7 @@ class _HomePageState extends State<HomePage> {
                 if (trailing != null) trailing,
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             ...children,
           ],
         ),
@@ -558,11 +645,11 @@ class _HomePageState extends State<HomePage> {
     Color dotColor = activity['type'] == 'success'
         ? Colors.green
         : activity['type'] == 'error'
-        ? Colors.red
-        : Colors.blue;
+            ? Colors.red
+            : Colors.blue;
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.3),
         borderRadius: BorderRadius.circular(12),
@@ -591,40 +678,137 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildTaskItem(Map<String, dynamic> task) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.4)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              task['query'],
-              style: const TextStyle(fontSize: 14, color: Colors.black87),
+  Widget _buildTaskItem(TaskDetail task) {
+    Color statusColor;
+    String statusLabel;
+    IconData statusIcon;
+    switch (task.status.toLowerCase()) {
+      case 'succeeded':
+      case 'completed':
+        statusColor = Colors.green;
+        statusLabel = 'Completed';
+        statusIcon = LucideIcons.checkCircle2;
+        break;
+      case 'failed':
+        statusColor = Colors.red;
+        statusLabel = 'Failed';
+        statusIcon = LucideIcons.xCircle;
+        break;
+      case 'approval_pending':
+        statusColor = Colors.blue;
+        statusLabel = 'Needs Approval';
+        statusIcon = LucideIcons.alertCircle;
+        break;
+      case 'pending':
+      default:
+        statusColor = Colors.amber;
+        statusLabel = 'In Progress';
+        statusIcon = LucideIcons.clock;
+        break;
+    }
+
+    return GestureDetector(
+      onTap: () {
+        context.go(
+          '/tasks/${task.id}',
+          extra: {'query': task.query},
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.25),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.35)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  LucideIcons.zap,
+                  size: 16,
+                  color: Colors.blue.withOpacity(0.8),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    task.query.isNotEmpty ? task.query : 'No query provided',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
-            child: Text(
-              'Needs Approval',
-              style: TextStyle(fontSize: 12, color: Colors.blue),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: statusColor.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        statusIcon,
+                        size: 14,
+                        color: statusColor,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        statusLabel,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: statusColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  task.timestamp,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[500],
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            task['timestamp'],
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-        ],
+            if (task.error != 'None') ...[
+              const SizedBox(height: 8),
+              Text(
+                'Error: ${task.error}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.red,
+                  fontWeight: FontWeight.w400,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -637,8 +821,8 @@ class _HomePageState extends State<HomePage> {
     return GestureDetector(
       onTap: () => context.go('/other'),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.3),
           borderRadius: BorderRadius.circular(12),
@@ -685,8 +869,8 @@ class _HomePageState extends State<HomePage> {
     return GestureDetector(
       onTap: todo['status'] == 'completed' ? null : () => completeToDo(todo),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.3),
           borderRadius: BorderRadius.circular(12),

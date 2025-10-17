@@ -62,8 +62,12 @@ class _TasksPageState extends State<TasksPage> {
   String selectedFilter = 'all';
   List<TaskDetail> tasks = [];
   bool isLoading = true;
+  bool isLoadingMore = false;
   String? errorMessage;
   late ApiClient apiClient;
+  int currentPage = 1;
+  bool hasMore = true;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -72,27 +76,49 @@ class _TasksPageState extends State<TasksPage> {
     final protectedDio = Dio();
     apiClient = ApiClient(publicDio, protectedDio);
     fetchTasks();
+    _scrollController.addListener(_onScroll);
   }
 
-  Future<void> fetchTasks() async {
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> fetchTasks({int page = 1}) async {
+    if (page == 1) {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+    } else {
+      setState(() {
+        isLoadingMore = true;
+      });
+    }
 
     try {
-      final response = await apiClient.fetchTasks();
+      final response = await apiClient.fetchTasks(page: page);
       final data = response['data'];
       if (response['statusCode'] == 200 && data['success'] == true) {
         final List<dynamic> taskList =
             data['data']?['sessions'] as List<dynamic>? ?? [];
         setState(() {
-          tasks = taskList.map((json) => TaskDetail.fromJson(json)).toList();
+          final newTasks = taskList.map((json) => TaskDetail.fromJson(json)).toList();
+          if (page == 1) {
+            tasks = newTasks;
+          } else {
+            tasks.addAll(newTasks);
+          }
+          hasMore = newTasks.isNotEmpty; // Assume no more data if empty
+          currentPage = page;
           isLoading = false;
+          isLoadingMore = false;
         });
       } else {
         setState(() {
           isLoading = false;
+          isLoadingMore = false;
           errorMessage =
               'Failed to load tasks: ${data['message'] ?? 'Unknown error'}';
         });
@@ -100,8 +126,18 @@ class _TasksPageState extends State<TasksPage> {
     } catch (e) {
       setState(() {
         isLoading = false;
+        isLoadingMore = false;
         errorMessage = 'Error fetching tasks: $e';
       });
+    }
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !isLoadingMore &&
+        hasMore) {
+      fetchTasks(page: currentPage + 1);
     }
   }
 
@@ -274,7 +310,7 @@ class _TasksPageState extends State<TasksPage> {
                           color: Colors.blue[700],
                           size: 28,
                         ),
-                        onPressed: fetchTasks,
+                        onPressed: () => fetchTasks(page: 1),
                       ),
                     ],
                   ),
@@ -309,6 +345,11 @@ class _TasksPageState extends State<TasksPage> {
                             onTap: () {
                               setState(() {
                                 selectedFilter = option['value'] as String;
+                                // Reset pagination when filter changes
+                                tasks.clear();
+                                currentPage = 1;
+                                hasMore = true;
+                                fetchTasks(page: 1);
                               });
                             },
                             child: Container(
@@ -349,157 +390,165 @@ class _TasksPageState extends State<TasksPage> {
                   ),
                 ),
                 // Tasks List
-                // Tasks List
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: isLoading
                         ? const Center(child: CircularProgressIndicator())
                         : errorMessage != null
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  errorMessage!,
-                                  style: const TextStyle(
-                                    color: Color(0xFFEF4444),
-                                    fontSize: 16,
-                                  ),
-                                  textAlign: TextAlign.center,
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      errorMessage!,
+                                      style: const TextStyle(
+                                        color: Color(0xFFEF4444),
+                                        fontSize: 16,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton(
+                                      onPressed: () => fetchTasks(page: 1),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.blue[700],
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 24,
+                                          vertical: 12,
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Retry',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: fetchTasks,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue[700],
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                              )
+                            : filteredTasks.isEmpty
+                                ? Container(
+                                    margin: const EdgeInsets.only(top: 16),
+                                    padding: const EdgeInsets.all(32),
+                                    child: Text(
+                                      'No tasks found with this filter',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.grey[500],
+                                      ),
+                                      textAlign: TextAlign.center,
                                     ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 24,
-                                      vertical: 12,
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Retry',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : filteredTasks.isEmpty
-                        ? Container(
-                            margin: const EdgeInsets.only(top: 16),
-                            padding: const EdgeInsets.all(32),
-                            child: Text(
-                              'No tasks found with this filter',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[500],
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            itemCount: filteredTasks.length,
-                            itemBuilder: (context, index) {
-                              final task = filteredTasks[index];
-                              return GestureDetector(
-                                onTap: () {
-                                  context.go('/tasks/${task.id}');
-                                },
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  padding: const EdgeInsets.all(24),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(24),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Flexible(
-                                            child: Text(
-                                              task.query.isNotEmpty
-                                                  ? task.query
-                                                  : 'No query provided',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.grey[800],
+                                  )
+                                : ListView.builder(
+                                    controller: _scrollController,
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    itemCount: filteredTasks.length + (isLoadingMore ? 1 : 0),
+                                    itemBuilder: (context, index) {
+                                      if (index == filteredTasks.length) {
+                                        return const Center(child: CircularProgressIndicator());
+                                      }
+                                      final task = filteredTasks[index];
+                                      return GestureDetector(
+                                        onTap: () {
+                                          context.go(
+                                            '/tasks/${task.id}',
+                                            extra: {
+                                              'query': task.query,
+                                            },
+                                          );
+                                        },
+                                        child: Container(
+                                          margin: const EdgeInsets.only(bottom: 16),
+                                          padding: const EdgeInsets.all(24),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.2),
+                                            borderRadius: BorderRadius.circular(24),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Flexible(
+                                                    child: Text(
+                                                      task.query.isNotEmpty
+                                                          ? task.query
+                                                          : 'No query provided',
+                                                      style: TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: Colors.grey[800],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  getStatusBadge(task.status),
+                                                ],
                                               ),
-                                            ),
-                                          ),
-                                          getStatusBadge(task.status),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.access_time,
-                                            size: 12,
-                                            color: Colors.grey[500],
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            task.timestamp,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey[500],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      if (task.error != 'None') ...[
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          'Error: ${task.error}',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Color(0xFFEF4444),
+                                              const SizedBox(height: 8),
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.access_time,
+                                                    size: 12,
+                                                    color: Colors.grey[500],
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    task.timestamp,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.grey[500],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              if (task.error != 'None') ...[
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  'Error: ${task.error}',
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    color: Color(0xFFEF4444),
+                                                  ),
+                                                ),
+                                              ],
+                                              const SizedBox(height: 16),
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.end,
+                                                children: [
+                                                  Text(
+                                                    'View details',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Colors.blue[700],
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Icon(
+                                                    Icons.chevron_right,
+                                                    size: 16,
+                                                    color: Colors.blue[700],
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                      ],
-                                      const SizedBox(height: 16),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                            'View details',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.blue[700],
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Icon(
-                                            Icons.chevron_right,
-                                            size: 16,
-                                            color: Colors.blue[700],
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                      );
+                                    },
                                   ),
-                                ),
-                              );
-                            },
-                          ),
                   ),
                 ),
               ],

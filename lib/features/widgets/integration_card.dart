@@ -13,109 +13,166 @@ class IntegrationCard extends StatelessWidget {
     required this.onReset,
   });
 
+  Widget getStatusBadge(bool isConnected) {
+    final statusConfig = {
+      true: {
+        'label': 'Connected',
+        'icon': Icons.check_circle,
+        'bgColor': const Color(0xFF10B981).withOpacity(0.2),
+        'borderColor': const Color(0xFF10B981).withOpacity(0.3),
+        'textColor': const Color(0xFF10B981),
+      },
+      false: {
+        'label': 'Not Connected',
+        'bgColor': const Color(0xFFF59E0B).withOpacity(0.2),
+        'borderColor': const Color(0xFFF59E0B).withOpacity(0.3),
+        'textColor': const Color(0xFFF59E0B),
+        'icon': Icons.link_off,
+      },
+    };
+
+    final config = statusConfig[isConnected]!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: config['bgColor'] as Color,
+        border: Border.all(color: config['borderColor'] as Color),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            config['icon'] as IconData,
+            size: 14,
+            color: config['textColor'] as Color,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            config['label'] as String,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: config['textColor'] as Color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {},
-        child: Padding(
-          padding: const EdgeInsets.all(12), // Reduced padding for compactness
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 48, // Slightly smaller icon container
-                height: 48,
-                decoration: BoxDecoration(
-                  color: integration.iconColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: () {}, // Kept for potential future interactivity
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: integration.iconColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          integration.icon,
+                          size: 24,
+                          color: integration.iconColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          integration.name,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Icon(
-                  integration.icon,
-                  size: 24, // Slightly smaller icon
-                  color: integration.iconColor,
-                ),
+                getStatusBadge(integration.connected),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              integration.description,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[500],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (integration.connected)
+                  GestureDetector(
+                    onTap: onReset,
+                    child: Row(
                       children: [
-                        Expanded(
-                          child: Text(
-                            integration.name,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                            overflow: TextOverflow.ellipsis, // Prevent text overflow
+                        Text(
+                          'Reset',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.red[700],
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if (integration.connected) ...[
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.check_circle,
-                            size: 18,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ],
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.refresh,
+                          size: 16,
+                          color: Colors.red[700],
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      integration.description,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                      maxLines: 2, // Limit description to 2 lines
-                      overflow: TextOverflow.ellipsis, // Prevent text overflow
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 180), // Limit button area width
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (integration.connected)
-                      OutlinedButton(
-                        onPressed: onReset,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Theme.of(context).colorScheme.error,
-                          side: BorderSide(color: Theme.of(context).colorScheme.error),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          minimumSize: const Size(80, 36), // Smaller button size
+                  ),
+                if (integration.connected) const SizedBox(width: 16),
+                GestureDetector(
+                  onTap: onConnect,
+                  child: Row(
+                    children: [
+                      Text(
+                        integration.connected ? 'Connect Another' : 'Connect',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.blue[700],
+                          fontWeight: FontWeight.w600,
                         ),
-                        child: const Text('Reset'),
                       ),
-                    FilledButton(
-                      onPressed: onConnect,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: integration.connected
-                            ? Theme.of(context).colorScheme.secondary
-                            : Theme.of(context).colorScheme.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        minimumSize: const Size(80, 36), // Smaller button size
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.chevron_right,
+                        size: 16,
+                        color: Colors.blue[700],
                       ),
-                      child: Text(integration.connected ? 'Connect Another' : 'Connect'),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ),
       ),
     );

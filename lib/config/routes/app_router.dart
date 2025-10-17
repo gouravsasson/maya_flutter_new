@@ -100,7 +100,6 @@ class AppRouter {
         return null;
       },
       routes: [
-        // Authentication routes (no persistent navigation)
         GoRoute(
           path: splash,
           name: 'splash',
@@ -115,7 +114,13 @@ class AppRouter {
             return LoginPage();
           },
         ),
-        // Profile route (outside ShellRoute for stack navigation)
+        GoRoute(
+          path: home,
+          name: 'home',
+          builder: (BuildContext context, GoRouterState state) {
+            return TabLayout(child: HomePage());
+          },
+        ),
         GoRoute(
           path: profile,
           name: 'profile',
@@ -123,12 +128,11 @@ class AppRouter {
             return ProfilePage();
           },
         ),
-        // Call Sessions route (outside ShellRoute for stack navigation)
         GoRoute(
-          path: call_sessions,
-          name: 'call_sessions',
+          path: tasks,
+          name: 'tasks',
           builder: (BuildContext context, GoRouterState state) {
-            return CallSessionsPage();
+            return TabLayout(child: TasksPage());
           },
         ),
         GoRoute(
@@ -139,84 +143,69 @@ class AppRouter {
             return TaskDetailPage(
               sessionId: taskId,
               apiClient: ApiClient(Dio(), Dio()),
+              taskQuery: '',
             );
           },
         ),
-        // GHL WebView route
+        GoRoute(
+          path: integrations,
+          name: 'integrations',
+          builder: (BuildContext context, GoRouterState state) {
+            return TabLayout(child: IntegrationsPage());
+          },
+        ),
+        GoRoute(
+          path: settings,
+          name: 'settings',
+          builder: (BuildContext context, GoRouterState state) {
+            return TabLayout(child: SettingsPage());
+          },
+        ),
+        GoRoute(
+          path: call_sessions,
+          name: 'call_sessions',
+          builder: (BuildContext context, GoRouterState state) {
+            return CallSessionsPage();
+          },
+        ),
+        GoRoute(
+          path: maya,
+          name: 'maya',
+          builder: (BuildContext context, GoRouterState state) {
+            return TabLayout(child: TalkToMaya());
+          },
+        ),
+        GoRoute(
+          path: other,
+          name: 'other',
+          builder: (BuildContext context, GoRouterState state) {
+            return TabLayout(child: OtherPage());
+          },
+        ),
+        GoRoute(
+          path: generations,
+          name: 'generations',
+          builder: (BuildContext context, GoRouterState state) {
+            return TabLayout(child: GenerationsPage());
+          },
+        ),
+        GoRoute(
+          path: todos,
+          name: 'todos',
+          builder: (BuildContext context, GoRouterState state) {
+            return TabLayout(child: TodosPage());
+          },
+        ),
+        GoRoute(
+          path: reminders,
+          name: 'reminders',
+          builder: (BuildContext context, GoRouterState state) {
+            return TabLayout(child: RemindersPage());
+          },
+        ),
         GoRoute(
           path: '/ghl',
           builder: (context, state) => const GhlWebViewPage(),
-        ),
-        // Shell route for main app (with persistent navigation)
-        ShellRoute(
-          builder: (context, state, child) {
-            return TabLayout(child: child);
-          },
-          routes: [
-            GoRoute(
-              path: home,
-              name: 'home',
-              builder: (BuildContext context, GoRouterState state) {
-                return HomePage();
-              },
-            ),
-            GoRoute(
-              path: tasks,
-              name: 'tasks',
-              builder: (BuildContext context, GoRouterState state) {
-                return TasksPage();
-              },
-            ),
-            GoRoute(
-              path: maya,
-              name: 'maya',
-              builder: (BuildContext context, GoRouterState state) {
-                return TalkToMaya();
-              },
-            ),
-            GoRoute(
-              path: settings,
-              name: 'settings',
-              builder: (BuildContext context, GoRouterState state) {
-                return SettingsPage();
-              },
-            ),
-            GoRoute(
-              path: integrations,
-              name: 'integrations',
-              builder: (BuildContext context, GoRouterState state) {
-                return IntegrationsPage();
-              },
-            ),
-            GoRoute(
-              path: other,
-              name: 'other',
-              builder: (BuildContext context, GoRouterState state) {
-                return OtherPage();
-              },
-            ),
-            GoRoute(
-              path: generations,
-              name: 'generations',
-              builder: (BuildContext context, GoRouterState state) {
-                return GenerationsPage();
-              },
-            ),
-            GoRoute(
-              path: todos,
-              name: 'todos',
-              builder: (BuildContext context, GoRouterState state) {
-                return TodosPage();
-              },
-            ),
-            GoRoute(
-              path: reminders,
-              name: 'reminders',
-              builder: (BuildContext context, GoRouterState state) {
-                return RemindersPage();
-              },
-            ),
-          ],
         ),
       ],
     );
@@ -231,6 +220,8 @@ class AppRouter {
       integrations,
       settings,
       call_sessions,
+      maya,
+      other,
       generations,
       todos,
       reminders,
