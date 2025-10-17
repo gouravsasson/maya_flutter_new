@@ -290,7 +290,7 @@ class ApiClient {
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
-  Future<Map<String, dynamic>> fetchReminders() async {
+  Future<Map<String, dynamic>> getReminders() async {
     final response = await get(_protectedDio, '/productivity/reminder/get');
     return {'statusCode': response.statusCode, 'data': response.data};
   }

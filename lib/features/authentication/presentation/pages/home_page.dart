@@ -180,61 +180,19 @@ class _HomePageState extends State<HomePage> {
   Future<void> fetchReminders() async {
     setState(() => isLoadingReminders = true);
     try {
-      final response = await getIt<ApiClient>().fetchReminders();
-      if (response['success'] == true) {
-        dynamic data = response['data'];
-        List<Map<String, dynamic>> fetchedReminders = [];
-
-        if (data is List) {
-          fetchedReminders = List<Map<String, dynamic>>.from(data);
-        } else if (data is Map) {
-          // Check if data contains a list under a key (e.g., 'data' or 'items')
-          var listData = data['data'] ?? data['items'] ?? [];
-          if (listData is List) {
-            fetchedReminders = List<Map<String, dynamic>>.from(listData);
-          } else {
-            throw Exception('Unexpected data format: $data');
-          }
-        } else {
-          throw Exception('Unexpected data type: ${data.runtimeType}');
-        }
-
-        fetchedReminders.sort((a, b) {
-          DateTime timeA = DateTime.parse(a['reminder_time']);
-          DateTime timeB = DateTime.parse(b['reminder_time']);
-          return timeA.compareTo(timeB);
-        });
+      final response = await getIt<ApiClient>().getReminders();
+      if (response['statusCode'] == 200) {
         setState(() {
-          reminders = fetchedReminders
-              .where(
-                (reminder) => DateTime.parse(
-                  reminder['reminder_time'],
-                ).isAfter(DateTime.now()),
-              )
-              .toList();
-          isLoadingReminders = false;
+          reminders = List<Map<String, dynamic>>.from(response['data']['data']);
         });
-        if (kDebugMode) print("Reminders after update: $reminders");
       } else {
-        setState(() => isLoadingReminders = false);
-        if (kDebugMode) {
-          print("Failed to fetch reminders: ${response['message']}");
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "Failed to fetch reminders: ${response['message'] ?? 'Unknown error'}",
-            ),
-          ),
-        );
+        if (kDebugMode)
+          print('Failed to fetch reminders: ${response['message']}');
       }
     } catch (e) {
-      setState(() => isLoadingReminders = false);
-      if (kDebugMode) print("Error fetching reminders: $e");
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error fetching reminders: $e")));
+      if (kDebugMode) print('Error fetching reminders: $e');
     }
+    setState(() => isLoadingReminders = false);
   }
 
   Future<void> fetchToDos() async {
@@ -491,18 +449,9 @@ class _HomePageState extends State<HomePage> {
                                   style: TextStyle(color: Colors.grey),
                                 ),
                               ]
-                            : reminders
-                                  .where((reminder) {
-                                    final reminderTime = DateTime.parse(
-                                      reminder['reminder_time'],
-                                    );
-                                    return reminderTime.isAfter(DateTime.now());
-                                  })
-                                  .take(3)
-                                  .map((reminder) {
-                                    return _buildReminderItem(reminder);
-                                  })
-                                  .toList(),
+                            : reminders.take(3).map((reminder) {
+                                return _buildReminderItem(reminder);
+                              }).toList(),
                         trailing: TextButton(
                           onPressed: () => context.go('/other'),
                           child: const Text(

@@ -8,8 +8,7 @@ import '../../../features/authentication/presentation/bloc/auth_event.dart';
 
 // Define static color constants to avoid method invocation in constant expressions
 const Color inactiveGradientStart = Color(0x66FFFFFF); // White with 40% opacity
-const Color inactiveGradientEnd = Color(0x33FFFFFF);   // White with 20% opacity
-
+const Color inactiveGradientEnd = Color(0x33FFFFFF); // White with 20% opacity
 class TabLayout extends StatefulWidget {
   final Widget child;
 
@@ -26,7 +25,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this); // 5 for central button
+    _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
         setState(() {
@@ -128,12 +127,13 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
         }
       },
       child: Scaffold(
+        backgroundColor: Colors.transparent, // Make scaffold background transparent
         body: widget.child,
         bottomNavigationBar: Container(
           margin: const EdgeInsets.all(6),
           padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            // Remove solid color, use transparent or gradient
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: Colors.white.withOpacity(0.3)),
             boxShadow: [
@@ -209,7 +209,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
         context.go('/maya');
       },
       child: Transform.translate(
-        offset: const Offset(0, -20), // Replace negative margin with translate
+        offset: const Offset(0, -20),
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -220,7 +220,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
                     end: Alignment.bottomRight,
                   )
                 : LinearGradient(
-                    colors: [inactiveGradientStart, inactiveGradientEnd],
+                    colors: [const Color(0x66FFFFFF), const Color(0x33FFFFFF)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
