@@ -5,10 +5,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../../../features/authentication/presentation/bloc/auth_event.dart';
+import '../../../features/authentication/presentation/pages/home_page.dart';
+import '../../../features/authentication/presentation/pages/tasks_page.dart';
+import '../../../features/authentication/presentation/pages/settings_page.dart';
+import '../../../features/widgets/talk_to_maya.dart';
+import '../../../features/authentication/presentation/pages/other_page.dart';
 
 // Define static color constants to avoid method invocation in constant expressions
 const Color inactiveGradientStart = Color(0x66FFFFFF); // White with 40% opacity
 const Color inactiveGradientEnd = Color(0x33FFFFFF); // White with 20% opacity
+
 class TabLayout extends StatefulWidget {
   final Widget child;
 
@@ -20,34 +26,47 @@ class TabLayout extends StatefulWidget {
 
 class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
   late TabController _tabController;
+  late PageController _pageController;
   int _currentIndex = 0;
+
+  // List of routes in the order of tabs
+  final List<String> _tabRoutes = [
+    '/home',
+    '/tasks',
+    '/maya',
+    '/settings',
+    '/other',
+  ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+    _pageController = PageController(initialPage: 0);
+
+    // Sync TabController with route changes
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
         setState(() {
           _currentIndex = _tabController.index;
         });
+        // Navigate to the corresponding route
+        context.go(_tabRoutes[_tabController.index]);
+        // Sync PageView with TabController
+        _pageController.jumpToPage(_tabController.index);
+      }
+    });
 
-        switch (_tabController.index) {
-          case 0:
-            context.go('/home');
-            break;
-          case 1:
-            context.go('/tasks');
-            break;
-          case 2:
-            context.go('/maya');
-            break;
-          case 3:
-            context.go('/settings');
-            break;
-          case 4:
-            context.go('/other');
-            break;
+    // Sync PageView with swipes
+    _pageController.addListener(() {
+      if (_pageController.page != null) {
+        int newIndex = _pageController.page!.round();
+        if (_currentIndex != newIndex) {
+          setState(() {
+            _currentIndex = newIndex;
+          });
+          _tabController.animateTo(newIndex);
+          context.go(_tabRoutes[newIndex]);
         }
       }
     });
@@ -56,48 +75,27 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
   @override
   void dispose() {
     _tabController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
   void _updateTabFromRoute() {
     final location = GoRouterState.of(context).uri.path;
-    int newIndex = 0;
-
-    switch (location) {
-      case '/home':
-        newIndex = 0;
-        break;
-      case '/tasks':
-        newIndex = 1;
-        break;
-      case '/maya':
-        newIndex = 2;
-        break;
-      case '/settings':
-        newIndex = 3;
-        break;
-      case '/other':
-        newIndex = 4;
-        break;
-      default:
-        newIndex = 0;
-    }
+    int newIndex = _tabRoutes.indexOf(location);
+    if (newIndex == -1) newIndex = 0; // Default to home if route not found
 
     if (_currentIndex != newIndex) {
       setState(() {
         _currentIndex = newIndex;
       });
       _tabController.animateTo(newIndex);
+      _pageController.jumpToPage(newIndex);
     }
   }
 
   Future<bool> _onPopInvoked() async {
     final currentLocation = GoRouterState.of(context).uri.path;
-    if (currentLocation == '/home' ||
-        currentLocation == '/tasks' ||
-        currentLocation == '/maya' ||
-        currentLocation == '/settings' ||
-        currentLocation == '/other') {
+    if (_tabRoutes.contains(currentLocation)) {
       if (currentLocation == '/home') {
         return true;
       }
@@ -127,13 +125,25 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.transparent, // Make scaffold background transparent
-        body: widget.child,
+        backgroundColor: Colors.transparent,
+        body: PageView(
+          controller: _pageController,
+          physics: const ClampingScrollPhysics(), // Prevents overscroll bounce
+          onPageChanged: (index) {
+            // Handled in _pageController listener
+          },
+          children: const [
+            HomePage(),
+            TasksPage(),
+            TalkToMaya(),
+            SettingsPage(),
+            OtherPage(),
+          ],
+        ),
         bottomNavigationBar: Container(
           margin: const EdgeInsets.all(6),
           padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 8),
           decoration: BoxDecoration(
-            // Remove solid color, use transparent or gradient
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: Colors.white.withOpacity(0.3)),
             boxShadow: [
@@ -167,6 +177,8 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
           setState(() {
             _currentIndex = index;
           });
+          _tabController.animateTo(index);
+          _pageController.jumpToPage(index); // Sync PageView with tap
           context.go(route);
         },
         child: Column(
@@ -206,6 +218,8 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
         setState(() {
           _currentIndex = 2;
         });
+        _tabController.animateTo(2);
+        _pageController.jumpToPage(2); // Sync PageView with tap
         context.go('/maya');
       },
       child: Transform.translate(
@@ -219,8 +233,8 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   )
-                : LinearGradient(
-                    colors: [const Color(0x66FFFFFF), const Color(0x33FFFFFF)],
+                : const LinearGradient(
+                    colors: [inactiveGradientStart, inactiveGradientEnd],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -236,7 +250,7 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
                   ]
                 : [],
           ),
-          child: Icon(
+          child: const Icon(
             FeatherIcons.star,
             size: 26,
             color: Colors.white,

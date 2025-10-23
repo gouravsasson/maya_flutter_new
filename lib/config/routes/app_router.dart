@@ -100,6 +100,7 @@ class AppRouter {
         return null;
       },
       routes: [
+        // Authentication routes (no persistent navigation)
         GoRoute(
           path: splash,
           name: 'splash',
@@ -114,13 +115,7 @@ class AppRouter {
             return LoginPage();
           },
         ),
-        GoRoute(
-          path: home,
-          name: 'home',
-          builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: HomePage());
-          },
-        ),
+        // Profile route (stack navigation)
         GoRoute(
           path: profile,
           name: 'profile',
@@ -128,13 +123,15 @@ class AppRouter {
             return ProfilePage();
           },
         ),
+        // Call Sessions route (stack navigation)
         GoRoute(
-          path: tasks,
-          name: 'tasks',
+          path: call_sessions,
+          name: 'call_sessions',
           builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: TasksPage());
+            return CallSessionsPage();
           },
         ),
+        // Task Detail route (stack navigation)
         GoRoute(
           path: taskDetail,
           name: 'task_detail',
@@ -147,65 +144,99 @@ class AppRouter {
             );
           },
         ),
+        // GHL WebView route (stack navigation)
+        GoRoute(
+          path: '/ghl',
+          builder: (context, state) => const GhlWebViewPage(),
+        ),
+        // Integrations route (stack navigation)
         GoRoute(
           path: integrations,
           name: 'integrations',
           builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: IntegrationsPage());
+            return IntegrationsPage();
           },
         ),
-        GoRoute(
-          path: settings,
-          name: 'settings',
-          builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: SettingsPage());
-          },
-        ),
-        GoRoute(
-          path: call_sessions,
-          name: 'call_sessions',
-          builder: (BuildContext context, GoRouterState state) {
-            return CallSessionsPage();
-          },
-        ),
-        GoRoute(
-          path: maya,
-          name: 'maya',
-          builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: TalkToMaya());
-          },
-        ),
-        GoRoute(
-          path: other,
-          name: 'other',
-          builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: OtherPage());
-          },
-        ),
+        // Generations route (stack navigation)
         GoRoute(
           path: generations,
           name: 'generations',
           builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: GenerationsPage());
+            return GenerationsPage();
           },
         ),
+        // Todos route (stack navigation)
         GoRoute(
           path: todos,
           name: 'todos',
           builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: TodosPage());
+            return TodosPage();
           },
         ),
+        // Reminders route (stack navigation)
         GoRoute(
           path: reminders,
           name: 'reminders',
           builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: RemindersPage());
+            return RemindersPage();
           },
         ),
-        GoRoute(
-          path: '/ghl',
-          builder: (context, state) => const GhlWebViewPage(),
+        // Shell route for tabbed routes (home, tasks, maya, settings, other)
+        ShellRoute(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          builder: (context, state, child) {
+            return TabLayout(child: child);
+          },
+          routes: [
+            GoRoute(
+              path: home,
+              name: 'home',
+              builder: (BuildContext context, GoRouterState state) {
+                return HomePage();
+              },
+            ),
+            GoRoute(
+              path: tasks,
+              name: 'tasks',
+              builder: (BuildContext context, GoRouterState state) {
+                return TasksPage();
+              },
+            ),
+            GoRoute(
+              path: maya,
+              name: 'maya',
+              builder: (BuildContext context, GoRouterState state) {
+                return TalkToMaya();
+              },
+            ),
+            GoRoute(
+              path: settings,
+              name: 'settings',
+              builder: (BuildContext context, GoRouterState state) {
+                return SettingsPage();
+              },
+            ),
+            GoRoute(
+              path: other,
+              name: 'other',
+              builder: (BuildContext context, GoRouterState state) {
+                return OtherPage();
+              },
+            ),
+          ],
+          redirect: (BuildContext context, GoRouterState state) {
+            final currentLocation = state.uri.path;
+            final tabRoutes = [home, tasks, maya, settings, other];
+
+            // If back button is pressed (popping from a tab route), redirect to home
+            if (tabRoutes.contains(currentLocation) && currentLocation != home) {
+              if (state.popped) {
+                print('   Back button pressed in tab route, redirecting to HOME');
+                return home;
+              }
+            }
+            return null;
+          },
         ),
       ],
     );
