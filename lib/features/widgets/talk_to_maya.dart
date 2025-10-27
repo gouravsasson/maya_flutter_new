@@ -25,6 +25,9 @@ class _TalkToMayaState extends State<TalkToMaya>
   Animation<double>? _pulseAnimation;
 
   final ApiClient _apiClient = GetIt.instance<ApiClient>();
+  final FocusNode _focusNode = FocusNode();
+
+  final TextEditingController _textController = TextEditingController();
 
   @override
   void initState() {
@@ -44,8 +47,10 @@ class _TalkToMayaState extends State<TalkToMaya>
     _session?.leaveCall();
     _session?.statusNotifier.removeListener(_onStatusChange);
     _session?.dataMessageNotifier.removeListener(_onDataMessage);
-    _session = null;
     _pulseController?.dispose();
+    _focusNode.dispose();
+
+    _textController.dispose();
     super.dispose();
   }
 
@@ -62,9 +67,7 @@ class _TalkToMayaState extends State<TalkToMaya>
       });
     }
     _previousStatus = current as String;
-    if (mounted) {
-      setState(() {});
-    }
+    if (mounted) setState(() {});
   }
 
   void _onDataMessage() {
@@ -151,6 +154,8 @@ class _TalkToMayaState extends State<TalkToMaya>
       setState(() {
         _isListening = false;
         _currentTranscriptChunk = '';
+
+        _conversation.clear();
       });
     }
     _pulseController?.stop();
@@ -175,17 +180,19 @@ class _TalkToMayaState extends State<TalkToMaya>
   }
 
   void _handleSendMessage() {
-    if (_inputValue.trim().isEmpty || _isListening) return;
+    final msg = _textController.text.trim();
+    if (msg.isEmpty) return;
+
+    _session?.sendText(msg);
+
     if (mounted) {
       setState(() {
-        _conversation.add({'type': 'user', 'text': _inputValue});
-        _conversation.add({
-          'type': 'maya',
-          'text': 'I understand. Let me help you with that right away!'
-        });
-        _inputValue = '';
-        _session?.sendText(_inputValue);
+        _conversation.add({'type': 'user', 'text': msg});
+        _textController.clear();
       });
+
+      // ✅ Keep focus after sending
+      FocusScope.of(context).requestFocus(_focusNode);
     }
   }
 
@@ -205,92 +212,104 @@ class _TalkToMayaState extends State<TalkToMaya>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Floating Orb with Animation
+              // Floating Orb
               Expanded(
                 flex: 2,
                 child: Center(
                   child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
                     onTap: _isListening ? _onStop : _onStart,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Large Pulse Ring
-                        if (_isListening)
-                          AnimatedBuilder(
-                            animation: _pulseAnimation!,
-                            builder: (context, child) {
-                              return Container(
-                                width: 300 * _pulseAnimation!.value,
-                                height: 300 * _pulseAnimation!.value,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.blue.shade200.withOpacity(0.3),
-                                ),
-                              );
-                            },
-                          ),
-                        // Medium Pulse Ring
-                        if (_isListening)
-                          AnimatedBuilder(
-                            animation: _pulseAnimation!,
-                            builder: (context, child) {
-                              return Container(
-                                width: 250 * _pulseAnimation!.value,
-                                height: 250 * _pulseAnimation!.value,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.blue.shade300.withOpacity(0.4),
-                                ),
-                              );
-                            },
-                          ),
-                        // Small Pulse Ring
-                        if (_isListening)
-                          AnimatedBuilder(
-                            animation: _pulseAnimation!,
-                            builder: (context, child) {
-                              return Container(
-                                width: 200 * _pulseAnimation!.value,
-                                height: 200 * _pulseAnimation!.value,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.blue.shade400.withOpacity(0.5),
-                                ),
-                              );
-                            },
-                          ),
-                        // Core Orb
-                        Container(
-                          width: 150,
-                          height: 150,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: _isListening
-                                  ? [Colors.blue.shade600, Colors.purple.shade600]
-                                  : [Colors.blue.shade300, Colors.purple.shade300],
+                    child: SizedBox(
+                      width: 150,
+                      height: 150,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if (_isListening)
+                            AnimatedBuilder(
+                              animation: _pulseAnimation!,
+                              builder: (context, child) {
+                                return Container(
+                                  width: 300 * _pulseAnimation!.value,
+                                  height: 300 * _pulseAnimation!.value,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.blue.shade200.withOpacity(
+                                      0.3,
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 20,
-                                spreadRadius: 5,
+                          if (_isListening)
+                            AnimatedBuilder(
+                              animation: _pulseAnimation!,
+                              builder: (context, child) {
+                                return Container(
+                                  width: 250 * _pulseAnimation!.value,
+                                  height: 250 * _pulseAnimation!.value,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.blue.shade300.withOpacity(
+                                      0.4,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          if (_isListening)
+                            AnimatedBuilder(
+                              animation: _pulseAnimation!,
+                              builder: (context, child) {
+                                return Container(
+                                  width: 200 * _pulseAnimation!.value,
+                                  height: 200 * _pulseAnimation!.value,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.blue.shade400.withOpacity(
+                                      0.5,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          Container(
+                            width: 150,
+                            height: 150,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: _isListening
+                                    ? [
+                                        Colors.blue.shade600,
+                                        Colors.purple.shade600,
+                                      ]
+                                    : [
+                                        Colors.blue.shade300,
+                                        Colors.purple.shade300,
+                                      ],
                               ),
-                            ],
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 20,
+                                  spreadRadius: 5,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
 
-              // Conversation and Controls
+              // Chat and Input
               Expanded(
                 flex: 3,
                 child: Column(
                   children: [
-                    // Mute Controls
                     if (_isListening)
                       Padding(
                         padding: const EdgeInsets.all(16),
@@ -306,8 +325,12 @@ class _TalkToMayaState extends State<TalkToMaya>
                             ),
                             IconButton(
                               icon: Icon(
-                                _isSpeakerMuted ? Icons.volume_off : Icons.volume_up,
-                                color: _isSpeakerMuted ? Colors.grey : Colors.blue,
+                                _isSpeakerMuted
+                                    ? Icons.volume_off
+                                    : Icons.volume_up,
+                                color: _isSpeakerMuted
+                                    ? Colors.grey
+                                    : Colors.blue,
                               ),
                               onPressed: _toggleSpeakerMute,
                             ),
@@ -315,23 +338,25 @@ class _TalkToMayaState extends State<TalkToMaya>
                         ),
                       ),
 
-                    // Conversation List
                     if (_conversation.isNotEmpty)
                       Expanded(
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Column(
-                            children: _conversation.asMap().entries.map((entry) {
-                              final msg = entry.value;
+                            children: _conversation.map((msg) {
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
                                 child: Align(
                                   alignment: msg['type'] == 'user'
                                       ? Alignment.centerRight
                                       : Alignment.centerLeft,
                                   child: Container(
                                     constraints: BoxConstraints(
-                                      maxWidth: MediaQuery.of(context).size.width * 0.75,
+                                      maxWidth:
+                                          MediaQuery.of(context).size.width *
+                                          0.75,
                                     ),
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
@@ -339,13 +364,6 @@ class _TalkToMayaState extends State<TalkToMaya>
                                       color: msg['type'] == 'user'
                                           ? Colors.blue.shade100
                                           : Colors.purple.shade100,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
                                     ),
                                     child: Text(
                                       msg['text'],
@@ -362,7 +380,6 @@ class _TalkToMayaState extends State<TalkToMaya>
                         ),
                       ),
 
-                    // Transcript Display
                     if (_currentTranscriptChunk.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.all(16),
@@ -372,13 +389,6 @@ class _TalkToMayaState extends State<TalkToMaya>
                             borderRadius: BorderRadius.circular(16),
                             color: Colors.white.withOpacity(0.1),
                             border: Border.all(color: Colors.blue.shade200),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -405,7 +415,6 @@ class _TalkToMayaState extends State<TalkToMaya>
                         ),
                       ),
 
-                    // Input and Send Button
                     Padding(
                       padding: const EdgeInsets.all(16),
                       child: Row(
@@ -415,26 +424,20 @@ class _TalkToMayaState extends State<TalkToMaya>
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(20),
                                 color: Colors.white.withOpacity(0.1),
-                                border: Border.all(color: Colors.white.withOpacity(0.2)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.2),
+                                ),
                               ),
                               child: TextField(
-                                enabled: !_isListening,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _inputValue = value;
-                                  });
-                                },
+                                controller: _textController, // ✅ ADD THIS
+                                focusNode: _focusNode,
+                                enabled: true,
                                 onSubmitted: (_) => _handleSendMessage(),
                                 decoration: InputDecoration(
                                   hintText: 'Type your message...',
-                                  hintStyle: TextStyle(color: Colors.grey.shade500),
+                                  hintStyle: TextStyle(
+                                    color: Colors.grey.shade500,
+                                  ),
                                   border: InputBorder.none,
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 16,
@@ -456,19 +459,21 @@ class _TalkToMayaState extends State<TalkToMaya>
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(20),
                                 gradient: LinearGradient(
-                                  colors: _inputValue.trim().isEmpty || _isListening
-                                      ? [Colors.grey.shade300, Colors.grey.shade400]
-                                      : [Colors.blue.shade400, Colors.purple.shade500],
+                                  colors:
+                                      _textController.text
+                                          .trim()
+                                          .isEmpty // ✅ CHANGE THIS
+                                      ? [
+                                          Colors.grey.shade300,
+                                          Colors.grey.shade400,
+                                        ]
+                                      : [
+                                          Colors.blue.shade400,
+                                          Colors.purple.shade500,
+                                        ],
                                 ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
                               ),
-                              child: Icon(
+                              child: const Icon(
                                 Icons.send,
                                 size: 24,
                                 color: Colors.white,
