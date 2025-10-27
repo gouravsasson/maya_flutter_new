@@ -1,4 +1,5 @@
 import 'package:Maya/core/network/api_client.dart';
+import 'package:Maya/utils/debouncer.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
@@ -22,6 +23,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
 
   final ApiClient _apiClient = GetIt.instance<ApiClient>(); // Get ApiClient instance
+  final Debouncer _volumeDebouncer = Debouncer(delay: Duration(milliseconds: 500));
+  final Debouncer _micVolumeDebouncer = Debouncer(delay: Duration(milliseconds: 500));
 
   final List<Map<String, dynamic>> wifiNetworks = [
     {'name': 'Home Network', 'signal': 'Excellent', 'connected': true},
@@ -33,6 +36,14 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _fetchInitialAudioSettings(); // Fetch initial speaker, mic volumes, and wake word status
+  }
+
+  @override
+  void dispose() {
+    // Cancel debouncers to prevent memory leaks
+    _volumeDebouncer.cancel();
+    _micVolumeDebouncer.cancel();
+    super.dispose();
   }
 
   // Fetch initial speaker, microphone volumes, and wake word status
@@ -478,7 +489,7 @@ class _SettingsPageState extends State<SettingsPage> {
             valueColor: const Color(0xFF3B82F6),
             onChanged: (value) {
               setState(() => _volume = value);
-              _setVolume(value); // Call API to set speaker volume
+              _volumeDebouncer.run(() => _setVolume(value)); // Call API to set speaker volume
             },
           ),
           const SizedBox(height: 16),
@@ -488,7 +499,7 @@ class _SettingsPageState extends State<SettingsPage> {
             valueColor: const Color(0xFFA855F7), // purple-700
             onChanged: (value) {
               setState(() => _micVolume = value);
-              _setMicVolume(value); // Call API to set mic volume
+              _micVolumeDebouncer.run(() => _setMicVolume(value));// Call API to set mic volume
             },
           ),
           const SizedBox(height: 16),

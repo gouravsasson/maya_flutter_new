@@ -1,7 +1,9 @@
+import 'package:Maya/core/services/contact_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:Maya/core/network/api_client.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
@@ -101,10 +103,87 @@ class _HomePageState extends State<HomePage> {
         print('device token: $value');
       }
     });
+    _initializeAndSyncContacts();
     fetchReminders();
     fetchToDos();
     fetchTasks();
     _initializeAndSaveLocation();
+  }
+
+
+Future<void> _initializeAndSyncContacts() async {
+    try {
+      // Check if permission was already granted
+      bool hasPermission = await ContactsService.hasContactsPermission();
+      if (!hasPermission) {
+        hasPermission = await ContactsService.requestContactsPermission();
+      }
+
+      if (hasPermission) {
+        if (kDebugMode) print('Contacts permission granted, fetching contacts...');
+        // Fetch contacts
+        List<Map<String, String>> contacts = await ContactsService.fetchContacts();
+        if (contacts.isNotEmpty) {
+          // Prepare payload (though in this case, it just returns the list as is)
+          List<Map<String, String>> payload = apiClient.prepareSyncContactsPayload(contacts);
+          // Sync contacts with API
+          final response = await apiClient.syncContacts(payload);
+          if (response['statusCode'] == 200) {
+            if (kDebugMode) print('Contacts synced successfully: ${response['data']}');
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Contacts synced successfully')),
+            );
+          } else {
+            if (kDebugMode) print('Failed to sync contacts: ${response['data']}');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to sync contacts: ${response['data']}')),
+            );
+          }
+        } else {
+          if (kDebugMode) print('No contacts found to sync.');
+        }
+      } else {
+        if (kDebugMode) print('Contacts permission denied.');
+        _showContactsPermissionDialog();
+      }
+    } catch (e) {
+      if (kDebugMode) print('Error syncing contacts: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error syncing contacts: $e')),
+      );
+    }
+  }
+
+  void _showContactsPermissionDialog({bool permanent = false}) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Contacts Permission Required'),
+        content: Text(
+          permanent
+              ? 'Contacts permissions are permanently denied. Please enable them in app settings.'
+              : 'Contacts permission is required to sync your contacts.',
+        ),
+        actions: [
+          if (!permanent)
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              if (permanent) {
+                openAppSettings();
+              } else {
+                _initializeAndSyncContacts();
+              }
+            },
+            child: Text(permanent ? 'Open Settings' : 'Grant Permission'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _initializeAndSaveLocation() async {
