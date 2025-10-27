@@ -1,26 +1,26 @@
-import 'package:Maya/core/services/navigation_service.dart';
-import 'package:Maya/features/authentication/presentation/pages/other_page.dart';
-import 'package:Maya/features/authentication/presentation/pages/settings_page.dart';
-import 'package:Maya/features/widgets/talk_to_maya.dart';
-import 'package:Maya/features/widgets/task_detail.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:Maya/core/network/api_client.dart';
+import 'package:Maya/core/services/navigation_service.dart';
+import 'package:Maya/features/authentication/presentation/bloc/auth_bloc.dart';
+import 'package:Maya/features/authentication/presentation/bloc/auth_state.dart';
 import 'package:Maya/features/authentication/presentation/pages/call_sessions.dart';
-import 'package:Maya/features/authentication/presentation/pages/integration_page.dart';
-import 'package:Maya/features/authentication/presentation/pages/tasks_page.dart';
-import 'package:Maya/features/widgets/ghl.dart';
-import 'package:Maya/utils/tab_layout.dart';
 import 'package:Maya/features/authentication/presentation/pages/generations_page.dart';
-import 'package:Maya/features/authentication/presentation/pages/todos_page.dart';
+import 'package:Maya/features/authentication/presentation/pages/home_page.dart';
+import 'package:Maya/features/authentication/presentation/pages/integration_page.dart';
+import 'package:Maya/features/authentication/presentation/pages/login_page.dart';
+import 'package:Maya/features/authentication/presentation/pages/other_page.dart';
+import 'package:Maya/features/authentication/presentation/pages/profile_page.dart';
 import 'package:Maya/features/authentication/presentation/pages/reminders_page.dart';
-import '../../features/authentication/presentation/bloc/auth_bloc.dart';
-import '../../features/authentication/presentation/bloc/auth_state.dart';
-import '../../features/authentication/presentation/pages/splash_page.dart';
-import '../../features/authentication/presentation/pages/login_page.dart';
-import '../../features/authentication/presentation/pages/home_page.dart';
-import '../../features/authentication/presentation/pages/profile_page.dart';
-import '../../core/network/api_client.dart';
+import 'package:Maya/features/authentication/presentation/pages/settings_page.dart';
+import 'package:Maya/features/authentication/presentation/pages/splash_page.dart';
+import 'package:Maya/features/authentication/presentation/pages/tasks_page.dart';
+import 'package:Maya/features/authentication/presentation/pages/todos_page.dart';
+import 'package:Maya/features/widgets/ghl.dart';
+import 'package:Maya/features/widgets/talk_to_maya.dart';
+import 'package:Maya/features/widgets/task_detail.dart';
+import 'package:Maya/utils/tab_layout.dart';
+import 'package:dio/dio.dart';
 
 class AppRouter {
   static const String splash = '/';
@@ -31,27 +31,31 @@ class AppRouter {
   static const String taskDetail = '/tasks/:taskId';
   static const String integrations = '/integrations';
   static const String settings = '/settings';
-  static const String call_sessions = '/call_sessions';
+  static const String callSessions = '/call_sessions';
   static const String maya = '/maya';
   static const String other = '/other';
   static const String generations = '/generations';
   static const String todos = '/todos';
   static const String reminders = '/reminders';
+  static const String ghl = '/ghl';
 
-  static final ValueNotifier<AuthState> authStateNotifier = ValueNotifier(
-    AuthInitial(),
-  );
+  static final ValueNotifier<AuthState> authStateNotifier =
+      ValueNotifier(AuthInitial());
 
   static GoRouter createRouter(AuthBloc authBloc) {
     print('AppRouter: Using AuthBloc instance: ${authBloc.hashCode}');
 
-    // Set initial state
     authStateNotifier.value = authBloc.state;
 
-    // Listen to auth bloc changes and update the notifier
     authBloc.stream.listen((state) {
       print('AppRouter: Auth state stream update: ${state.runtimeType}');
       authStateNotifier.value = state;
+
+      // Handle session expiration
+      if (state is AuthUnauthenticated) {
+        print('AppRouter: Session expired, showing dialog');
+        NavigationService.showSessionExpiredDialog();
+      }
     });
 
     return GoRouter(
@@ -59,7 +63,7 @@ class AppRouter {
       initialLocation: splash,
       debugLogDiagnostics: true,
       refreshListenable: authStateNotifier,
-      redirect: (BuildContext context, GoRouterState state) {
+      redirect: (BuildContext context, GoRouterState state) async {
         final authState = authStateNotifier.value;
         final isLoggedIn = authState is AuthAuthenticated;
         final isLoading = authState is AuthLoading || authState is AuthInitial;
@@ -103,109 +107,91 @@ class AppRouter {
         GoRoute(
           path: splash,
           name: 'splash',
-          builder: (BuildContext context, GoRouterState state) {
-            return SplashPage();
-          },
+          builder: (context, state) => const SplashPage(),
         ),
         GoRoute(
           path: login,
           name: 'login',
-          builder: (BuildContext context, GoRouterState state) {
-            return LoginPage();
-          },
-        ),
-        GoRoute(
-          path: home,
-          name: 'home',
-          builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: HomePage());
-          },
+          builder: (context, state) => const LoginPage(),
         ),
         GoRoute(
           path: profile,
           name: 'profile',
-          builder: (BuildContext context, GoRouterState state) {
-            return ProfilePage();
-          },
+          builder: (context, state) => const ProfilePage(),
         ),
         GoRoute(
-          path: tasks,
-          name: 'tasks',
-          builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: TasksPage());
-          },
-        ),
-        GoRoute(
-          path: taskDetail,
-          name: 'task_detail',
-          builder: (BuildContext context, GoRouterState state) {
-            final taskId = state.pathParameters['taskId']!;
-            return TaskDetailPage(
-              sessionId: taskId,
-              apiClient: ApiClient(Dio(), Dio()),
-              taskQuery: '',
-            );
-          },
-        ),
-        GoRoute(
-          path: integrations,
-          name: 'integrations',
-          builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: IntegrationsPage());
-          },
-        ),
-        GoRoute(
-          path: settings,
-          name: 'settings',
-          builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: SettingsPage());
-          },
-        ),
-        GoRoute(
-          path: call_sessions,
+          path: callSessions,
           name: 'call_sessions',
-          builder: (BuildContext context, GoRouterState state) {
-            return CallSessionsPage();
-          },
+          builder: (context, state) => const CallSessionsPage(),
         ),
         GoRoute(
-          path: maya,
-          name: 'maya',
-          builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: TalkToMaya());
-          },
-        ),
-        GoRoute(
-          path: other,
-          name: 'other',
-          builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: OtherPage());
-          },
-        ),
-        GoRoute(
-          path: generations,
-          name: 'generations',
-          builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: GenerationsPage());
-          },
-        ),
-        GoRoute(
-          path: todos,
-          name: 'todos',
-          builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: TodosPage());
-          },
-        ),
-        GoRoute(
-          path: reminders,
-          name: 'reminders',
-          builder: (BuildContext context, GoRouterState state) {
-            return TabLayout(child: RemindersPage());
-          },
-        ),
-        GoRoute(
-          path: '/ghl',
+          path: ghl,
+          name: 'ghl',
           builder: (context, state) => const GhlWebViewPage(),
+        ),
+        ShellRoute(
+          builder: (context, state, child) => TabLayout(child: child),
+          routes: [
+            GoRoute(
+              path: home,
+              name: 'home',
+              builder: (context, state) => const HomePage(),
+            ),
+            GoRoute(
+              path: tasks,
+              name: 'tasks',
+              builder: (context, state) => const TasksPage(),
+              routes: [
+                GoRoute(
+                  path: ':taskId',
+                  name: 'task_detail',
+                  builder: (context, state) {
+                    final taskId = state.pathParameters['taskId']!;
+                    return TaskDetailPage(
+                      sessionId: taskId,
+                      apiClient: ApiClient(Dio(), Dio()),
+                      taskQuery: '',
+                    );
+                  },
+                ),
+              ],
+            ),
+            GoRoute(
+              path: integrations,
+              name: 'integrations',
+              builder: (context, state) => const IntegrationsPage(),
+            ),
+            GoRoute(
+              path: settings,
+              name: 'settings',
+              builder: (context, state) => const SettingsPage(),
+            ),
+            GoRoute(
+              path: maya,
+              name: 'maya',
+              builder: (context, state) => const TalkToMaya(),
+            ),
+            GoRoute(
+              path: other,
+              name: 'other',
+              builder: (context, state) => const OtherPage(),
+            ),
+            GoRoute(
+              path: generations,
+              name: 'generations',
+              builder: (context, state) => const GenerationsPage(),
+            ),
+            GoRoute(
+              path: todos,
+              name: 'todos',
+              builder: (context, state) => const TodosPage(),
+            ),
+            GoRoute(
+              path: reminders,
+              name: 'reminders',
+              builder: (context, state) => const RemindersPage(),
+            ),
+          ],
         ),
       ],
     );
@@ -216,10 +202,9 @@ class AppRouter {
       home,
       profile,
       tasks,
-      taskDetail,
       integrations,
       settings,
-      call_sessions,
+      callSessions,
       maya,
       other,
       generations,

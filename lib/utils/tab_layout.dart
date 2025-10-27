@@ -2,13 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../../../features/authentication/presentation/bloc/auth_event.dart';
-
-// Define static color constants to avoid method invocation in constant expressions
-const Color inactiveGradientStart = Color(0x66FFFFFF); // White with 40% opacity
-const Color inactiveGradientEnd = Color(0x33FFFFFF); // White with 20% opacity
 
 class TabLayout extends StatefulWidget {
   final Widget child;
@@ -23,68 +19,41 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
   late TabController _tabController;
   int _currentIndex = 0;
 
+  static const _tabs = [
+    {'route': '/home', 'icon': FeatherIcons.home, 'label': 'Home'},
+    {'route': '/tasks', 'icon': FeatherIcons.checkSquare, 'label': 'Tasks'},
+    {'route': '/maya', 'icon': FeatherIcons.star, 'label': 'Maya'},
+    {'route': '/settings', 'icon': FeatherIcons.settings, 'label': 'Settings'},
+    {'route': '/other', 'icon': FeatherIcons.moreHorizontal, 'label': 'Other'},
+  ];
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
-    _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
-        setState(() {
-          _currentIndex = _tabController.index;
-        });
+    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController.addListener(_handleTabChange);
+  }
 
-        switch (_tabController.index) {
-          case 0:
-            context.go('/home');
-            break;
-          case 1:
-            context.go('/tasks');
-            break;
-          case 2:
-            context.go('/maya');
-            break;
-          case 3:
-            context.go('/settings');
-            break;
-          case 4:
-            context.go('/other');
-            break;
-        }
-      }
-    });
+  void _handleTabChange() {
+    if (_tabController.indexIsChanging || _tabController.index != _currentIndex) {
+      setState(() {
+        _currentIndex = _tabController.index;
+      });
+      context.go(_tabs[_currentIndex]['route'] as String);
+    }
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
   }
 
   void _updateTabFromRoute() {
     final location = GoRouterState.of(context).uri.path;
-    int newIndex = 0;
-
-    switch (location) {
-      case '/home':
-        newIndex = 0;
-        break;
-      case '/tasks':
-        newIndex = 1;
-        break;
-      case '/maya':
-        newIndex = 2;
-        break;
-      case '/settings':
-        newIndex = 3;
-        break;
-      case '/other':
-        newIndex = 4;
-        break;
-      default:
-        newIndex = 0;
-    }
-
-    if (_currentIndex != newIndex) {
+    final newIndex = _tabs.indexWhere((tab) => location == tab['route'] || location.startsWith('${tab['route']}/'));
+    if (newIndex != -1 && newIndex != _currentIndex) {
       setState(() {
         _currentIndex = newIndex;
       });
@@ -92,24 +61,15 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
     }
   }
 
-  Future<bool> _onPopInvoked() async {
-    final currentLocation = GoRouterState.of(context).uri.path;
-    if (currentLocation == '/home' ||
-        currentLocation == '/tasks' ||
-        currentLocation == '/maya' ||
-        currentLocation == '/settings' ||
-        currentLocation == '/other') {
-      if (currentLocation == '/home') {
-        return true;
-      }
-      context.go('/home');
-      return false;
-    }
-    return true;
+  Future<void> _handleLogout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('access_token');
+    await prefs.remove('refresh_token');
+    context.read<AuthBloc>().add(LogoutRequested());
   }
 
-  Future<void> _handleLogout() async {
-    context.read<AuthBloc>().add(LogoutRequested());
+  String _getAppBarTitle() {
+    return _tabs[_currentIndex]['label'] as String;
   }
 
   @override
@@ -119,25 +79,130 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
     });
 
     return PopScope(
-      canPop: true,
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
 
-        final router = GoRouter.of(context);
-        final currentPath = GoRouterState.of(context).uri.path;
+        final currentLocation = GoRouterState.of(context).uri.path;
+        final isTabRoute = _tabs.any((tab) => tab['route'] == currentLocation);
 
-        if (router.canPop()) {
-          router.pop();
-        } else {
-          if (currentPath != '/home') {
-            router.go('/home');
-          } else {
-            Navigator.of(context).maybePop();
-          }
+        if (!isTabRoute && currentLocation != '/home') {
+          context.go('/home');
+        } else if (currentLocation == '/home') {
+          Navigator.of(context).maybePop();
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(_getAppBarTitle()),
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(FeatherIcons.menu),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(FeatherIcons.bell, size: 24),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Notifications clicked')),
+                );
+              },
+            ),
+          ],
+          backgroundColor: const Color(0xFF6366F1),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        drawer: Drawer(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              const DrawerHeader(
+                decoration: BoxDecoration(
+                  color: Color(0xFF6366F1),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white24,
+                      child: Icon(
+                        FeatherIcons.user,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      'Maya Assistant',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'AI-Powered Productivity',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+              _buildDrawerItem(
+                icon: FeatherIcons.user,
+                title: 'Profile',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/profile');
+                },
+              ),
+              _buildDrawerItem(
+                icon: FeatherIcons.phone,
+                title: 'Call Sessions',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/call_sessions');
+                },
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Divider(),
+              ),
+              _buildDrawerItem(
+                icon: FeatherIcons.helpCircle,
+                title: 'Help & Support',
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+              _buildDrawerItem(
+                icon: FeatherIcons.info,
+                title: 'About',
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 20),
+              _buildDrawerItem(
+                icon: FeatherIcons.logOut,
+                title: 'Logout',
+                onTap: () {
+                  Navigator.pop(context);
+                  _handleLogout();
+                },
+                isDestructive: true,
+              ),
+            ],
+          ),
+        ),
         body: widget.child,
         bottomNavigationBar: Container(
           margin: const EdgeInsets.all(6),
@@ -153,103 +218,80 @@ class _TabLayoutState extends State<TabLayout> with TickerProviderStateMixin {
               ),
             ],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(FeatherIcons.home, 'Home', 0, '/home'),
-              _buildNavItem(FeatherIcons.checkSquare, 'Tasks', 1, '/tasks'),
-              _buildCentralButton(),
-              _buildNavItem(FeatherIcons.settings, 'Settings', 3, '/settings'),
-              _buildNavItem(FeatherIcons.moreHorizontal, 'Other', 4, '/other'),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(IconData icon, String label, int index, String route) {
-    final isActive = _currentIndex == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _currentIndex = index;
-          });
-          context.go(route);
-        },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? Colors.blue[100]?.withOpacity(0.6)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                icon,
-                size: 20,
-                color: isActive ? Colors.blue[700] : Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                color: isActive ? Colors.blue[700] : Colors.grey[600],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCentralButton() {
-    final isActive = _currentIndex == 2;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _currentIndex = 2;
-        });
-        context.go('/maya');
-      },
-      child: Transform.translate(
-        offset: const Offset(0, -20),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            gradient: isActive
-                ? const LinearGradient(
-                    colors: [Color(0xFF4F46E5), Color(0xFF9333EA)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : LinearGradient(
-                    colors: [const Color(0x66FFFFFF), const Color(0x33FFFFFF)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white.withOpacity(0.4)),
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: Colors.blue[400]!.withOpacity(0.5),
-                      blurRadius: 10,
-                      spreadRadius: 2,
+          child: TabBar(
+            controller: _tabController,
+            labelColor: const Color(0xFF6366F1),
+            unselectedLabelColor: const Color(0xFF9CA3AF),
+            labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            unselectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w400),
+            indicator: const BoxDecoration(),
+            tabs: _tabs.asMap().entries.map((entry) {
+              final index = entry.key;
+              final tab = entry.value;
+              final isActive = _currentIndex == index;
+              return Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? const Color(0xFF6366F1).withOpacity(0.1)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        tab['icon'] as IconData,
+                        size: 22,
+                        color: isActive
+                            ? const Color(0xFF6366F1)
+                            : const Color(0xFF9CA3AF),
+                      ),
                     ),
-                  ]
-                : [],
+                    const SizedBox(height: 4),
+                    Text(
+                      tab['label'] as String,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                        color: isActive
+                            ? const Color(0xFF6366F1)
+                            : const Color(0xFF9CA3AF),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
-          child: Icon(FeatherIcons.star, size: 26, color: Colors.white),
         ),
       ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: isDestructive ? Colors.red : const Color(0xFF6366F1),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isDestructive ? Colors.red : Colors.black87,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
     );
   }
 }

@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:Maya/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
+import '../../../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../../../features/authentication/presentation/bloc/auth_event.dart';
 
 class NavigationService {
-  static final GlobalKey<NavigatorState> navigatorKey =
-      GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-  // final StorageService _storageService = sl<StorageService>();
-
-  static BuildContext get context => GoRouter.of(
-    navigatorKey.currentContext!,
-  ).routerDelegate.navigatorKey.currentContext!;
+  static BuildContext get context {
+    final currentContext = navigatorKey.currentContext;
+    if (currentContext == null) {
+      throw StateError('Navigator context is null');
+    }
+    return GoRouter.of(currentContext).routerDelegate.navigatorKey.currentContext!;
+  }
 
   static void go(String location) {
     final currentContext = navigatorKey.currentContext;
     print('🔑 NavigationService: go (replace): $location');
     if (currentContext != null) {
-      currentContext.go(location);
+      GoRouter.of(currentContext).go(location);
     }
   }
 
@@ -27,7 +27,7 @@ class NavigationService {
     final currentContext = navigatorKey.currentContext;
     print('🔑 NavigationService: push (stack): $location');
     if (currentContext != null) {
-      currentContext.push(location);
+      GoRouter.of(currentContext).push(location);
     }
   }
 
@@ -35,15 +35,22 @@ class NavigationService {
     final currentContext = navigatorKey.currentContext;
     print('🔑 NavigationService: pushReplacement: $location');
     if (currentContext != null) {
-      currentContext.pushReplacement(location);
+      GoRouter.of(currentContext).pushReplacement(location);
     }
   }
 
   static void pop() {
     final currentContext = navigatorKey.currentContext;
     print('🔑 NavigationService: pop');
-    if (currentContext != null) {
-      currentContext.pop();
+    if (currentContext != null && GoRouter.of(currentContext).canPop()) {
+      GoRouter.of(currentContext).pop();
+    } else if (currentContext != null) {
+      final currentPath = GoRouterState.of(currentContext).uri.path;
+      if (currentPath != '/home') {
+        GoRouter.of(currentContext).go('/home');
+      } else {
+        Navigator.of(currentContext).maybePop();
+      }
     }
   }
 
@@ -55,7 +62,7 @@ class NavigationService {
         SnackBar(
           content: Text(message),
           backgroundColor: isError ? Colors.red : Colors.green,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
@@ -69,24 +76,23 @@ class NavigationService {
         context: currentContext,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
-          title: Row(
+          title: const Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: Colors.orange),
               SizedBox(width: 8),
               Text('Session Expired'),
             ],
           ),
-          content: Text(
+          content: const Text(
             'Your session has expired. Please login again to continue.',
           ),
           actions: [
             TextButton(
               onPressed: () {
-                NavigationService.pop(); // Close dialog
-
+                Navigator.of(context).pop();
                 context.read<AuthBloc>().add(LogoutRequested());
               },
-              child: Text('Login Again'),
+              child: const Text('Login Again'),
             ),
           ],
         ),
