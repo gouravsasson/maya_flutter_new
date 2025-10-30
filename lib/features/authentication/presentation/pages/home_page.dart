@@ -205,51 +205,58 @@ class _HomePageState extends State<HomePage> {
   // -----------------------------------------------------------------------
   // Helper: location + timezone (with UI dialogs)
   // -----------------------------------------------------------------------
-  Future<(Position, String)> _obtainLocationAndTimezone() async {
-    final String timezone = (await FlutterTimezone.getLocalTimezone()) as String;
-
-    final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      _showLocationServiceDialog();
-      throw Exception('Location services disabled');
-    }
-
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        _showLocationPermissionDialog();
-        throw Exception('Location permission denied');
-      }
-    }
-    if (permission == LocationPermission.deniedForever) {
-      _showLocationPermissionDialog(permanent: true);
-      throw Exception('Location permission permanently denied');
-    }
-
-    final rawPosition = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-
-    final Position position = rawPosition is Position
-        ? rawPosition
-        : Position(
-            latitude: rawPosition.latitude,
-            longitude: rawPosition.longitude,
-            timestamp: rawPosition.timestamp,
-            accuracy: rawPosition.accuracy,
-            altitude: rawPosition.altitude,
-            heading: rawPosition.heading,
-            speed: rawPosition.speed,
-            speedAccuracy: rawPosition.speedAccuracy,
-            altitudeAccuracy: rawPosition.altitudeAccuracy ?? 0.0,
-            headingAccuracy: rawPosition.headingAccuracy ?? 0.0,
-          );
-
-    setState(() => _locationStatus = 'granted');
-    return (position, timezone);
+ Future<(Position, String)> _obtainLocationAndTimezone() async {
+final TimezoneInfo timezoneInfo = await FlutterTimezone.getLocalTimezone();
+  final String timezone = timezoneInfo.identifier;
+  // 1. Check if location service is enabled
+  final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  if (!serviceEnabled) {
+    _showLocationServiceDialog();
+    throw Exception('Location services are disabled.');
   }
 
+  // 2. Check permission
+  LocationPermission permission = await Geolocator.checkPermission();
+
+  // 3. Request only foreground permission
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+
+    if (permission == LocationPermission.denied) {
+      _showLocationPermissionDialog();
+      throw Exception('Location permission denied');
+    }
+  }
+
+  if (permission == LocationPermission.deniedForever) {
+    _showLocationPermissionDialog(permanent: true);
+    throw Exception('Location permission permanently denied');
+  }
+
+  // 4. We now have `whileInUse` or `always` — but we only need `whileInUse`
+  if (permission == LocationPermission.always) {
+    // Optional: downgrade to whileInUse if you don't need background
+    // Not needed — `always` includes foreground
+  }
+
+  // 5. Get location
+  try {
+    final Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+      timeLimit: const Duration(seconds: 15),
+    ).timeout(const Duration(seconds: 15));
+
+    debugPrint('Location obtained: ${position.latitude}, ${position.longitude}');
+    setState(() => _locationStatus = 'granted');
+    return (position, timezone);
+  } on TimeoutException {
+    throw Exception('Location request timed out');
+  } on PermissionDeniedException {
+    throw Exception('Location permission denied');
+  } on LocationServiceDisabledException {
+    throw Exception('Location service disabled');
+  }
+}
   // -----------------------------------------------------------------------
   // UI dialogs
   // -----------------------------------------------------------------------
@@ -326,7 +333,7 @@ class _HomePageState extends State<HomePage> {
           : 'Failed to sync contacts: ${response['data']}';
       _showSnack(msg);
     } catch (e) {
-      _showSnack('Error syncing contacts: $e');
+      // _showSnack('Error syncing contacts: $e');
     }
   }
 
