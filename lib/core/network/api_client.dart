@@ -638,27 +638,39 @@ Future<Map<String, dynamic>> getCurrentUser() async {
 
 
   Future<Map<String, dynamic>> updateNotificationPreferences({
-    required bool emailNotifications,
-    required bool pushNotifications,
-    required bool smsNotifications,
-    required bool deviceNotifications,
-  }) async {
-    final payload = {
-      "email_notifications": emailNotifications,
-      "push_notifications": pushNotifications,
-      "sms_notifications": smsNotifications,
-      "device_notifications": deviceNotifications,
-    };
+  required bool emailNotifications,
+  required bool pushNotifications,
+  required bool smsNotifications,
+  required bool deviceNotifications,
+}) async {
+  final payload = _buildNotificationPayload(
+    email: emailNotifications,
+    push: pushNotifications,
+    sms: smsNotifications,
+    device: deviceNotifications,
+  );
 
-    final response = await _protectedDio.patch(
-      '/auth/users/notification-preferences',
-      data: payload,
-    );
+  final response = await _protectedDio.patch(
+    '/auth/users/notification-preferences',
+    data: payload,
+  );
 
-    print('updateNotificationPreferences response: ${response.data}');
-    print('updateNotificationPreferences statusCode: ${response.statusCode}');
-    return {'statusCode': response.statusCode, 'data': response.data};
-  }
+  return {'statusCode': response.statusCode, 'data': response.data};
+}
+
+  Map<String, bool> _buildNotificationPayload({
+  required bool email,
+  required bool push,
+  required bool sms,
+  required bool device,
+}) {
+  return {
+    'email_notifications': email,
+    'push_notifications': push,
+    'sms_notifications': sms,
+    'device_notifications': device,
+  };
+}
 
   /// PATCH /api/protected/auth/users/update
  Future<Map<String, dynamic>> updateUserProfile({

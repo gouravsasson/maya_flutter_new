@@ -1,8 +1,90 @@
+import 'package:Maya/core/network/api_client.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
-class OtherPage extends StatelessWidget {
+// ------------------------------------------------------------------
+// USER MODEL – matches your API response
+// ------------------------------------------------------------------
+class User {
+  final int? id; // <-- Now nullable
+  final String firstName;
+  final String lastName;
+  final String email;
+  final String phoneNumber;
+  final String apiKey;
+  final String deviceId;
+
+  User({
+    this.id,
+    required this.firstName,
+    required this.lastName,
+    required this.email,
+    required this.phoneNumber,
+    required this.apiKey,
+    required this.deviceId,
+  });
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    final data = json['data']['data'] as Map<String, dynamic>;
+    print(data);
+    return User(
+      id: data['ID'] as int?, // <-- Safe cast
+      firstName: data['first_name'] as String,
+      lastName: data['last_name'] as String,
+      email: data['email'] as String,
+      phoneNumber: data['phone_number'] as String,
+      apiKey: data['api_key'] as String,
+      deviceId: data['device_id'] as String,
+    );
+  }
+
+  String get fullName => '$firstName $lastName';
+  String get initials =>
+      firstName.isNotEmpty ? firstName[0].toUpperCase() : 'U';
+}
+
+// ------------------------------------------------------------------
+// OTHER PAGE – fetches user from ApiClient
+// ------------------------------------------------------------------
+class OtherPage extends StatefulWidget {
   const OtherPage({super.key});
+
+  @override
+  State<OtherPage> createState() => _OtherPageState();
+}
+
+class _OtherPageState extends State<OtherPage> {
+  User? _user;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUser();
+  }
+
+  Future<void> _fetchUser() async {
+    try {
+      // Use your real ApiClient
+      final result = await GetIt.I<ApiClient>().getCurrentUser();
+
+      if (result['statusCode'] == 200 && result['data']['success'] == true) {
+        setState(() {
+          _user = User.fromJson(result);
+          _isLoading = false;
+        });
+      } else {
+        throw Exception(result['data']['message'] ?? 'Failed to load user');
+      }
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,23 +99,20 @@ class OtherPage extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFFE3F2FD), // blue-100
-                  Color(0xFFF3E8FF), // purple-100
-                  Color(0xFFFDE2F3), // pink-100
+                  Color(0xFFE3F2FD),
+                  Color(0xFFF3E8FF),
+                  Color(0xFFFDE2F3),
                 ],
               ),
             ),
           ),
-          // Radial gradient overlay
+          // Radial overlay
           Container(
             decoration: const BoxDecoration(
               gradient: RadialGradient(
                 center: Alignment.topCenter,
                 radius: 1.5,
-                colors: [
-                  Color(0x66BBDEFB), // blue-200/40
-                  Colors.transparent,
-                ],
+                colors: [Color(0x66BBDEFB), Colors.transparent],
               ),
             ),
           ),
@@ -50,36 +129,58 @@ class OtherPage extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1F2937), // gray-800
+                      color: Color(0xFF1F2937),
                     ),
                   ),
                   const SizedBox(height: 4),
                   const Text(
                     'Additional features and settings',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFF4B5563), // gray-600
-                    ),
+                    style: TextStyle(fontSize: 16, color: Color(0xFF4B5563)),
                   ),
                   const SizedBox(height: 24),
-                  // Profile Section
+
+                  // Profile Section – Real Data
                   _buildProfileSection(context),
+
                   const SizedBox(height: 16),
-                  // Feature Tiles
                   _buildFeatureTiles(context),
                   const SizedBox(height: 16),
-                  // Quick Links
                   _buildQuickLinks(context),
                 ],
               ),
             ),
           ),
+
+          // Loading / Error Overlay
+          if (_isLoading)
+            Container(
+              color: Colors.black26,
+              child: const Center(child: CircularProgressIndicator()),
+            )
+          else if (_error != null)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  'Failed to load user: $_error',
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
+  // --------------------------------------------------------------
+  // PROFILE SECTION – uses real user data
+  // --------------------------------------------------------------
   Widget _buildProfileSection(BuildContext context) {
+    final name = _user?.fullName ?? 'User Name';
+    final email = _user?.email ?? 'user@example.com';
+    final avatarLetter = _user?.initials ?? 'U';
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -90,6 +191,7 @@ class OtherPage extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // Avatar
           Container(
             width: 80,
             height: 80,
@@ -98,14 +200,16 @@ class OtherPage extends StatelessWidget {
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF60A5FA), Color(0xFFA855F7)], // blue-400 to purple-500
+                colors: [Color(0xFF60A5FA), Color(0xFFA855F7)],
               ),
-              boxShadow: const [BoxShadow(blurRadius: 10, color: Colors.black26)],
+              boxShadow: const [
+                BoxShadow(blurRadius: 10, color: Colors.black26),
+              ],
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'U',
-                style: TextStyle(
+                avatarLetter,
+                style: const TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -118,18 +222,18 @@ class OtherPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'User Name',
-                  style: TextStyle(
+                Text(
+                  name,
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1F2937),
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'user@example.com',
-                  style: TextStyle(
+                Text(
+                  email,
+                  style: const TextStyle(
                     fontSize: 16,
                     color: Color(0xFF4B5563),
                   ),
@@ -138,21 +242,21 @@ class OtherPage extends StatelessWidget {
                 ElevatedButton(
                   onPressed: () => context.go('/profile'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0x66BFDBFE), // blue-100/60
-                    foregroundColor: const Color(0xFF3B82F6), // blue-700
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    backgroundColor: const Color(0x66BFDBFE),
+                    foregroundColor: const Color(0xFF3B82F6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
-                      side: const BorderSide(color: Color(0x6693C5FD)), // blue-200/60
+                      side: const BorderSide(color: Color(0x6693C5FD)),
                     ),
                     elevation: 0,
                   ),
                   child: const Text(
                     'Edit Profile',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -163,6 +267,9 @@ class OtherPage extends StatelessWidget {
     );
   }
 
+  // --------------------------------------------------------------
+  // FEATURE TILES (unchanged)
+  // --------------------------------------------------------------
   Widget _buildFeatureTiles(BuildContext context) {
     return GridView.count(
       shrinkWrap: true,
@@ -176,13 +283,13 @@ class OtherPage extends StatelessWidget {
           context: context,
           route: '/generations',
           icon: Icons.star_border,
-          iconColor: const Color(0xFFA855F7), // purple-700
+          iconColor: const Color(0xFFA855F7),
           backgroundGradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0x66E9D5FF), Color(0x66F3E8FF)], // purple-200/40 to purple-100/40
+            colors: [Color(0x66E9D5FF), Color(0x66F3E8FF)],
           ),
-          borderColor: const Color(0x66D8B4FE), // purple-300/60
+          borderColor: const Color(0x66D8B4FE),
           title: 'Generations',
           subtitle: 'View all AI-generated content and history',
         ),
@@ -190,13 +297,13 @@ class OtherPage extends StatelessWidget {
           context: context,
           route: '/todos',
           icon: Icons.check_box_outline_blank,
-          iconColor: const Color(0xFF047857), // green-700
+          iconColor: const Color(0xFF047857),
           backgroundGradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0x66BBF7D0), Color(0x66F0FDF4)], // green-200/40 to green-100/40
+            colors: [Color(0x66BBF7D0), Color(0x66F0FDF4)],
           ),
-          borderColor: const Color(0x66BBF7D0), // green-300/60
+          borderColor: const Color(0x66BBF7D0),
           title: 'To-Dos',
           subtitle: 'Manage your personal to-do lists',
         ),
@@ -204,13 +311,13 @@ class OtherPage extends StatelessWidget {
           context: context,
           route: '/reminders',
           icon: Icons.calendar_today,
-          iconColor: const Color(0xFFD97706), // amber-700
+          iconColor: const Color(0xFFD97706),
           backgroundGradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0x66FEF3C7), Color(0x66FFFBEB)], // amber-200/40 to amber-100/40
+            colors: [Color(0x66FEF3C7), Color(0x66FFFBEB)],
           ),
-          borderColor: const Color(0x66FCD34D), // amber-300/60
+          borderColor: const Color(0x66FCD34D),
           title: 'Reminders',
           subtitle: 'Set and manage all your reminders',
         ),
@@ -218,13 +325,13 @@ class OtherPage extends StatelessWidget {
           context: context,
           route: '/integrations',
           icon: Icons.extension,
-          iconColor: const Color(0xFF3B82F6), // blue-700
+          iconColor: const Color(0xFF3B82F6),
           backgroundGradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0x66BFDBFE), Color(0x66EFF6FF)], // blue-200/40 to blue-100/40
+            colors: [Color(0x66BFDBFE), Color(0x66EFF6FF)],
           ),
-          borderColor: const Color(0x6693C5FD), // blue-300/60
+          borderColor: const Color(0x6693C5FD),
           title: 'Integrations',
           subtitle: 'Connect Google, CRMs, and other services',
         ),
@@ -266,18 +373,12 @@ class OtherPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: borderColor),
                   ),
-                  child: Center(
-                    child: Icon(
-                      icon,
-                      size: 28,
-                      color: iconColor,
-                    ),
-                  ),
+                  child: Center(child: Icon(icon, size: 28, color: iconColor)),
                 ),
-                Icon(
+                const Icon(
                   Icons.chevron_right,
                   size: 24,
-                  color: const Color(0xFF6B7280), // gray-500
+                  color: Color(0xFF6B7280),
                 ),
               ],
             ),
@@ -293,10 +394,7 @@ class OtherPage extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF4B5563),
-              ),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF4B5563)),
             ),
           ],
         ),
@@ -304,6 +402,9 @@ class OtherPage extends StatelessWidget {
     );
   }
 
+  // --------------------------------------------------------------
+  // QUICK LINKS
+  // --------------------------------------------------------------
   Widget _buildQuickLinks(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -350,16 +451,9 @@ class OtherPage extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Color(0xFF374151), // gray-700
-              ),
+              style: const TextStyle(fontSize: 16, color: Color(0xFF374151)),
             ),
-            Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: const Color(0xFF6B7280), // gray-500
-            ),
+            const Icon(Icons.chevron_right, size: 18, color: Color(0xFF6B7280)),
           ],
         ),
       ),

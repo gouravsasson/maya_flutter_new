@@ -575,58 +575,102 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     }
   }
 
-  Widget _buildResponseWidget(dynamic response) {
-    if (response == null) return const SizedBox.shrink();
+ 
+ 
+ Widget _buildResponseWidget(dynamic response) {
+  if (response == null) return const SizedBox.shrink();
 
-    if (response is Map<String, dynamic> && response.containsKey('s3_url') && response['s3_url'] is String && (response['s3_url'] as String).endsWith('.mp3')) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'AUDIO',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          AudioPlayerWidget(url: response['s3_url'] as String),
-        ],
-      );
-    }
-
-    if (response is Map<String, dynamic> && response.containsKey('data') && response['data'] is String) {
-      try {
-        final decodedData = jsonDecode(response['data']) as Map<String, dynamic>;
-        if (decodedData.containsKey('s3_url') && decodedData['s3_url'] is String && (decodedData['s3_url'] as String).endsWith('.mp3')) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'AUDIO',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              AudioPlayerWidget(url: decodedData['s3_url'] as String),
-            ],
-          );
-        } else {
-          return JsonDisplay(data: decodedData, label: 'Response');
-        }
-      } catch (e) {
-        return JsonDisplay(data: response['data'], label: 'Response');
-      }
-    }
-
-    return JsonDisplay(data: response, label: 'Response');
+  // --------------------------------------------------------------
+  // 1. Direct .mp3 on the outer level
+  // --------------------------------------------------------------
+  if (response is Map<String, dynamic> &&
+      response.containsKey('s3_url') &&
+      response['s3_url'] is String &&
+      (response['s3_url'] as String).endsWith('.mp3')) {
+    return _audioColumn(response['s3_url'] as String);
   }
+
+  // --------------------------------------------------------------
+  // 2. `data` is a JSON-encoded string → decode it
+  // --------------------------------------------------------------
+  Map<String, dynamic>? inner;
+  if (response is Map<String, dynamic> &&
+      response.containsKey('data') &&
+      response['data'] is String) {
+    try {
+      inner = jsonDecode(response['data']) as Map<String, dynamic>;
+
+      // 2a. Audio inside the inner payload
+      if (inner.containsKey('s3_url') &&
+          inner['s3_url'] is String &&
+          (inner['s3_url'] as String).endsWith('.mp3')) {
+        return _audioColumn(inner['s3_url'] as String);
+      }
+    } catch (_) {
+      // keep `inner` null → we will treat `data` as raw text later
+    }
+  }
+
+  // --------------------------------------------------------------
+  // 3. Show **all outer fields** + (optionally) inner payload
+  // --------------------------------------------------------------
+  return _fullResponseDisplay(
+    outer: response as Map<String, dynamic>,
+    inner: inner,               // may be null
+  );
+}
+
+// -----------------------------------------------------------------
+// Re-usable audio UI
+// -----------------------------------------------------------------
+Widget _audioColumn(String url) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('AUDIO',
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey,
+                letterSpacing: 0.5)),
+        const SizedBox(height: 8),
+        AudioPlayerWidget(url: url),
+      ],
+    );
+
+// -----------------------------------------------------------------
+// Show *every* outer field + decoded inner payload (if any)
+// -----------------------------------------------------------------
+Widget _fullResponseDisplay({
+  required Map<String, dynamic> outer,
+  required Map<String, dynamic>? inner,
+}) {
+  // 1. Build a map that contains **all** outer fields
+  final outerCopy = Map<String, dynamic>.from(outer);
+
+  // If `data` was a JSON string we already decoded it → remove the raw string
+  // so it does not appear twice.
+  if (inner != null) outerCopy.remove('data');
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // ----- All outer fields (message, success, token, …) -----
+      if (outerCopy.isNotEmpty)
+        JsonDisplay(data: outerCopy, label: 'Meta'),
+
+      // ----- Optional inner payload (the big transcripts list) -----
+      if (inner != null) ...[
+        const SizedBox(height: 16),
+        JsonDisplay(data: inner, label: 'Payload'),
+      ],
+
+      // ----- Fallback: raw `data` string when we could not decode -----
+      if (inner == null && outer.containsKey('data'))
+        JsonDisplay(data: outer['data'], label: 'Raw Data'),
+    ],
+  );
+}
+
 }
 
 class JsonDisplay extends StatelessWidget {

@@ -8,11 +8,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';
@@ -107,7 +104,7 @@ class _HomePageState extends State<HomePage> {
     _apiClient = ApiClient(publicDio, protectedDio);
 
     _setupNotifications();
-    _syncUserProfile(); // <-- ONE place for FCM + location + timezone
+    _syncUserProfile();
     _initializeAndSyncContacts();
     fetchReminders();
     fetchToDos();
@@ -126,11 +123,6 @@ class _HomePageState extends State<HomePage> {
 
     final token = await _notification.getDeviceToken();
     setState(() => _fcmToken = token);
-
-    if (kDebugMode) {
-      _apiClient.sendFcmToken(token);
-      _log('FCM token: $token');
-    }
   }
 
   // -----------------------------------------------------------------------
@@ -138,10 +130,9 @@ class _HomePageState extends State<HomePage> {
   // -----------------------------------------------------------------------
   Future<void> _syncUserProfile() async {
     try {
-      // ---- 1. Get user names ----
       final userResp = await _apiClient.getCurrentUser();
       if (userResp['statusCode'] != 200) {
-        _log('User fetch failed: ${userResp['data']}');
+        _showSnack('User fetch failed: ${userResp['data']}');
         return;
       }
       final userData = userResp['data'] as Map<String, dynamic>;
@@ -152,7 +143,6 @@ class _HomePageState extends State<HomePage> {
         _userLastName = lastName;
       });
 
-      // ---- 2. Parallel: FCM token + location+timezone ----
       final results = await Future.wait([
         _waitForFcmToken(),
         _obtainLocationAndTimezone(),
@@ -163,11 +153,10 @@ class _HomePageState extends State<HomePage> {
           results[1] as (Position, String);
 
       if (token == null) {
-        _log('FCM token missing – aborting profile sync');
+        _showSnack('FCM token missing – aborting profile sync');
         return;
       }
 
-      // ---- 3. PATCH profile ----
       final updateResp = await _apiClient.updateUserProfile(
         firstName: firstName,
         lastName: lastName,
@@ -178,12 +167,12 @@ class _HomePageState extends State<HomePage> {
       );
 
       if (updateResp['statusCode'] == 200) {
-        _log('Profile synced (FCM+location+tz)');
+        _showSnack('Profile synced successfully');
       } else {
-        _log('Profile sync failed: ${updateResp['data']}');
+        _showSnack('Profile sync failed: ${updateResp['data']}');
       }
     } catch (e) {
-      _log('syncUserProfile error: $e');
+      _showSnack('Sync error: $e');
     }
   }
 
@@ -217,17 +206,14 @@ class _HomePageState extends State<HomePage> {
   // Helper: location + timezone (with UI dialogs)
   // -----------------------------------------------------------------------
   Future<(Position, String)> _obtainLocationAndTimezone() async {
-    // 1. Timezone (no permission)
     final String timezone = (await FlutterTimezone.getLocalTimezone()) as String;
 
-    // 2. Service check
     final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       _showLocationServiceDialog();
       throw Exception('Location services disabled');
     }
 
-    // 3. Permission flow
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
@@ -241,12 +227,10 @@ class _HomePageState extends State<HomePage> {
       throw Exception('Location permission permanently denied');
     }
 
-    // 4. Get position and normalize to generic Position
     final rawPosition = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
 
-    // Normalize platform-specific position to generic Position
     final Position position = rawPosition is Position
         ? rawPosition
         : Position(
@@ -257,9 +241,9 @@ class _HomePageState extends State<HomePage> {
             altitude: rawPosition.altitude,
             heading: rawPosition.heading,
             speed: rawPosition.speed,
-            speedAccuracy: rawPosition.speedAccuracy, altitudeAccuracy: rawPosition.altitudeAccuracy, headingAccuracy: rawPosition.headingAccuracy,
-            // iOS-specific fields (set to 0.0 or null if not available)
-           
+            speedAccuracy: rawPosition.speedAccuracy,
+            altitudeAccuracy: rawPosition.altitudeAccuracy ?? 0.0,
+            headingAccuracy: rawPosition.headingAccuracy ?? 0.0,
           );
 
     setState(() => _locationStatus = 'granted');
@@ -267,24 +251,19 @@ class _HomePageState extends State<HomePage> {
   }
 
   // -----------------------------------------------------------------------
-  // UI dialogs (unchanged)
+  // UI dialogs
   // -----------------------------------------------------------------------
   void _showLocationServiceDialog() {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Location Services Disabled'),
-        content: const Text(
-          'Please enable location services to save your location.',
-        ),
+        content: const Text('Please enable location services to save your location.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              Navigator.pop(context);
               Geolocator.openLocationSettings();
             },
             child: const Text('Open Settings'),
@@ -306,15 +285,12 @@ class _HomePageState extends State<HomePage> {
         ),
         actions: [
           if (!permanent)
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              Navigator.pop(context);
               if (permanent) {
-                Geolocator.openAppSettings();
+                openAppSettings();
               } else {
                 Geolocator.requestPermission();
               }
@@ -327,7 +303,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // -----------------------------------------------------------------------
-  // Contacts sync (unchanged, minor refactor)
+  // Contacts sync – skip if empty
   // -----------------------------------------------------------------------
   Future<void> _initializeAndSyncContacts() async {
     try {
@@ -336,21 +312,21 @@ class _HomePageState extends State<HomePage> {
         _showContactsPermissionDialog();
         return;
       }
+
+      // Skip API call if no contacts
       if (contacts.isEmpty) {
-        _log('No contacts to sync.');
+        _showSnack('No contacts to sync');
         return;
       }
+
       final payload = _apiClient.prepareSyncContactsPayload(contacts);
       final response = await _apiClient.syncContacts(payload);
       final msg = response['statusCode'] == 200
           ? 'Contacts synced successfully'
           : 'Failed to sync contacts: ${response['data']}';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      _showSnack(msg);
     } catch (e) {
-      _log('Contacts sync error: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error syncing contacts: $e')));
+      _showSnack('Error syncing contacts: $e');
     }
   }
 
@@ -366,13 +342,10 @@ class _HomePageState extends State<HomePage> {
         ),
         actions: [
           if (!permanent)
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              Navigator.pop(context);
               if (permanent) {
                 openAppSettings();
               } else {
@@ -387,7 +360,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // -----------------------------------------------------------------------
-  // Data fetchers (unchanged)
+  // Data fetchers
   // -----------------------------------------------------------------------
   Future<void> fetchReminders() async {
     setState(() => isLoadingReminders = true);
@@ -399,7 +372,7 @@ class _HomePageState extends State<HomePage> {
         });
       }
     } catch (e) {
-      _log('fetchReminders error: $e');
+      _showSnack('Failed to load reminders');
     } finally {
       setState(() => isLoadingReminders = false);
     }
@@ -415,7 +388,7 @@ class _HomePageState extends State<HomePage> {
         });
       }
     } catch (e) {
-      _log('fetchToDos error: $e');
+      _showSnack('Failed to load To-Dos');
     } finally {
       setState(() => isLoadingTodos = false);
     }
@@ -434,25 +407,17 @@ class _HomePageState extends State<HomePage> {
         });
       }
     } catch (e) {
-      _log('fetchTasks error: $e');
+      _showSnack('Failed to load tasks');
     } finally {
       setState(() => isLoadingTasks = false);
     }
   }
 
   // -----------------------------------------------------------------------
-  // To-Do CRUD helpers (unchanged)
+  // To-Do CRUD helpers
   // -----------------------------------------------------------------------
-  Future<void> addToDo(
-    String title,
-    String description, {
-    String? reminder,
-  }) async {
-    final payload = _apiClient.prepareCreateToDoPayload(
-      title,
-      description,
-      reminder,
-    );
+  Future<void> addToDo(String title, String description, {String? reminder}) async {
+    final payload = _apiClient.prepareCreateToDoPayload(title, description, reminder);
     final response = await _apiClient.createToDo(payload);
     if (response['statusCode'] == 200) fetchToDos();
   }
@@ -469,9 +434,7 @@ class _HomePageState extends State<HomePage> {
     final response = await _apiClient.updateToDo(payload);
     if (response['statusCode'] == 200) {
       fetchToDos();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('To-Do updated successfully')),
-      );
+      _showSnack('To-Do updated');
     }
   }
 
@@ -489,14 +452,10 @@ class _HomePageState extends State<HomePage> {
       final response = await _apiClient.updateToDo(payload);
       if (response['statusCode'] == 200) {
         await fetchToDos();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('To-Do marked as completed')),
-        );
+        _showSnack('To-Do completed');
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error completing To-Do: $e')));
+      _showSnack('Error completing To-Do');
     } finally {
       setState(() => isLoadingTodos = false);
     }
@@ -508,15 +467,30 @@ class _HomePageState extends State<HomePage> {
   }
 
   // -----------------------------------------------------------------------
-  // Misc helpers
+  // Sync & Copy Helpers
   // -----------------------------------------------------------------------
+  void _forceSyncAll() async {
+    final snack = SnackBar(content: Text('Syncing...'), duration: Duration(seconds: 5));
+    ScaffoldMessenger.of(context).showSnackBar(snack);
+
+    await Future.wait([
+      _syncUserProfile(),
+      _initializeAndSyncContacts(),
+    ]);
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    _showSnack('Sync completed');
+  }
+
   void copyFcmToken() {
     if (_fcmToken != null) {
       Clipboard.setData(ClipboardData(text: _fcmToken!));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('FCM Token copied to clipboard')),
-      );
+      _showSnack('FCM Token copied!');
     }
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showLogoutDialog(BuildContext context) {
@@ -534,19 +508,13 @@ class _HomePageState extends State<HomePage> {
           'Are you sure you want to logout?\n\nGoRouter will automatically redirect you to the login page.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              Navigator.pop(context);
               context.read<AuthBloc>().add(LogoutRequested());
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             child: const Text('Logout'),
           ),
         ],
@@ -563,16 +531,14 @@ class _HomePageState extends State<HomePage> {
     final greeting = now.hour < 12
         ? 'Good Morning'
         : now.hour < 18
-        ? 'Good Afternoon'
-        : 'Good Evening';
+            ? 'Good Afternoon'
+            : 'Good Evening';
 
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final displayName = _userFirstName?.isNotEmpty == true
             ? _userFirstName!
-            : (state is AuthAuthenticated
-                  ? state.user?.firstName ?? 'User'
-                  : 'User');
+            : (state is AuthAuthenticated ? state.user?.firstName ?? 'User' : 'User');
 
         return Scaffold(
           body: Container(
@@ -604,11 +570,7 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 40),
                       Text(
                         '$greeting, $displayName',
-                        style: const TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
+                        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black87),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -617,7 +579,53 @@ class _HomePageState extends State<HomePage> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Recent Activity (hard-coded demo)
+                      // Sync Button
+                      Center(
+                        child: ElevatedButton.icon(
+                          onPressed: _forceSyncAll,
+                          icon: const Icon(Icons.sync),
+                          label: const Text('Sync Profile & Contacts'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurple,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // FCM Token Display
+                      if (_fcmToken != null)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withOpacity(0.5)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.vpn_key, size: 20, color: Colors.deepPurple),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: SelectableText(
+                                  _fcmToken!,
+                                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.copy, size: 18),
+                                tooltip: 'Copy FCM Token',
+                                onPressed: copyFcmToken,
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (_fcmToken != null) const SizedBox(height: 24),
+
+                      // Recent Activity
                       _buildSection(
                         title: 'Recent Activity',
                         icon: LucideIcons.clock,
@@ -653,28 +661,16 @@ class _HomePageState extends State<HomePage> {
                         children: isLoadingTasks
                             ? [const Center(child: CircularProgressIndicator())]
                             : tasks.isEmpty
-                            ? [
-                                const Text(
-                                  'No active tasks',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ]
-                            : tasks.take(3).map(_buildTaskItem).toList(),
+                                ? [const Text('No active tasks', style: TextStyle(color: Colors.grey))]
+                                : tasks.take(3).map(_buildTaskItem).toList(),
                         trailing: TextButton(
                           onPressed: () => context.go('/tasks'),
-                          child: const Text(
-                            'View All',
-                            style: TextStyle(
-                              color: Colors.blue,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                          ),
+                          child: const Text('View All', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.w600)),
                         ),
                       ),
                       const SizedBox(height: 16),
 
-                      // Upcoming (reminders)
+                      // Upcoming
                       _buildSection(
                         title: 'Upcoming',
                         icon: LucideIcons.calendar,
@@ -682,22 +678,11 @@ class _HomePageState extends State<HomePage> {
                         children: isLoadingReminders
                             ? [const Center(child: CircularProgressIndicator())]
                             : reminders.isEmpty
-                            ? [
-                                const Text(
-                                  'No upcoming reminders',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ]
-                            : reminders
-                                  .take(3)
-                                  .map(_buildReminderItem)
-                                  .toList(),
+                                ? [const Text('No upcoming reminders', style: TextStyle(color: Colors.grey))]
+                                : reminders.take(3).map(_buildReminderItem).toList(),
                         trailing: TextButton(
                           onPressed: () => context.go('/todos'),
-                          child: const Text(
-                            'View All',
-                            style: TextStyle(color: Colors.amber),
-                          ),
+                          child: const Text('View All', style: TextStyle(color: Colors.amber)),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -710,19 +695,11 @@ class _HomePageState extends State<HomePage> {
                         children: isLoadingTodos
                             ? [const Center(child: CircularProgressIndicator())]
                             : todos.isEmpty
-                            ? [
-                                const Text(
-                                  'No to-dos available',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ]
-                            : todos.take(3).map(_buildToDoItem).toList(),
+                                ? [const Text('No to-dos available', style: TextStyle(color: Colors.grey))]
+                                : todos.take(3).map(_buildToDoItem).toList(),
                         trailing: TextButton(
                           onPressed: () => context.go('/reminders'),
-                          child: const Text(
-                            'View All',
-                            style: TextStyle(color: Colors.green),
-                          ),
+                          child: const Text('View All', style: TextStyle(color: Colors.green)),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -738,7 +715,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // -----------------------------------------------------------------------
-  // UI helpers (unchanged)
+  // UI helpers
   // -----------------------------------------------------------------------
   Widget _buildSection({
     required String title,
@@ -774,14 +751,7 @@ class _HomePageState extends State<HomePage> {
                       child: Icon(icon, size: 20, color: color),
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
+                    Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
                   ],
                 ),
                 if (trailing != null) trailing,
@@ -799,8 +769,8 @@ class _HomePageState extends State<HomePage> {
     final dotColor = activity['type'] == 'success'
         ? Colors.green
         : activity['type'] == 'error'
-        ? Colors.red
-        : Colors.blue;
+            ? Colors.red
+            : Colors.blue;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -811,22 +781,12 @@ class _HomePageState extends State<HomePage> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
-          ),
+          Container(width: 8, height: 8, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              '${activity['action']} - ${activity['detail']}',
-              style: const TextStyle(fontSize: 14, color: Colors.black87),
-            ),
+            child: Text('${activity['action']} - ${activity['detail']}', style: const TextStyle(fontSize: 14, color: Colors.black87)),
           ),
-          Text(
-            activity['time'],
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
+          Text(activity['time'], style: const TextStyle(fontSize: 12, color: Colors.grey)),
         ],
       ),
     );
@@ -860,8 +820,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     return GestureDetector(
-      onTap: () =>
-          context.go('/tasks/${task.id}', extra: {'query': task.query}),
+      onTap: () => context.go('/tasks/${task.id}', extra: {'query': task.query}),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
@@ -869,33 +828,19 @@ class _HomePageState extends State<HomePage> {
           color: Colors.white.withOpacity(0.25),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.white.withOpacity(0.35)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(
-                  LucideIcons.zap,
-                  size: 16,
-                  color: Colors.blue.withOpacity(0.8),
-                ),
+                Icon(LucideIcons.zap, size: 16, color: Colors.blue.withOpacity(0.8)),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     task.query.isNotEmpty ? task.query : 'No query provided',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -907,10 +852,7 @@ class _HomePageState extends State<HomePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(10),
@@ -920,35 +862,16 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Icon(statusIcon, size: 14, color: statusColor),
                       const SizedBox(width: 6),
-                      Text(
-                        statusLabel,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: statusColor,
-                        ),
-                      ),
+                      Text(statusLabel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: statusColor)),
                     ],
                   ),
                 ),
-                Text(
-                  task.timestamp,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                ),
+                Text(task.timestamp, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
               ],
             ),
             if (task.error != 'None') ...[
               const SizedBox(height: 8),
-              Text(
-                'Error: ${task.error}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.red,
-                  fontWeight: FontWeight.w400,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+              Text('Error: ${task.error}', style: const TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.w400), maxLines: 2, overflow: TextOverflow.ellipsis),
             ],
           ],
         ),
@@ -972,32 +895,15 @@ class _HomePageState extends State<HomePage> {
         ),
         child: Row(
           children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: Colors.amber,
-                shape: BoxShape.circle,
-              ),
-            ),
+            Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.amber, shape: BoxShape.circle)),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    reminder['title'] ?? 'Reminder',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  Text(reminder['title'] ?? 'Reminder', style: const TextStyle(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.w500)),
                   const SizedBox(height: 4),
-                  Text(
-                    formattedTime,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
+                  Text(formattedTime, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 ],
               ),
             ),
@@ -1021,30 +927,17 @@ class _HomePageState extends State<HomePage> {
         child: Row(
           children: [
             GestureDetector(
-              onTap: todo['status'] == 'completed'
-                  ? null
-                  : () => completeToDo(todo),
+              onTap: todo['status'] == 'completed' ? null : () => completeToDo(todo),
               child: Container(
                 width: 20,
                 height: 20,
                 decoration: BoxDecoration(
-                  border: Border.all(
-                    color: todo['status'] == 'completed'
-                        ? Colors.green
-                        : Colors.grey,
-                    width: 2,
-                  ),
+                  border: Border.all(color: todo['status'] == 'completed' ? Colors.green : Colors.grey, width: 2),
                   borderRadius: BorderRadius.circular(4),
-                  color: todo['status'] == 'completed'
-                      ? Colors.green.withOpacity(0.2)
-                      : Colors.transparent,
+                  color: todo['status'] == 'completed' ? Colors.green.withOpacity(0.2) : Colors.transparent,
                 ),
                 child: todo['status'] == 'completed'
-                    ? const Icon(
-                        LucideIcons.checkCircle2,
-                        size: 14,
-                        color: Colors.green,
-                      )
+                    ? const Icon(LucideIcons.checkCircle2, size: 14, color: Colors.green)
                     : null,
               ),
             ),
@@ -1055,9 +948,7 @@ class _HomePageState extends State<HomePage> {
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.black87,
-                  decoration: todo['status'] == 'completed'
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
+                  decoration: todo['status'] == 'completed' ? TextDecoration.lineThrough : TextDecoration.none,
                   decorationColor: Colors.grey,
                 ),
               ),
@@ -1070,21 +961,11 @@ class _HomePageState extends State<HomePage> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.red.withOpacity(0.3)),
                 ),
-                child: const Text(
-                  'High',
-                  style: TextStyle(fontSize: 12, color: Colors.red),
-                ),
+                child: const Text('High', style: TextStyle(fontSize: 12, color: Colors.red)),
               ),
           ],
         ),
       ),
     );
-  }
-
-  // -----------------------------------------------------------------------
-  // Simple logger
-  // -----------------------------------------------------------------------
-  void _log(String msg) {
-    if (kDebugMode) debugPrint('[HomePage] $msg');
   }
 }
