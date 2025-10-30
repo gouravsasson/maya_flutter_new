@@ -1,23 +1,28 @@
-import 'package:Maya/core/services/contact_service.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:Maya/core/network/api_client.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
+import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
 import 'package:Maya/core/services/notification_service.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:flutter_timezone/flutter_timezone.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import 'package:intl/intl.dart';
-import 'package:dio/dio.dart';
+import 'package:Maya/core/services/contact_service.dart';
 
+// ---------------------------------------------------------------------------
+// TaskDetail model (unchanged)
+// ---------------------------------------------------------------------------
 class TaskDetail {
   final String id;
   final String query;
@@ -41,15 +46,11 @@ class TaskDetail {
         json['success'] as bool? ?? toolCall['success'] as bool? ?? false;
     final error =
         json['error']?.toString() ?? toolCall['error']?.toString() ?? '';
-
     String formattedTimestamp = 'No timestamp';
     try {
       final createdAt = DateTime.parse(json['created_at']?.toString() ?? '');
       formattedTimestamp = DateFormat('MMM dd, yyyy HH:mm').format(createdAt);
-    } catch (e) {
-      // Keep default if parsing fails
-    }
-
+    } catch (_) {}
     return TaskDetail(
       id: json['id']?.toString() ?? 'Unknown',
       query:
@@ -65,199 +66,213 @@ class TaskDetail {
   }
 }
 
+// ---------------------------------------------------------------------------
+// HomePage
+// ---------------------------------------------------------------------------
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
-
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
+  // -----------------------------------------------------------------------
+  // State
+  // -----------------------------------------------------------------------
   List<Map<String, dynamic>> todos = [];
   List<Map<String, dynamic>> reminders = [];
   List<TaskDetail> tasks = [];
+
   bool isLoadingTodos = false;
   bool isLoadingReminders = false;
   bool isLoadingTasks = false;
-  NotificationServices notificationServices = NotificationServices();
-  String? fcmToken;
-  String? locationPermissionStatus;
-  late ApiClient apiClient;
 
+  final NotificationServices _notification = NotificationServices();
+  late final ApiClient _apiClient;
+
+  String? _fcmToken;
+  String? _locationStatus;
+  String? _userFirstName;
+  String? _userLastName;
+
+  // -----------------------------------------------------------------------
+  // initState – wiring only
+  // -----------------------------------------------------------------------
   @override
   void initState() {
     super.initState();
+
     final publicDio = Dio();
     final protectedDio = Dio();
-    apiClient = ApiClient(publicDio, protectedDio);
-    notificationServices.requestNotificationPermission();
-    notificationServices.forgroundMessage();
-    notificationServices.firebaseInit(context);
-    notificationServices.setupInteractMessage(context);
-    notificationServices.isTokenRefresh();
+    _apiClient = ApiClient(publicDio, protectedDio);
 
-    notificationServices.getDeviceToken().then((value) {
-      setState(() => fcmToken = value);
-      if (kDebugMode) {
-        getIt<ApiClient>().sendFcmToken(value);
-        print('device token: $value');
-      }
-    });
+    _setupNotifications();
+    _syncUserProfile(); // <-- ONE place for FCM + location + timezone
     _initializeAndSyncContacts();
     fetchReminders();
     fetchToDos();
     fetchTasks();
-    _initializeAndSaveLocation();
   }
 
+  // -----------------------------------------------------------------------
+  // 1. Notification plumbing
+  // -----------------------------------------------------------------------
+  Future<void> _setupNotifications() async {
+    _notification.requestNotificationPermission();
+    _notification.forgroundMessage();
+    _notification.firebaseInit(context);
+    _notification.setupInteractMessage(context);
+    _notification.isTokenRefresh();
 
-Future<void> _initializeAndSyncContacts() async {
-    try {
-      // Check if permission was already granted
-      bool hasPermission = await ContactsService.hasContactsPermission();
-      if (!hasPermission) {
-        hasPermission = await ContactsService.requestContactsPermission();
-      }
+    final token = await _notification.getDeviceToken();
+    setState(() => _fcmToken = token);
 
-      if (hasPermission) {
-        if (kDebugMode) print('Contacts permission granted, fetching contacts...');
-        // Fetch contacts
-        List<Map<String, String>> contacts = await ContactsService.fetchContacts();
-        if (contacts.isNotEmpty) {
-          // Prepare payload (though in this case, it just returns the list as is)
-          List<Map<String, String>> payload = apiClient.prepareSyncContactsPayload(contacts);
-          // Sync contacts with API
-          final response = await apiClient.syncContacts(payload);
-          if (response['statusCode'] == 200) {
-            if (kDebugMode) print('Contacts synced successfully: ${response['data']}');
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Contacts synced successfully')),
-            );
-          } else {
-            if (kDebugMode) print('Failed to sync contacts: ${response['data']}');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to sync contacts: ${response['data']}')),
-            );
-          }
-        } else {
-          if (kDebugMode) print('No contacts found to sync.');
-        }
-      } else {
-        if (kDebugMode) print('Contacts permission denied.');
-        _showContactsPermissionDialog();
-      }
-    } catch (e) {
-      if (kDebugMode) print('Error syncing contacts: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error syncing contacts: $e')),
-      );
+    if (kDebugMode) {
+      _apiClient.sendFcmToken(token);
+      _log('FCM token: $token');
     }
   }
 
-  void _showContactsPermissionDialog({bool permanent = false}) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Contacts Permission Required'),
-        content: Text(
-          permanent
-              ? 'Contacts permissions are permanently denied. Please enable them in app settings.'
-              : 'Contacts permission is required to sync your contacts.',
-        ),
-        actions: [
-          if (!permanent)
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              if (permanent) {
-                openAppSettings();
-              } else {
-                _initializeAndSyncContacts();
-              }
-            },
-            child: Text(permanent ? 'Open Settings' : 'Grant Permission'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _initializeAndSaveLocation() async {
+  // -----------------------------------------------------------------------
+  // 2. Centralised profile sync (FCM + location + timezone)
+  // -----------------------------------------------------------------------
+  Future<void> _syncUserProfile() async {
     try {
-      String timezone = (await FlutterTimezone.getLocalTimezone()) as String;
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        setState(() => locationPermissionStatus = 'Location services disabled');
-        if (kDebugMode) print('Location services are disabled.');
-        _showLocationServiceDialog();
+      // ---- 1. Get user names ----
+      final userResp = await _apiClient.getCurrentUser();
+      if (userResp['statusCode'] != 200) {
+        _log('User fetch failed: ${userResp['data']}');
+        return;
+      }
+      final userData = userResp['data'] as Map<String, dynamic>;
+      final String firstName = userData['first_name']?.toString() ?? '';
+      final String lastName = userData['last_name']?.toString() ?? '';
+      setState(() {
+        _userFirstName = firstName;
+        _userLastName = lastName;
+      });
+
+      // ---- 2. Parallel: FCM token + location+timezone ----
+      final results = await Future.wait([
+        _waitForFcmToken(),
+        _obtainLocationAndTimezone(),
+      ]);
+
+      final String? token = results[0] as String?;
+      final (Position position, String timezone) =
+          results[1] as (Position, String);
+
+      if (token == null) {
+        _log('FCM token missing – aborting profile sync');
         return;
       }
 
-      LocationPermission permission = await Geolocator.checkPermission();
+      // ---- 3. PATCH profile ----
+      final updateResp = await _apiClient.updateUserProfile(
+        firstName: firstName,
+        lastName: lastName,
+        fcmToken: token,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        timezone: timezone,
+      );
+
+      if (updateResp['statusCode'] == 200) {
+        _log('Profile synced (FCM+location+tz)');
+      } else {
+        _log('Profile sync failed: ${updateResp['data']}');
+      }
+    } catch (e) {
+      _log('syncUserProfile error: $e');
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Helper: wait max 5 s for FCM token
+  // -----------------------------------------------------------------------
+  Future<String?> _waitForFcmToken() async {
+    final completer = Completer<String?>();
+    const timeout = Duration(seconds: 5);
+    Timer? timer;
+
+    void check() {
+      if (_fcmToken != null) {
+        timer?.cancel();
+        completer.complete(_fcmToken);
+      }
+    }
+
+    timer = Timer.periodic(const Duration(milliseconds: 200), (_) => check());
+    Future.delayed(timeout, () {
+      if (!completer.isCompleted) {
+        timer?.cancel();
+        completer.complete(null);
+      }
+    });
+    check();
+    return completer.future;
+  }
+
+  // -----------------------------------------------------------------------
+  // Helper: location + timezone (with UI dialogs)
+  // -----------------------------------------------------------------------
+  Future<(Position, String)> _obtainLocationAndTimezone() async {
+    // 1. Timezone (no permission)
+    final String timezone = (await FlutterTimezone.getLocalTimezone()) as String;
+
+    // 2. Service check
+    final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      _showLocationServiceDialog();
+      throw Exception('Location services disabled');
+    }
+
+    // 3. Permission flow
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        setState(() => locationPermissionStatus = 'Location permission denied');
-        if (kDebugMode) print('Location permission status: Denied');
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          _showLocationPermissionDialog();
-          setState(
-            () => locationPermissionStatus =
-                'Location permission denied after request',
-          );
-          if (kDebugMode) {
-            print('Location permission status: Denied after request');
-          }
-          return;
-        }
+        _showLocationPermissionDialog();
+        throw Exception('Location permission denied');
       }
-
-      if (permission == LocationPermission.deniedForever) {
-        setState(
-          () => locationPermissionStatus =
-              'Location permission permanently denied',
-        );
-        if (kDebugMode) print('Location permission status: Permanently denied');
-        _showLocationPermissionDialog(permanent: true);
-        return;
-      }
-
-      setState(() => locationPermissionStatus = 'Location permission granted');
-      if (kDebugMode) print('Location permission status: Granted');
-
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      final response = await getIt<ApiClient>().saveLocation(
-        position.latitude,
-        position.longitude,
-        timezone,
-      );
-
-      if (response['statusCode'] == 200) {
-        if (kDebugMode) {
-          print(
-            'Location saved successfully: ${position.latitude}, ${position.longitude}, $timezone',
-          );
-        }
-      } else {
-        if (kDebugMode) print('Failed to save location: ${response['data']}');
-      }
-    } catch (e) {
-      setState(
-        () => locationPermissionStatus = 'Error checking permission: $e',
-      );
-      if (kDebugMode) print('Error saving location: $e');
     }
+    if (permission == LocationPermission.deniedForever) {
+      _showLocationPermissionDialog(permanent: true);
+      throw Exception('Location permission permanently denied');
+    }
+
+    // 4. Get position and normalize to generic Position
+    final rawPosition = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+
+    // Normalize platform-specific position to generic Position
+    final Position position = rawPosition is Position
+        ? rawPosition
+        : Position(
+            latitude: rawPosition.latitude,
+            longitude: rawPosition.longitude,
+            timestamp: rawPosition.timestamp,
+            accuracy: rawPosition.accuracy,
+            altitude: rawPosition.altitude,
+            heading: rawPosition.heading,
+            speed: rawPosition.speed,
+            speedAccuracy: rawPosition.speedAccuracy, altitudeAccuracy: rawPosition.altitudeAccuracy, headingAccuracy: rawPosition.headingAccuracy,
+            // iOS-specific fields (set to 0.0 or null if not available)
+           
+          );
+
+    setState(() => _locationStatus = 'granted');
+    return (position, timezone);
   }
 
+  // -----------------------------------------------------------------------
+  // UI dialogs (unchanged)
+  // -----------------------------------------------------------------------
   void _showLocationServiceDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
         title: const Text('Location Services Disabled'),
         content: const Text(
           'Please enable location services to save your location.',
@@ -282,7 +297,7 @@ Future<void> _initializeAndSyncContacts() async {
   void _showLocationPermissionDialog({bool permanent = false}) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
         title: const Text('Location Permission Required'),
         content: Text(
           permanent
@@ -311,75 +326,139 @@ Future<void> _initializeAndSyncContacts() async {
     );
   }
 
+  // -----------------------------------------------------------------------
+  // Contacts sync (unchanged, minor refactor)
+  // -----------------------------------------------------------------------
+  Future<void> _initializeAndSyncContacts() async {
+    try {
+      final contacts = await ContactsService.fetchContactsSafely();
+      if (contacts == null) {
+        _showContactsPermissionDialog();
+        return;
+      }
+      if (contacts.isEmpty) {
+        _log('No contacts to sync.');
+        return;
+      }
+      final payload = _apiClient.prepareSyncContactsPayload(contacts);
+      final response = await _apiClient.syncContacts(payload);
+      final msg = response['statusCode'] == 200
+          ? 'Contacts synced successfully'
+          : 'Failed to sync contacts: ${response['data']}';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } catch (e) {
+      _log('Contacts sync error: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error syncing contacts: $e')));
+    }
+  }
+
+  void _showContactsPermissionDialog({bool permanent = false}) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Contacts Permission Required'),
+        content: Text(
+          permanent
+              ? 'Contacts permissions are permanently denied. Please enable them in app settings.'
+              : 'Contacts permission is required to sync your contacts.',
+        ),
+        actions: [
+          if (!permanent)
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              if (permanent) {
+                openAppSettings();
+              } else {
+                _initializeAndSyncContacts();
+              }
+            },
+            child: Text(permanent ? 'Open Settings' : 'Grant Permission'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // Data fetchers (unchanged)
+  // -----------------------------------------------------------------------
   Future<void> fetchReminders() async {
     setState(() => isLoadingReminders = true);
     try {
-      final response = await getIt<ApiClient>().getReminders();
+      final response = await _apiClient.getReminders();
       if (response['statusCode'] == 200) {
         setState(() {
           reminders = List<Map<String, dynamic>>.from(response['data']['data']);
         });
-      } else {
-        if (kDebugMode)
-          print('Failed to fetch reminders: ${response['message']}');
       }
     } catch (e) {
-      if (kDebugMode) print('Error fetching reminders: $e');
+      _log('fetchReminders error: $e');
+    } finally {
+      setState(() => isLoadingReminders = false);
     }
-    setState(() => isLoadingReminders = false);
   }
 
   Future<void> fetchToDos() async {
     setState(() => isLoadingTodos = true);
-    final response = await getIt<ApiClient>().getToDo();
-    if (response['statusCode'] == 200) {
-      setState(
-        () => todos = List<Map<String, dynamic>>.from(response['data']['data']),
-      );
+    try {
+      final response = await _apiClient.getToDo();
+      if (response['statusCode'] == 200) {
+        setState(() {
+          todos = List<Map<String, dynamic>>.from(response['data']['data']);
+        });
+      }
+    } catch (e) {
+      _log('fetchToDos error: $e');
+    } finally {
+      setState(() => isLoadingTodos = false);
     }
-    setState(() => isLoadingTodos = false);
   }
 
   Future<void> fetchTasks() async {
     setState(() => isLoadingTasks = true);
     try {
-      final response = await apiClient.fetchTasks(page: 1);
+      final response = await _apiClient.fetchTasks(page: 1);
       final data = response['data'];
       if (response['statusCode'] == 200 && data['success'] == true) {
         final List<dynamic> taskList =
             data['data']?['sessions'] as List<dynamic>? ?? [];
         setState(() {
           tasks = taskList.map((json) => TaskDetail.fromJson(json)).toList();
-          isLoadingTasks = false;
         });
-      } else {
-        setState(() => isLoadingTasks = false);
-        if (kDebugMode) {
-          print('Failed to load tasks: ${data['message'] ?? 'Unknown error'}');
-        }
       }
     } catch (e) {
+      _log('fetchTasks error: $e');
+    } finally {
       setState(() => isLoadingTasks = false);
-      if (kDebugMode) print('Error fetching tasks: $e');
     }
   }
 
+  // -----------------------------------------------------------------------
+  // To-Do CRUD helpers (unchanged)
+  // -----------------------------------------------------------------------
   Future<void> addToDo(
     String title,
     String description, {
     String? reminder,
   }) async {
-    final payload = getIt<ApiClient>().prepareCreateToDoPayload(
+    final payload = _apiClient.prepareCreateToDoPayload(
       title,
       description,
       reminder,
     );
-    final response = await getIt<ApiClient>().createToDo(payload);
+    final response = await _apiClient.createToDo(payload);
     if (response['statusCode'] == 200) fetchToDos();
   }
 
   Future<void> updateToDo(Map<String, dynamic> todo) async {
-    final payload = getIt<ApiClient>().prepareUpdateToDoPayload(
+    final payload = _apiClient.prepareUpdateToDoPayload(
       todo['ID'],
       title: todo['title'],
       description: todo['description'],
@@ -387,19 +466,11 @@ Future<void> _initializeAndSyncContacts() async {
       reminder: todo['reminder'] ?? false,
       reminder_time: todo['reminder_time'],
     );
-    final response = await getIt<ApiClient>().updateToDo(payload);
+    final response = await _apiClient.updateToDo(payload);
     if (response['statusCode'] == 200) {
       fetchToDos();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('To-Do updated successfully')));
-    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Failed to update To-Do: ${response['message'] ?? 'Unknown error'}',
-          ),
-        ),
+        const SnackBar(content: Text('To-Do updated successfully')),
       );
     }
   }
@@ -407,7 +478,7 @@ Future<void> _initializeAndSyncContacts() async {
   Future<void> completeToDo(Map<String, dynamic> todo) async {
     setState(() => isLoadingTodos = true);
     try {
-      final payload = getIt<ApiClient>().prepareUpdateToDoPayload(
+      final payload = _apiClient.prepareUpdateToDoPayload(
         todo['ID'],
         title: todo['title'],
         description: todo['description'],
@@ -415,19 +486,11 @@ Future<void> _initializeAndSyncContacts() async {
         reminder: todo['reminder'] ?? false,
         reminder_time: todo['reminder_time'],
       );
-      final response = await getIt<ApiClient>().updateToDo(payload);
+      final response = await _apiClient.updateToDo(payload);
       if (response['statusCode'] == 200) {
         await fetchToDos();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('To-Do marked as completed')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to complete To-Do: ${response['message'] ?? 'Unknown error'}',
-            ),
-          ),
         );
       }
     } catch (e) {
@@ -440,84 +503,96 @@ Future<void> _initializeAndSyncContacts() async {
   }
 
   Future<void> deleteToDo(int id) async {
-    final response = await getIt<ApiClient>().deleteToDo(id);
+    final response = await _apiClient.deleteToDo(id);
     if (response['statusCode'] == 200) fetchToDos();
   }
 
-  Future<void> sendNotification() async {
-    final token = await notificationServices.getDeviceToken();
-    var data = {
-      'to': token,
-      'notification': {
-        'title': 'Maya App',
-        'body': 'This is a test notification',
-        'sound': 'jetsons_doorbell.mp3',
-      },
-      'android': {
-        'notification': {'notification_count': 1},
-      },
-      'data': {'type': 'custom', 'id': '12345'},
-    };
-
-    try {
-      final response = await http.post(
-        Uri.parse('https://fcm.googleapis.com/fcm/send'),
-        body: jsonEncode(data),
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization': 'key=YOUR_SERVER_KEY_HERE',
-        },
-      );
-      if (kDebugMode) print("Notification response: ${response.body}");
-    } catch (e) {
-      if (kDebugMode) print("Error sending notification: $e");
-    }
-  }
-
+  // -----------------------------------------------------------------------
+  // Misc helpers
+  // -----------------------------------------------------------------------
   void copyFcmToken() {
-    if (fcmToken != null) {
-      Clipboard.setData(ClipboardData(text: fcmToken!));
+    if (_fcmToken != null) {
+      Clipboard.setData(ClipboardData(text: _fcmToken!));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('FCM Token copied to clipboard')),
       );
     }
   }
 
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.logout, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Logout'),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to logout?\n\nGoRouter will automatically redirect you to the login page.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              context.read<AuthBloc>().add(LogoutRequested());
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // UI
+  // -----------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    final DateTime now = DateTime.now();
-    String greeting = now.hour < 12
+    final now = DateTime.now();
+    final greeting = now.hour < 12
         ? 'Good Morning'
         : now.hour < 18
-            ? 'Good Afternoon'
-            : 'Good Evening';
+        ? 'Good Afternoon'
+        : 'Good Evening';
 
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
-        final user = state is AuthAuthenticated ? state.user : null;
+        final displayName = _userFirstName?.isNotEmpty == true
+            ? _userFirstName!
+            : (state is AuthAuthenticated
+                  ? state.user?.firstName ?? 'User'
+                  : 'User');
 
         return Scaffold(
           body: Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFFDBEAFE), // blue-100
-                  Color(0xFFF3E8FF), // purple-100
-                  Color(0xFFFCE7F3), // pink-100
+                  Color(0xFFDBEAFE),
+                  Color(0xFFF3E8FF),
+                  Color(0xFFFCE7F3),
                 ],
               ),
             ),
             child: Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: RadialGradient(
                   center: Alignment.topCenter,
                   radius: 1.0,
-                  colors: [
-                    Color(0x66BFDBFE), // blue-200 with 40% opacity
-                    Colors.transparent,
-                  ],
+                  colors: [Color(0x66BFDBFE), Colors.transparent],
                 ),
               ),
               child: Padding(
@@ -528,7 +603,7 @@ Future<void> _initializeAndSyncContacts() async {
                     children: [
                       const SizedBox(height: 40),
                       Text(
-                        '$greeting, ${"User"}',
+                        '$greeting, $displayName',
                         style: const TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
@@ -542,7 +617,7 @@ Future<void> _initializeAndSyncContacts() async {
                       ),
                       const SizedBox(height: 24),
 
-                      // Recent Activity Section
+                      // Recent Activity (hard-coded demo)
                       _buildSection(
                         title: 'Recent Activity',
                         icon: LucideIcons.clock,
@@ -570,7 +645,7 @@ Future<void> _initializeAndSyncContacts() async {
                       ),
                       const SizedBox(height: 16),
 
-                      // Active Tasks Section
+                      // Active Tasks
                       _buildSection(
                         title: 'Active Tasks',
                         icon: LucideIcons.zap,
@@ -578,18 +653,16 @@ Future<void> _initializeAndSyncContacts() async {
                         children: isLoadingTasks
                             ? [const Center(child: CircularProgressIndicator())]
                             : tasks.isEmpty
-                                ? [
-                                    const Text(
-                                      'No active tasks',
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
-                                  ]
-                                : tasks.take(3).map((task) {
-                                    return _buildTaskItem(task);
-                                  }).toList(),
+                            ? [
+                                const Text(
+                                  'No active tasks',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ]
+                            : tasks.take(3).map(_buildTaskItem).toList(),
                         trailing: TextButton(
                           onPressed: () => context.go('/tasks'),
-                          child: Text(
+                          child: const Text(
                             'View All',
                             style: TextStyle(
                               color: Colors.blue,
@@ -601,7 +674,7 @@ Future<void> _initializeAndSyncContacts() async {
                       ),
                       const SizedBox(height: 16),
 
-                      // Upcoming Section
+                      // Upcoming (reminders)
                       _buildSection(
                         title: 'Upcoming',
                         icon: LucideIcons.calendar,
@@ -609,15 +682,16 @@ Future<void> _initializeAndSyncContacts() async {
                         children: isLoadingReminders
                             ? [const Center(child: CircularProgressIndicator())]
                             : reminders.isEmpty
-                                ? [
-                                    const Text(
-                                      'No upcoming reminders',
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
-                                  ]
-                                : reminders.take(3).map((reminder) {
-                                    return _buildReminderItem(reminder);
-                                  }).toList(),
+                            ? [
+                                const Text(
+                                  'No upcoming reminders',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ]
+                            : reminders
+                                  .take(3)
+                                  .map(_buildReminderItem)
+                                  .toList(),
                         trailing: TextButton(
                           onPressed: () => context.go('/todos'),
                           child: const Text(
@@ -628,7 +702,7 @@ Future<void> _initializeAndSyncContacts() async {
                       ),
                       const SizedBox(height: 16),
 
-                      // To-Do Section
+                      // To-Do
                       _buildSection(
                         title: 'To-Do',
                         icon: LucideIcons.checkSquare,
@@ -636,15 +710,13 @@ Future<void> _initializeAndSyncContacts() async {
                         children: isLoadingTodos
                             ? [const Center(child: CircularProgressIndicator())]
                             : todos.isEmpty
-                                ? [
-                                    const Text(
-                                      'No to-dos available',
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
-                                  ]
-                                : todos.take(3).map((todo) {
-                                    return _buildToDoItem(todo);
-                                  }).toList(),
+                            ? [
+                                const Text(
+                                  'No to-dos available',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ]
+                            : todos.take(3).map(_buildToDoItem).toList(),
                         trailing: TextButton(
                           onPressed: () => context.go('/reminders'),
                           child: const Text(
@@ -665,6 +737,9 @@ Future<void> _initializeAndSyncContacts() async {
     );
   }
 
+  // -----------------------------------------------------------------------
+  // UI helpers (unchanged)
+  // -----------------------------------------------------------------------
   Widget _buildSection({
     required String title,
     required IconData icon,
@@ -721,11 +796,11 @@ Future<void> _initializeAndSyncContacts() async {
   }
 
   Widget _buildActivityItem(Map<String, dynamic> activity) {
-    Color dotColor = activity['type'] == 'success'
+    final dotColor = activity['type'] == 'success'
         ? Colors.green
         : activity['type'] == 'error'
-            ? Colors.red
-            : Colors.blue;
+        ? Colors.red
+        : Colors.blue;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -778,21 +853,15 @@ Future<void> _initializeAndSyncContacts() async {
         statusLabel = 'Needs Approval';
         statusIcon = LucideIcons.alertCircle;
         break;
-      case 'pending':
       default:
         statusColor = Colors.amber;
         statusLabel = 'In Progress';
         statusIcon = LucideIcons.clock;
-        break;
     }
 
     return GestureDetector(
-      onTap: () {
-        context.go(
-          '/tasks/${task.id}',
-          extra: {'query': task.query},
-        );
-      },
+      onTap: () =>
+          context.go('/tasks/${task.id}', extra: {'query': task.query}),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
@@ -838,7 +907,10 @@ Future<void> _initializeAndSyncContacts() async {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(10),
@@ -846,11 +918,7 @@ Future<void> _initializeAndSyncContacts() async {
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        statusIcon,
-                        size: 14,
-                        color: statusColor,
-                      ),
+                      Icon(statusIcon, size: 14, color: statusColor),
                       const SizedBox(width: 6),
                       Text(
                         statusLabel,
@@ -865,11 +933,7 @@ Future<void> _initializeAndSyncContacts() async {
                 ),
                 Text(
                   task.timestamp,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                    fontWeight: FontWeight.w400,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                 ),
               ],
             ),
@@ -896,7 +960,6 @@ Future<void> _initializeAndSyncContacts() async {
     final utcTime = DateTime.parse(reminder['reminder_time']);
     final localTime = utcTime.toLocal();
     final formattedTime = DateFormat('MMM d, yyyy h:mm a').format(localTime);
-
     return GestureDetector(
       onTap: () => context.go('/other'),
       child: Container(
@@ -912,7 +975,7 @@ Future<void> _initializeAndSyncContacts() async {
             Container(
               width: 8,
               height: 8,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.amber,
                 shape: BoxShape.circle,
               ),
@@ -1018,38 +1081,10 @@ Future<void> _initializeAndSyncContacts() async {
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.logout, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('Logout'),
-          ],
-        ),
-        content: const Text(
-          'Are you sure you want to logout?\n\nGoRouter will automatically redirect you to the login page.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              context.read<AuthBloc>().add(LogoutRequested());
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
+  // -----------------------------------------------------------------------
+  // Simple logger
+  // -----------------------------------------------------------------------
+  void _log(String msg) {
+    if (kDebugMode) debugPrint('[HomePage] $msg');
   }
 }

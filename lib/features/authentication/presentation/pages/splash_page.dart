@@ -134,7 +134,7 @@ class __AnimatedOrbState extends State<_AnimatedOrb> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: 128,
       height: 128,
       child: Stack(

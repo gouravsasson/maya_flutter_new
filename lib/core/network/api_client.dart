@@ -173,7 +173,7 @@ class ApiClient {
     List<Map<String, String>> payload,
   ) async {
     final response = await post(
-      _publicDio,
+      _protectedDio,
       '/communication/sync-contacts',
       data: payload,
     );
@@ -627,4 +627,92 @@ class ApiClient {
       false,
     );
   }
+
+
+Future<Map<String, dynamic>> getCurrentUser() async {
+    final response = await _protectedDio.get('/auth/users/me');
+    print('getCurrentUser response: ${response.data}');
+    print('getCurrentUser statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+
+  Future<Map<String, dynamic>> updateNotificationPreferences({
+    required bool emailNotifications,
+    required bool pushNotifications,
+    required bool smsNotifications,
+    required bool deviceNotifications,
+  }) async {
+    final payload = {
+      "email_notifications": emailNotifications,
+      "push_notifications": pushNotifications,
+      "sms_notifications": smsNotifications,
+      "device_notifications": deviceNotifications,
+    };
+
+    final response = await _protectedDio.patch(
+      '/auth/users/notification-preferences',
+      data: payload,
+    );
+
+    print('updateNotificationPreferences response: ${response.data}');
+    print('updateNotificationPreferences statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  /// PATCH /api/protected/auth/users/update
+ Future<Map<String, dynamic>> updateUserProfile({
+  required String firstName,
+  required String lastName,
+  required String fcmToken,
+  required double latitude,
+  required double longitude,
+  required String timezone,
+}) async {
+  final payload = prepareUpdateUserProfilePayload(
+    firstName: firstName,
+    lastName: lastName,
+    fcmToken: fcmToken,
+    latitude: latitude,
+    longitude: longitude,
+    timezone: timezone,
+  );
+
+  final response = await _protectedDio.patch('/auth/users/update', data: payload);
+  return {'statusCode': response.statusCode, 'data': response.data};
 }
+
+  Map<String, dynamic> prepareSaveLocationPayload(
+  double latitude,
+  double longitude,
+  String timezone,
+) {
+  return {
+    "latitude": latitude,
+    "longitude": longitude,
+    "timezone": timezone,
+  };
+}
+
+/// Prepare payload for **updateUserProfile** (includes FCM token)
+Map<String, dynamic> prepareUpdateUserProfilePayload({
+  required String firstName,
+  required String lastName,
+  required String fcmToken,
+  required double latitude,
+  required double longitude,
+  required String timezone,
+}) {
+  return {
+    "first_name": firstName,
+    "last_name": lastName,
+    "fcm_token": fcmToken,
+    "latitude": latitude,
+    "longitude": longitude,
+    "timezone": timezone,
+  };
+}
+
+}
+
+

@@ -20,7 +20,7 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
   String _currentTranscriptChunk = '';
   String _status = 'Talk To Maya';
   final List<Map<String, dynamic>> _conversation = [];
-  String _inputValue = '';
+  final String _inputValue = '';
   UltravoxSession? _session;
   String _previousStatus = '';
   AnimationController? _pulseController;

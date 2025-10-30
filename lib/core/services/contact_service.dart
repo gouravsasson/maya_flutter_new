@@ -1,65 +1,82 @@
-import 'package:flutter_contacts/flutter_contacts.dart'; // New import
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:Maya/core/services/storage_service.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'storage_service.dart';   // your StorageService
 
 class ContactsService {
-  static const String _contactsPermissionKey = 'contacts_permission_granted';
+  static const _permissionKey = 'contacts_permission_granted';
+  static StorageService? _storage;
 
-  /// Requests permission to access contacts and returns true if granted.
-  static Future<bool> requestContactsPermission() async {
-    final status = await Permission.contacts.request();
-    final storage = await _getStorageService();
-    if (status.isGranted) {
-      await storage.setBool(_contactsPermissionKey, true);
-      return true;
-    } else if (status.isPermanentlyDenied) {
+  // ------------------------------------------------------------
+  // 1. Permission flow
+  // ------------------------------------------------------------
+  static Future<bool> _ensurePermission() async {
+    final status = await Permission.contacts.status;
+
+    if (status.isGranted) return true;
+    if (status.isPermanentlyDenied) {
       await openAppSettings();
       return false;
     }
-    await storage.setBool(_contactsPermissionKey, false);
-    return false;
+
+    final result = await Permission.contacts.request();
+    final granted = result.isGranted;
+
+    // cache the result for the next app start
+    final storage = await _getStorage();
+    await storage.setBool(_permissionKey, granted);
+    return granted;
   }
 
-  /// Checks if contacts permission is already granted (cached).
-  static Future<bool> hasContactsPermission() async {
-    final storage = await _getStorageService();
-    return await storage.getBool(_contactsPermissionKey) ?? false;
+  static Future<bool> hasPermission() async {
+    final storage = await _getStorage();
+    final cached = await storage.getBool(_permissionKey) ?? false;
+    if (!cached) return false;
+
+    // double-check the OS (cached value could be stale)
+    return (await Permission.contacts.status).isGranted;
   }
 
-  /// Fetches contacts as List<Map<String, String>> for your API payload.
-  static Future<List<Map<String, String>>> fetchContacts() async {
-    // Use flutter_contacts to fetch with phone properties
-    final List<Contact> contacts = await FlutterContacts.getContacts(
-      withProperties: true, // Required to include phones/emails
-      withPhoto: false, // Skip photos to save time/bandwidth
-    );
-    return contacts
-        .where((contact) => contact.phones.isNotEmpty)
-        .map(
-          (contact) => {
-            'name': contact.displayName ?? '',
-            'phone': contact.phones.first.number ?? '',
-            // Add more if needed: 'email': contact.emails.firstOrNull?.address ?? '',
-          },
-        )
-        .toList();
+  // ------------------------------------------------------------
+  // 2. Safe contacts fetch
+  // ------------------------------------------------------------
+  static Future<List<Map<String, String>>?> fetchContactsSafely() async {
+    final granted = await _ensurePermission();
+    if (!granted) return null;               // caller must handle denial
+
+    try {
+      final contacts = await FlutterContacts.getContacts(
+        withProperties: true,
+        withPhoto: false,
+      );
+
+      return contacts
+          .where((c) => c.phones.isNotEmpty)
+          .map((c) => {
+                'name': c.displayName ?? '',
+                'phone': c.phones.first.number ?? '',
+              })
+          .toList();
+    } on Exception catch (e) {
+      // This should never happen if permission was granted,
+      // but we guard anyway.
+      print('Unexpected contacts error: $e');
+      return null;
+    }
   }
 
-  // Static field (nullable to allow lazy async init)
-  static StorageService? _storageService;
-
-  // Helper to get StorageService instance (async init if needed)
-  static Future<StorageService> _getStorageService() async {
-    _storageService ??= await _initStorageService();
-    return _storageService!;
+  // ------------------------------------------------------------
+  // 3. Storage helper (lazy init)
+  // ------------------------------------------------------------
+  static Future<StorageService> _getStorage() async {
+    _storage ??= await _initStorage();
+    return _storage!;
   }
 
-  // Private async initializer for StorageService
-  static Future<StorageService> _initStorageService() async {
-    final secureStorage = const FlutterSecureStorage();
-    final preferences = await SharedPreferences.getInstance();
-    return StorageServiceImpl(secureStorage, preferences);
+  static Future<StorageService> _initStorage() async {
+    final secure = const FlutterSecureStorage();
+    final prefs = await SharedPreferences.getInstance();
+    return StorageServiceImpl(secure, prefs);
   }
 }
