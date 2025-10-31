@@ -545,7 +545,7 @@ final TimezoneInfo timezoneInfo = await FlutterTimezone.getLocalTimezone();
       builder: (context, state) {
         final displayName = _userFirstName?.isNotEmpty == true
             ? _userFirstName!
-            : (state is AuthAuthenticated ? state.user?.firstName ?? 'User' : 'User');
+            : (state is AuthAuthenticated ? state.user.firstName ?? 'User' : 'User');
 
         return Scaffold(
           body: Container(
