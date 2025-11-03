@@ -42,7 +42,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       iconColor: const Color(0xFF4285F4),
       connected: false,
       category: 'calendar',
-      scopes: ['https://www.googleapis.com/auth/calendar', 'email', 'profile'],
+      scopes: ['https://www.googleapis.com/auth/userinfo.email','https://www.googleapis.com/auth/userinfo.profile','https://www.googleapis.com/auth/calendar','https://www.googleapis.com/auth/drive.file','https://www.googleapis.com/auth/spreadsheets', 'email', 'profile'],
     ),
     Integration(
       id: 'gohighlevel',
