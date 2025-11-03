@@ -145,10 +145,10 @@ class ApiClient {
   }
 
   // Fetch Tasks API
-  Future<Map<String, dynamic>> fetchTasks({int page=1}) async {
+  Future<Map<String, dynamic>> fetchTasks({int page = 1}) async {
     final response = await get(
       _protectedDio,
-    '/thunder/get-tool-call-sessions?page=$page',
+      '/thunder/get-tool-call-sessions?page=$page',
     );
     print('fetchTasks response: ${response.data}');
     print('fetchTasks statusCode: ${response.statusCode}');
@@ -234,9 +234,12 @@ class ApiClient {
   }
 
   // Get To-Do API
-  Future<Map<String, dynamic>> getToDo({int page=1}) async {
+  Future<Map<String, dynamic>> getToDo({int page = 1}) async {
     print('getToDo');
-    final response = await get(_protectedDio, '/productivity/todo/get?page=$page');
+    final response = await get(
+      _protectedDio,
+      '/productivity/todo/get?page=$page',
+    );
     print('getToDo response: ${response.data}');
     print('getToDo statusCode: ${response.statusCode}');
     return {'statusCode': response.statusCode, 'data': response.data};
@@ -290,8 +293,11 @@ class ApiClient {
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
-  Future<Map<String, dynamic>> getReminders({int page=1}) async {
-    final response = await get(_protectedDio, '/productivity/reminder/get?page=$page');
+  Future<Map<String, dynamic>> getReminders({int page = 1}) async {
+    final response = await get(
+      _protectedDio,
+      '/productivity/reminder/get?page=$page',
+    );
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
@@ -442,7 +448,6 @@ class ApiClient {
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
-
   Future<Map<String, dynamic>> setMicVolume(int level) async {
     final payload = prepareSetMicVolumePayload(level);
     final options = Options(headers: {'X-Device-ID': 'maya-india-26b'});
@@ -490,10 +495,14 @@ class ApiClient {
 
   // Prepare Get Volume Payload
   Map<String, dynamic> prepareGetVolumePayload() {
-    return prepareMqttPublishPayload('{"action":"get_speaker_volume"}', 2, false);
+    return prepareMqttPublishPayload(
+      '{"action":"get_speaker_volume"}',
+      2,
+      false,
+    );
   }
 
-   Map<String, dynamic> prepareSetMicVolumePayload(int level) {
+  Map<String, dynamic> prepareSetMicVolumePayload(int level) {
     return prepareMqttPublishPayload(
       '{"action":"set_mic_volume","level":$level}',
       2,
@@ -503,15 +512,10 @@ class ApiClient {
 
   // Prepare Get Microphone Volume Payload
   Map<String, dynamic> prepareGetMicVolumePayload() {
-    return prepareMqttPublishPayload(
-      '{"action":"get_mic_volume"}',
-      2,
-      false,
-    );
+    return prepareMqttPublishPayload('{"action":"get_mic_volume"}', 2, false);
   }
 
-
-    Future<Map<String, dynamic>> rebootDevice() async {
+  Future<Map<String, dynamic>> rebootDevice() async {
     final payload = prepareRebootPayload();
     final options = Options(headers: {'X-Device-ID': 'maya-india-26b'});
     final response = await _publicDio.post(
@@ -538,25 +542,16 @@ class ApiClient {
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
-
-   Map<String, dynamic> prepareRebootPayload() {
-    return prepareMqttPublishPayload(
-      '{"action":"reboot"}',
-      2,
-      false,
-    );
+  Map<String, dynamic> prepareRebootPayload() {
+    return prepareMqttPublishPayload('{"action":"reboot"}', 2, false);
   }
 
   // Prepare Shutdown Payload
   Map<String, dynamic> prepareShutdownPayload() {
-    return prepareMqttPublishPayload(
-      '{"action":"shutdown"}',
-      2,
-      false,
-    );
+    return prepareMqttPublishPayload('{"action":"shutdown"}', 2, false);
   }
 
-    // Set Wake Word API
+  // Set Wake Word API
   Future<Map<String, dynamic>> setWakeWord(String mode) async {
     final payload = prepareSetWakeWordPayload(mode);
     final options = Options(headers: {'X-Device-ID': 'maya-india-26b'});
@@ -612,119 +607,109 @@ class ApiClient {
 
   // Prepare Get Wake Word Payload
   Map<String, dynamic> prepareGetWakeWordPayload() {
-    return prepareMqttPublishPayload(
-      '{"action":"get_wake_word"}',
-      2,
-      false,
-    );
+    return prepareMqttPublishPayload('{"action":"get_wake_word"}', 2, false);
   }
 
   // Prepare Wake Maya Payload
   Map<String, dynamic> prepareWakeMayaPayload() {
-    return prepareMqttPublishPayload(
-      '{"action":"wake_maya"}',
-      2,
-      false,
-    );
+    return prepareMqttPublishPayload('{"action":"wake_maya"}', 2, false);
   }
 
-
-Future<Map<String, dynamic>> getCurrentUser() async {
+  Future<Map<String, dynamic>> getCurrentUser() async {
     final response = await _protectedDio.get('/auth/users/me');
     print('getCurrentUser response: ${response.data}');
     print('getCurrentUser statusCode: ${response.statusCode}');
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
-
   Future<Map<String, dynamic>> updateNotificationPreferences({
-  required bool emailNotifications,
-  required bool pushNotifications,
-  required bool smsNotifications,
-  required bool deviceNotifications,
-}) async {
-  final payload = _buildNotificationPayload(
-    email: emailNotifications,
-    push: pushNotifications,
-    sms: smsNotifications,
-    device: deviceNotifications,
-  );
+    required bool emailNotifications,
+    required bool pushNotifications,
+    required bool smsNotifications,
+    required bool deviceNotifications,
+    required bool callNotifications,
+  }) async {
+    final payload = _buildNotificationPayload(
+      email: emailNotifications,
+      push: pushNotifications,
+      sms: smsNotifications,
+      device: deviceNotifications,
+      call: callNotifications,
+    );
 
-  final response = await _protectedDio.patch(
-    '/auth/users/notification-preferences',
-    data: payload,
-  );
+    final response = await _protectedDio.patch(
+      '/auth/users/notification-preferences',
+      data: payload,
+    );
 
-  return {'statusCode': response.statusCode, 'data': response.data};
-}
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
 
   Map<String, bool> _buildNotificationPayload({
-  required bool email,
-  required bool push,
-  required bool sms,
-  required bool device,
-}) {
-  return {
-    'email_notifications': email,
-    'push_notifications': push,
-    'sms_notifications': sms,
-    'device_notifications': device,
-  };
-}
+    required bool email,
+    required bool push,
+    required bool sms,
+    required bool device,
+    required bool call,
+  }) {
+    return {
+      'email_notifications': email,
+      'push_notifications': push,
+      'sms_notifications': sms,
+      'device_notifications': device,
+      'call_notifications': call,
+    };
+  }
 
   /// PATCH /api/protected/auth/users/update
- Future<Map<String, dynamic>> updateUserProfile({
-  required String firstName,
-  required String lastName,
-  required String fcmToken,
-  required double latitude,
-  required double longitude,
-  required String timezone,
-}) async {
-  final payload = prepareUpdateUserProfilePayload(
-    firstName: firstName,
-    lastName: lastName,
-    fcmToken: fcmToken,
-    latitude: latitude,
-    longitude: longitude,
-    timezone: timezone,
-  );
+  Future<Map<String, dynamic>> updateUserProfile({
+    required String firstName,
+    required String lastName,
+    required String fcmToken,
+    required double latitude,
+    required double longitude,
+    required String timezone,
+  }) async {
+    final payload = prepareUpdateUserProfilePayload(
+      firstName: firstName,
+      lastName: lastName,
+      fcmToken: fcmToken,
+      latitude: latitude,
+      longitude: longitude,
+      timezone: timezone,
+    );
 
-  final response = await _protectedDio.patch('/auth/users/update', data: payload);
-  return {'statusCode': response.statusCode, 'data': response.data};
-}
+    final response = await _protectedDio.patch(
+      '/auth/users/update',
+      data: payload,
+    );
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
 
   Map<String, dynamic> prepareSaveLocationPayload(
-  double latitude,
-  double longitude,
-  String timezone,
-) {
-  return {
-    "latitude": latitude,
-    "longitude": longitude,
-    "timezone": timezone,
-  };
+    double latitude,
+    double longitude,
+    String timezone,
+  ) {
+    return {"latitude": latitude, "longitude": longitude, "timezone": timezone};
+  }
+
+  /// Prepare payload for **updateUserProfile** (includes FCM token)
+  Map<String, dynamic> prepareUpdateUserProfilePayload({
+    required String firstName,
+    required String lastName,
+    required String fcmToken,
+    required double latitude,
+    required double longitude,
+    required String timezone,
+  }) {
+    return {
+      "first_name": firstName,
+      "last_name": lastName,
+      "fcm_token": fcmToken,
+      "latitude": latitude,
+      "longitude": longitude,
+      "timezone": timezone,
+    };
+  }
 }
-
-/// Prepare payload for **updateUserProfile** (includes FCM token)
-Map<String, dynamic> prepareUpdateUserProfilePayload({
-  required String firstName,
-  required String lastName,
-  required String fcmToken,
-  required double latitude,
-  required double longitude,
-  required String timezone,
-}) {
-  return {
-    "first_name": firstName,
-    "last_name": lastName,
-    "fcm_token": fcmToken,
-    "latitude": latitude,
-    "longitude": longitude,
-    "timezone": timezone,
-  };
-}
-
-}
-
-
