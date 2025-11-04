@@ -143,11 +143,18 @@ class _TasksPageState extends State<TasksPage> {
     }
   }
 
+  String _getFilterStatus(String status) {
+    final lower = status.toLowerCase();
+    if (lower == 'succeeded' || lower == 'completed') return 'completed';
+    if (lower == 'failed') return 'failed';
+    return 'pending'; // includes approval_pending, etc.
+  }
+
   @override
   Widget build(BuildContext context) {
     final filteredTasks = tasks.where((task) {
       if (selectedFilter == 'all') return true;
-      return task.status.toLowerCase() == selectedFilter;
+      return _getFilterStatus(task.status) == selectedFilter;
     }).toList();
 
     return Scaffold(
@@ -171,112 +178,11 @@ class _TasksPageState extends State<TasksPage> {
           SafeArea(
             child: Column(
               children: [
-                // Top blue card section
-                // Container(
-                //   margin: const EdgeInsets.all(16),
-                //   padding: const EdgeInsets.all(20),
-                //   decoration: BoxDecoration(
-                //     gradient: const LinearGradient(
-                //       begin: Alignment.topLeft,
-                //       end: Alignment.bottomRight,
-                //       colors: [
-                //         Color(0xFF3B82F6),
-                //         Color(0xFF2563EB),
-                //       ],
-                //     ),
-                //     borderRadius: BorderRadius.circular(16),
-                //     boxShadow: [
-                //       BoxShadow(
-                //         color: const Color(0xFF2563EB).withOpacity(0.3),
-                //         blurRadius: 20,
-                //         offset: const Offset(0, 8),
-                //       ),
-                //     ],
-                //   ),
-                //   child: Column(
-                //     crossAxisAlignment: CrossAxisAlignment.start,
-                //     children: [
-                //       const Text(
-                //         'Maximize your productivity with Maya AI',
-                //         style: TextStyle(
-                //           fontSize: 16,
-                //           fontWeight: FontWeight.w600,
-                //           color: Colors.white,
-                //           height: 1.3,
-                //         ),
-                //       ),
-                //       const SizedBox(height: 4),
-                //       Text(
-                //         'Stay on top of tasks without the fuss.',
-                //         style: TextStyle(
-                //           fontSize: 13,
-                //           color: Colors.white.withOpacity(0.8),
-                //         ),
-                //       ),
-                //       const SizedBox(height: 16),
-                //       Container(
-                //         padding: const EdgeInsets.symmetric(
-                //           horizontal: 16,
-                //           vertical: 10,
-                //         ),
-                //         decoration: BoxDecoration(
-                //           color: Colors.white.withOpacity(0.25),
-                //           borderRadius: BorderRadius.circular(8),
-                //         ),
-                //         child: Row(
-                //           mainAxisSize: MainAxisSize.min,
-                //           children: [
-                //             const Text(
-                //               'Create a Task',
-                //               style: TextStyle(
-                //                 fontSize: 13,
-                //                 fontWeight: FontWeight.w600,
-                //                 color: Colors.white,
-                //               ),
-                //             ),
-                //             const SizedBox(width: 8),
-                //             Icon(
-                //               LucideIcons.arrowRight,
-                //               size: 16,
-                //               color: Colors.white,
-                //             ),
-                //           ],
-                //         ),
-                //       ),
-                //     ],
-                //   ),
-                // ),
-
-                // "Over time" section header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Over time',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          _buildFilterChip('Pending'),
-                          const SizedBox(width: 8),
-                          _buildFilterChip('Completed'),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
                 // Tasks section
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
                         'Tasks',
@@ -286,18 +192,28 @@ class _TasksPageState extends State<TasksPage> {
                           color: Colors.white,
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => fetchTasks(page: 1),
-                        child: const Text(
-                          'View all',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF3B82F6),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
                     ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Filter chips
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildFilterChip('all', 'All Tasks'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('completed', 'Completed'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('pending', 'Pending'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('failed', 'Failed'),
+                      ],
+                    ),
                   ),
                 ),
 
@@ -378,23 +294,31 @@ class _TasksPageState extends State<TasksPage> {
     );
   }
 
-  Widget _buildFilterChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
+  Widget _buildFilterChip(String filter, String label) {
+    final bool isSelected = selectedFilter == filter;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedFilter = filter;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white.withOpacity(0.2) : Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? Colors.white.withOpacity(0.4) : Colors.white.withOpacity(0.2),
+            width: 1,
+          ),
         ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          color: Colors.white.withOpacity(0.8),
-          fontWeight: FontWeight.w500,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.white.withOpacity(isSelected ? 1.0 : 0.8),
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+          ),
         ),
       ),
     );

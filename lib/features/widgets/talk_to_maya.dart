@@ -160,7 +160,7 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
       case UltravoxSessionStatus.connecting:
         return 'Connecting To Maya';
       case UltravoxSessionStatus.speaking:
-        return 'Ravan is Speaking';
+        return 'Maya is Speaking';
       case UltravoxSessionStatus.disconnecting:
         return 'Ending Conversation With Maya';
       case UltravoxSessionStatus.listening:
