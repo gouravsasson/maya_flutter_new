@@ -109,7 +109,7 @@ class _MyAppState extends State<MyApp> {
       value: _authBloc,
       child: MaterialApp.router(
         title: 'Maya App',
-        theme: AppTheme.lightTheme,
+        theme: AppTheme.theme,
         // darkTheme: AppTheme.darkTheme, // Added dark theme
         // themeMode: ThemeMode.system, // Follow OS dark/light mode
         routerConfig: _router,
