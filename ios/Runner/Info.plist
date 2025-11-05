@@ -53,7 +53,5 @@
 <string>This app needs Bluetooth to scan for nearby devices.</string>
 <key>NSLocationWhenInUseUsageDescription</key>
 <string>This app needs location access for Bluetooth scanning.</string>
-<key>NSMicrophoneUsageDescription</key>
-<string>This app needs microphone access to record audio.</string>
 </dict>
 </plist>
