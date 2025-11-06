@@ -1,7 +1,12 @@
 import 'package:Maya/core/network/api_client.dart';
+import 'package:Maya/features/authentication/presentation/bloc/auth_bloc.dart';
+import 'package:Maya/features/authentication/presentation/bloc/auth_event.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ------------------------------------------------------------------
 // USER MODEL – matches your API response
@@ -327,29 +332,39 @@ class _OtherPageState extends State<OtherPage> {
   // --------------------------------------------------------------
   // LOGOUT BUTTON
   // --------------------------------------------------------------
-  Widget _buildLogoutButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () => context.go('/login'),
-        icon: const Icon(Icons.logout, color: Colors.white, size: 18),
-        label: const Text(
-          'Log out',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color.fromARGB(255, 207, 25, 25),
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 0,
+Widget _buildLogoutButton(BuildContext context) {
+  final secureStorage = const FlutterSecureStorage();
+  return SizedBox(
+    width: double.infinity,
+    child: ElevatedButton.icon(
+      onPressed: () async {
+final authBloc = BlocProvider.of<AuthBloc>(context);
+  
+  // Dispatch logout event (handles token clear + state emit)
+  authBloc.add(LogoutRequested());  // Replace with your actual logout event
+  
+  // Wait a tick for state to propagate, then navigate (or let redirect handle)
+  await Future.delayed(const Duration(milliseconds: 100));
+  context.go('/login');
+},
+      icon: const Icon(Icons.logout, color: Colors.white, size: 18),
+      label: const Text(
+        'Log out',
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
         ),
       ),
-    );
-  }
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color.fromARGB(255, 207, 25, 25),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        elevation: 0,
+      ),
+    ),
+  );
+}
 }

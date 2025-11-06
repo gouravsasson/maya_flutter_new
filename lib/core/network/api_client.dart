@@ -712,4 +712,22 @@ class ApiClient {
       "timezone": timezone,
     };
   }
+
+  Future<Map<String, dynamic>> getGenerations() async {
+    final response = await _protectedDio.get(
+      '/productivity/generations/',
+    );
+    print('getGenerations response: ${response.data}');
+    print('getGenerations statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+  Future<Map<String, dynamic>> updateGenerationStatus(int generationId, String action) async {
+  final response = await _protectedDio.patch(
+    'productivity/generations/status',
+    data: {'generation_id': generationId, 'action': action},
+  );
+  print('updateGenerationStatus response: ${response.data}');
+  print('updateGenerationStatus statusCode: ${response.statusCode}');
+  return {'statusCode': response.statusCode, 'data': response.data};
+}
 }

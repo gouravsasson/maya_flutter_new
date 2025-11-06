@@ -106,7 +106,7 @@ class _LoginPageState extends State<LoginPage> {
 
                     // Title
                     const Text(
-                      'Login to Access Your',
+                      'Login to Access Your Account',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,

@@ -104,8 +104,11 @@ class _HomePageState extends State<HomePage> {
     _apiClient = ApiClient(publicDio, protectedDio);
 
     _setupNotifications();
-    _syncUserProfile();
-    _initializeAndSyncContacts();
+    // Defer profile/location/contacts sync to after first build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncUserProfile();
+      _initializeAndSyncContacts();
+    });
     fetchReminders();
     fetchToDos();
     fetchTasks();
@@ -253,22 +256,24 @@ class _HomePageState extends State<HomePage> {
   // -----------------------------------------------------------------------
   // UI dialogs
   // -----------------------------------------------------------------------
+  // Updated location service dialog
   void _showLocationServiceDialog() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (BuildContext dialogContext) => AlertDialog(
+        // Use dialogContext
         title: const Text('Location Services Disabled'),
         content: const Text(
           'Please enable location services to save your location.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext), // Pop dialogContext
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext); // Pop first
               Geolocator.openLocationSettings();
             },
             child: const Text('Open Settings'),
@@ -278,10 +283,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // Updated location permission dialog
   void _showLocationPermissionDialog({bool permanent = false}) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (BuildContext dialogContext) => AlertDialog(
+        // Use dialogContext
         title: const Text('Location Permission Required'),
         content: Text(
           permanent
@@ -291,12 +298,13 @@ class _HomePageState extends State<HomePage> {
         actions: [
           if (!permanent)
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () =>
+                  Navigator.pop(dialogContext), // Pop dialogContext
               child: const Text('Cancel'),
             ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext); // Pop first
               if (permanent) {
                 openAppSettings();
               } else {
@@ -313,62 +321,78 @@ class _HomePageState extends State<HomePage> {
   // -----------------------------------------------------------------------
   // Contacts sync – skip if empty
   // -----------------------------------------------------------------------
-  Future<void> _initializeAndSyncContacts() async {
-    try {
-      final contacts = await ContactsService.fetchContactsSafely();
-      if (contacts == null) {
-        _showContactsPermissionDialog();
-        return;
-      }
-
-      if (contacts.isEmpty) {
-        _showSnack('No contacts to sync');
-        return;
-      }
-
-      final payload = _apiClient.prepareSyncContactsPayload(contacts);
-      final response = await _apiClient.syncContacts(payload);
-      final msg = response['statusCode'] == 200
-          ? 'Contacts synced successfully'
-          : 'Failed to sync contacts: ${response['data']}';
-      _showSnack(msg);
-    } catch (e) {
-      // _showSnack('Error syncing contacts: $e');
-    }
-  }
-
-  void _showContactsPermissionDialog({bool permanent = false}) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Contacts Permission Required'),
-        content: Text(
-          permanent
-              ? 'Contacts permissions are permanently denied. Please enable them in app settings.'
-              : 'Contacts permission is required to sync your contacts.',
-        ),
-        actions: [
-          if (!permanent)
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              if (permanent) {
-                openAppSettings();
-              } else {
-                _initializeAndSyncContacts();
-              }
-            },
-            child: Text(permanent ? 'Open Settings' : 'Grant Permission'),
-          ),
-        ],
+  // Updated contacts permission dialog (with recursion guard)
+void _showContactsPermissionDialog({bool permanent = false}) {
+  showDialog(
+    context: context,
+    builder: (BuildContext dialogContext) => AlertDialog(  // Use dialogContext
+      title: const Text('Contacts Permission Required'),
+      content: Text(
+        permanent
+            ? 'Contacts permissions are permanently denied. Please enable them in app settings.'
+            : 'Contacts permission is required to sync your contacts.',
       ),
-    );
-  }
+      actions: [
+        if (!permanent)
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),  // Pop dialogContext
+            child: const Text('Cancel'),
+          ),
+        TextButton(
+          onPressed: () {
+            Navigator.pop(dialogContext);  // Pop first
+            if (permanent) {
+              openAppSettings();
+            } else {
+              // Guard against recursion: Check permission before retrying
+              Permission.contacts.request().then((status) {
+                if (status.isGranted) {
+                  _initializeAndSyncContacts();
+                } else {
+                  _showSnack('Permission still denied');
+                }
+              });
+            }
+          },
+          child: Text(permanent ? 'Open Settings' : 'Grant Permission'),
+        ),
+      ],
+    ),
+  );
+}
 
+// Updated contacts sync (minor: add explicit permission check if ContactsService doesn't handle it)
+Future<void> _initializeAndSyncContacts() async {
+  try {
+    // Explicit check to avoid loops
+    final PermissionStatus status = await Permission.contacts.status;
+    if (!status.isGranted) {
+      if (status.isPermanentlyDenied) {
+        _showContactsPermissionDialog(permanent: true);
+      } else {
+        _showContactsPermissionDialog();
+      }
+      return;
+    }
+
+    final contacts = await ContactsService.fetchContactsSafely();
+    if (contacts == null || contacts.isEmpty) {
+      if (contacts == null) _showSnack('No contacts permission');
+      else _showSnack('No contacts to sync');
+      return;
+    }
+
+    final payload = _apiClient.prepareSyncContactsPayload(contacts);
+    final response = await _apiClient.syncContacts(payload);
+    final msg = response['statusCode'] == 200
+        ? 'Contacts synced successfully'
+        : 'Failed to sync contacts: ${response['data']}';
+    _showSnack(msg);
+  } catch (e) {
+    debugPrint('Contacts sync error: $e');  // Log for debugging
+    // _showSnack('Error syncing contacts: $e');  // Uncomment if desired
+  }
+}
   // -----------------------------------------------------------------------
   // Data fetchers
   // -----------------------------------------------------------------------
@@ -516,212 +540,234 @@ class _HomePageState extends State<HomePage> {
   // -----------------------------------------------------------------------
   // UI
   // -----------------------------------------------------------------------
- @override
-Widget build(BuildContext context) {
-  return BlocBuilder<AuthBloc, AuthState>(
-    builder: (context, state) {
-      final displayName = _userFirstName?.isNotEmpty == true
-          ? _userFirstName!
-          : (state is AuthAuthenticated ? state.user?.firstName ?? 'User' : 'User');
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        final displayName = _userFirstName?.isNotEmpty == true
+            ? _userFirstName!
+            : (state is AuthAuthenticated
+                  ? state.user?.firstName ?? 'User'
+                  : 'User');
 
-      return Scaffold(
-        body: Stack(
-          children: [
-            // Background matching splash page
-            Container(color: const Color(0xFF111827)),
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0x992A57E8), // #2A57E8 at 60%
-                    Colors.transparent,
+        return Scaffold(
+          body: Stack(
+            children: [
+              // Background matching splash page
+              Container(color: const Color(0xFF111827)),
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x992A57E8), // #2A57E8 at 60%
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+
+              // Content
+              SafeArea(
+                child: Column(
+                  children: [
+                    // Header with profile, greeting and blue card
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Profile image
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E293B),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.2),
+                                width: 2,
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(22),
+                              child: Image.asset(
+                                '../../../../../assets/maya_logo.png',
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
+                                    LucideIcons.user,
+                                    color: Colors.white,
+                                    size: 24,
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Greeting text
+                          Text(
+                            'Hello, $displayName!',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+
+                          Text(
+                            'Let\'s explore the way in which I can\nassist you.',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Blue gradient card
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFF2563EB,
+                                  ).withOpacity(0.3),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Generate complex algorithms\nand clean code with ease.',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white,
+                                    height: 1.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.25),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Text(
+                                    'Start Now',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Scrollable content
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        children: [
+                          // Tasks Section
+                          if (tasks.isNotEmpty) ...[
+                            _buildSectionHeader(
+                              'Active Tasks',
+                              LucideIcons.zap,
+                              () {
+                                context.go('/tasks');
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            if (isLoadingTasks)
+                              const Center(child: CircularProgressIndicator())
+                            else
+                              ...tasks
+                                  .take(3)
+                                  .map((task) => _buildTaskCard(task)),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // Reminders Section
+                          if (reminders.isNotEmpty) ...[
+                            _buildSectionHeader(
+                              'Upcoming',
+                              LucideIcons.calendar,
+                              () {
+                                context.go('/reminders');
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            if (isLoadingReminders)
+                              const Center(child: CircularProgressIndicator())
+                            else
+                              ...reminders
+                                  .take(3)
+                                  .map(
+                                    (reminder) => _buildReminderCard(reminder),
+                                  ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // To-Dos Section
+                          if (todos.isNotEmpty) ...[
+                            _buildSectionHeader(
+                              'To-Do',
+                              LucideIcons.clipboardList,
+                              () {
+                                context.go('/todos');
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            if (isLoadingTodos)
+                              const Center(child: CircularProgressIndicator())
+                            else
+                              ...todos
+                                  .take(3)
+                                  .map((todo) => _buildToDoCard(todo)),
+                            const SizedBox(height: 24),
+                          ],
+
+                          const SizedBox(height: 100),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-            
-            // Content
-            SafeArea(
-              child: Column(
-                children: [
-                  // Header with profile, greeting and blue card
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Profile image
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1E293B),
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.2),
-                              width: 2,
-                            ),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(22),
-                            child: Image.asset(
-                              '../../../../../assets/maya_logo.png',
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Icon(
-                                  LucideIcons.user,
-                                  color: Colors.white,
-                                  size: 24,
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // Greeting text
-                        Text(
-                          'Hello, $displayName!',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        
-                        Text(
-                          'Let\'s explore the way in which I can\nassist you.',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // Blue gradient card
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Color(0xFF3B82F6),
-                                Color(0xFF2563EB),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF2563EB).withOpacity(0.3),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Generate complex algorithms\nand clean code with ease.',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white,
-                                  height: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.25),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Text(
-                                  'Start Now',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
-                  const SizedBox(height: 24),
-
-                  // Scrollable content
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      children: [
-                        // Tasks Section
-                        if (tasks.isNotEmpty) ...[
-                          _buildSectionHeader('Active Tasks', LucideIcons.zap, () {
-                            context.go('/tasks');
-                          }),
-                          const SizedBox(height: 12),
-                          if (isLoadingTasks)
-                            const Center(child: CircularProgressIndicator())
-                          else
-                            ...tasks.take(3).map((task) => _buildTaskCard(task)),
-                          const SizedBox(height: 24),
-                        ],
-
-                        // Reminders Section
-                        if (reminders.isNotEmpty) ...[
-                          _buildSectionHeader('Upcoming', LucideIcons.calendar, () {
-                            context.go('/reminders');
-                          }),
-                          const SizedBox(height: 12),
-                          if (isLoadingReminders)
-                            const Center(child: CircularProgressIndicator())
-                          else
-                            ...reminders.take(3).map((reminder) => _buildReminderCard(reminder)),
-                          const SizedBox(height: 24),
-                        ],
-
-                        // To-Dos Section
-                        if (todos.isNotEmpty) ...[
-                          _buildSectionHeader('To-Do', LucideIcons.checkSquare, () {
-                            context.go('/todos');
-                          }),
-                          const SizedBox(height: 12),
-                          if (isLoadingTodos)
-                            const Center(child: CircularProgressIndicator())
-                          else
-                            ...todos.take(3).map((todo) => _buildToDoCard(todo)),
-                          const SizedBox(height: 24),
-                        ],
-
-                        const SizedBox(height: 100),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
   // Solid blue card at the top
   Widget _buildSolidBlueCard() {
     return Container(
@@ -780,7 +826,7 @@ Widget build(BuildContext context) {
     );
   }
 
-  // Section header with title and icon
+  // Section header with title and "View all"
 
   // Task card
   // Task card matching the first image
@@ -814,7 +860,7 @@ Widget build(BuildContext context) {
 
     return GestureDetector(
       onTap: () =>
-          context.go('/tasks/${task.id}', extra: {'query': task.query}),
+          context.push('/tasks/${task.id}', extra: {'query': task.query}),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
@@ -827,30 +873,13 @@ Widget build(BuildContext context) {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Status badge with dot
-            Row(
-              children: [
-                Text(
-                  statusLabel,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: accentColor,
-                  ),
-                ),
-                const Spacer(),
-                // Checkbox
-                Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 1.5,
-                    ),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ],
+            Text(
+              statusLabel,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: accentColor,
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -929,52 +958,18 @@ Widget build(BuildContext context) {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Title
-                Expanded(
-                  child: Text(
-                    todo['title'],
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                      decoration: isCompleted
-                          ? TextDecoration.lineThrough
-                          : TextDecoration.none,
-                      decorationColor: Colors.white.withOpacity(0.4),
-                    ),
-                  ),
-                ),
-                // Checkbox
-                GestureDetector(
-                  onTap: isCompleted ? null : () => completeToDo(todo),
-                  child: Container(
-                    width: 22,
-                    height: 22,
-                    decoration: BoxDecoration(
-                      color: isCompleted
-                          ? const Color(0xFF3B82F6)
-                          : Colors.transparent,
-                      border: Border.all(
-                        color: isCompleted
-                            ? const Color(0xFF3B82F6)
-                            : Colors.white.withOpacity(0.3),
-                        width: 2,
-                      ),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: isCompleted
-                        ? const Icon(
-                            LucideIcons.check,
-                            size: 14,
-                            color: Colors.white,
-                          )
-                        : null,
-                  ),
-                ),
-              ],
+            // Title
+            Text(
+              todo['title'],
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                decoration: isCompleted
+                    ? TextDecoration.lineThrough
+                    : TextDecoration.none,
+                decorationColor: Colors.white.withOpacity(0.4),
+              ),
             ),
             const SizedBox(height: 6),
 
