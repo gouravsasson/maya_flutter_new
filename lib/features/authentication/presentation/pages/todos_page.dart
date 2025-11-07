@@ -175,7 +175,7 @@ class _TodosPageState extends State<TodosPage> {
                         child: Row(
                           children: [
                             GestureDetector(
-                              onTap: () => context.pop(),
+                              onTap: () => context.push('/other'),
                               child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(

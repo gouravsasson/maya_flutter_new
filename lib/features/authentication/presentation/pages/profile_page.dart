@@ -88,7 +88,10 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildMainContent(Map<String, dynamic> userData, BuildContext context) {
+  Widget _buildMainContent(
+    Map<String, dynamic> userData,
+    BuildContext context,
+  ) {
     return Column(
       children: [
         // Custom Header with Back Button
@@ -103,9 +106,7 @@ class ProfilePage extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFF111827).withOpacity(0.8),
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
-                    ),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
                   ),
                   child: const Icon(
                     Icons.arrow_back,
@@ -143,9 +144,7 @@ class ProfilePage extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFF2D4A6F).withOpacity(0.6),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
-                    ),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -163,22 +162,13 @@ class ProfilePage extends StatelessWidget {
                         'Full Name',
                         '${userData['first_name'] ?? ''} ${userData['last_name'] ?? ''}',
                       ),
-                      _buildInfoRow(
-                        'Email',
-                        userData['email'] ?? '',
-                      ),
+                      _buildInfoRow('Email', userData['email'] ?? ''),
                       _buildInfoRow(
                         'Phone',
                         userData['phone_number'] ?? '+91 9876543210',
                       ),
-                      _buildInfoRow(
-                        'Location',
-                        'New Delhi, India',
-                      ),
-                      _buildInfoRow(
-                        'Bio',
-                        'UI/UX Designer passionate',
-                      ),
+                      _buildInfoRow('Location', 'New Delhi, India'),
+                      _buildInfoRow('Bio', 'UI/UX Designer passionate'),
                     ],
                   ),
                 ),
@@ -189,9 +179,7 @@ class ProfilePage extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFF2D4A6F).withOpacity(0.6),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
-                    ),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,22 +193,13 @@ class ProfilePage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      _buildInfoRow(
-                        'User ID',
-                        'USR-${userData['ID'] ?? 3047}',
-                      ),
-                      _buildInfoRow(
-                        'Username',
-                        '@kaarthi-design',
-                      ),
+                      _buildInfoRow('User ID', 'USR-${userData['ID'] ?? 3047}'),
+                      _buildInfoRow('Username', '@kaarthi-design'),
                       _buildInfoRow(
                         'Member Since',
                         _formatDate(userData['CreatedAt']),
                       ),
-                      _buildInfoRow(
-                        'Account Type',
-                        'Premium',
-                      ),
+                      _buildInfoRow('Account Type', 'Premium'),
                       _buildInfoRow('Status', 'Active'),
                     ],
                   ),
@@ -233,9 +212,7 @@ class ProfilePage extends StatelessWidget {
                     onPressed: () {
                       // Placeholder for save functionality
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Changes saved!'),
-                        ),
+                        const SnackBar(content: Text('Changes saved!')),
                       );
                     },
                     style: ElevatedButton.styleFrom(
@@ -314,10 +291,15 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileHeader(Map<String, dynamic> userData, BuildContext context) {
+  Widget _buildProfileHeader(
+    Map<String, dynamic> userData,
+    BuildContext context,
+  ) {
     final name = userData['first_name'] ?? 'Kaarthi';
     final email = userData['email'] ?? 'kaarthi@gmail.com';
-    final avatarLetter = name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'K';
+    final avatarLetter = name.isNotEmpty
+        ? name.substring(0, 1).toUpperCase()
+        : 'K';
 
     return Row(
       children: [
@@ -491,9 +473,9 @@ class ProfilePage extends StatelessWidget {
             onPressed: () {
               Navigator.of(dialogContext).pop();
               // Placeholder for delete functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Account deleted!')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Account deleted!')));
               context.read<AuthBloc>().add(LogoutRequested());
             },
             child: Container(
