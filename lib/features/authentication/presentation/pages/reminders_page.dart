@@ -74,15 +74,15 @@ class _RemindersPageState extends State<RemindersPage> {
         });
       } else {
         print('API error: ${response['message']}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to fetch reminders: ${response['message'] ?? 'Unknown error'}')),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(content: Text('Failed to fetch reminders: ${response['message'] ?? 'Unknown error'}')),
+        // );
       }
     } catch (e) {
       print('Exception fetching reminders: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching reminders: $e')),
-      );
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(content: Text('Error fetching reminders: $e')),
+      // );
     } finally {
       setState(() {
         isLoadingReminders = false;

@@ -58,14 +58,14 @@ class _TodosPageState extends State<TodosPage> {
           _filterTodos();
         });
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to fetch todos: ${response['message'] ?? 'Unknown error'}')),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(content: Text('Failed to fetch todos: ${response['message'] ?? 'Unknown error'}')),
+        // );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching todos: $e')),
-      );
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(content: Text('Error fetching todos: $e')),
+      // );
     } finally {
       setState(() {
         isLoadingTodos = false;
@@ -106,14 +106,14 @@ class _TodosPageState extends State<TodosPage> {
           const SnackBar(content: Text('To-Do updated successfully')),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update To-Do: ${response['message'] ?? 'Unknown error'}')),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(content: Text('Failed to update To-Do: ${response['message'] ?? 'Unknown error'}')),
+        // );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating To-Do: $e')),
-      );
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(content: Text('Error updating To-Do: $e')),
+      // );
     }
   }
 

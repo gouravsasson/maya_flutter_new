@@ -32,9 +32,9 @@ class _GenerationsPageState extends State<GenerationsPage> {
       );
       await _refreshGenerations();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update status')),
-      );
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(content: Text('Failed to update status')),
+      // );
     }
   }
 
