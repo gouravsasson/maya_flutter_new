@@ -105,8 +105,9 @@ class _TasksPageState extends State<TasksPage> {
         final List<dynamic> taskList =
             data['data']?['sessions'] as List<dynamic>? ?? [];
         setState(() {
-          final newTasks =
-              taskList.map((json) => TaskDetail.fromJson(json)).toList();
+          final newTasks = taskList
+              .map((json) => TaskDetail.fromJson(json))
+              .toList();
           if (page == 1) {
             tasks = newTasks;
           } else {
@@ -174,28 +175,41 @@ class _TasksPageState extends State<TasksPage> {
               ),
             ),
           ),
-          
+
           SafeArea(
             child: Column(
               children: [
                 // Tasks section
+                // ──────────────────────────────────────────────────────────────
+                //  Replace the current heading (the Row with the Text "Tasks")
+                //  with the block below
+                // ──────────────────────────────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // 1. Main title – same size as SettingsPage ("Doll Setup")
                       const Text(
                         'Tasks',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 20, // ← matches SettingsPage
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      // 2. Optional subtitle (mirrors the look of SettingsPage)
+                      Text(
+                        'View and manage all your tasks',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.7),
                         ),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 12),
 
                 // Filter chips
@@ -223,68 +237,66 @@ class _TasksPageState extends State<TasksPage> {
                 Expanded(
                   child: isLoading
                       ? const Center(
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                          ),
+                          child: CircularProgressIndicator(color: Colors.white),
                         )
                       : errorMessage != null
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    errorMessage!,
-                                    style: const TextStyle(
-                                      color: Color(0xFFEF4444),
-                                      fontSize: 16,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  ElevatedButton(
-                                    onPressed: () => fetchTasks(page: 1),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF3B82F6),
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    child: const Text('Retry'),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : filteredTasks.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    'No tasks found',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.white60,
-                                    ),
-                                  ),
-                                )
-                              : ListView.builder(
-                                  controller: _scrollController,
-                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                                  itemCount: filteredTasks.length +
-                                      (isLoadingMore ? 1 : 0),
-                                  itemBuilder: (context, index) {
-                                    if (index == filteredTasks.length) {
-                                      return const Center(
-                                        child: Padding(
-                                          padding: EdgeInsets.all(16.0),
-                                          child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                    final task = filteredTasks[index];
-                                    return _buildTaskCard(task);
-                                  },
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                errorMessage!,
+                                style: const TextStyle(
+                                  color: Color(0xFFEF4444),
+                                  fontSize: 16,
                                 ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () => fetchTasks(page: 1),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF3B82F6),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        )
+                      : filteredTasks.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No tasks found',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white60,
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                          itemCount:
+                              filteredTasks.length + (isLoadingMore ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (index == filteredTasks.length) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              );
+                            }
+                            final task = filteredTasks[index];
+                            return _buildTaskCard(task);
+                          },
+                        ),
                 ),
               ],
             ),
@@ -305,10 +317,14 @@ class _TasksPageState extends State<TasksPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white.withOpacity(0.2) : Colors.white.withOpacity(0.1),
+          color: isSelected
+              ? Colors.white.withOpacity(0.2)
+              : Colors.white.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? Colors.white.withOpacity(0.4) : Colors.white.withOpacity(0.2),
+            color: isSelected
+                ? Colors.white.withOpacity(0.4)
+                : Colors.white.withOpacity(0.2),
             width: 1,
           ),
         ),
@@ -355,10 +371,7 @@ class _TasksPageState extends State<TasksPage> {
 
     return GestureDetector(
       onTap: () {
-        context.go(
-          '/tasks/${task.id}',
-          extra: {'query': task.query},
-        );
+        context.go('/tasks/${task.id}', extra: {'query': task.query});
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -366,10 +379,7 @@ class _TasksPageState extends State<TasksPage> {
         decoration: BoxDecoration(
           color: const Color(0xFF1E3A5F).withOpacity(0.5),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.1),
-            width: 1,
-          ),
+          border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -379,7 +389,10 @@ class _TasksPageState extends State<TasksPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(6),
@@ -405,7 +418,7 @@ class _TasksPageState extends State<TasksPage> {
                   ),
                 ),
                 // Checkbox
-                ],
+              ],
             ),
             const SizedBox(height: 12),
 
@@ -457,7 +470,10 @@ class _TasksPageState extends State<TasksPage> {
                 // Priority badge (optional - can be conditional)
                 if (task.status.toLowerCase() == 'approval_pending')
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF59E0B).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(6),

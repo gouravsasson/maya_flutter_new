@@ -10,6 +10,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';
@@ -79,7 +80,9 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> todos = [];
   List<Map<String, dynamic>> reminders = [];
   List<TaskDetail> tasks = [];
-
+  late SharedPreferences _prefs;
+  bool _locationPermissionAsked = false;
+  bool _contactsPermissionAsked = false;
   bool isLoadingTodos = false;
   bool isLoadingReminders = false;
   bool isLoadingTasks = false;
@@ -98,7 +101,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-
+    _initPreferences();
     final publicDio = Dio();
     final protectedDio = Dio();
     _apiClient = ApiClient(publicDio, protectedDio);
@@ -109,9 +112,42 @@ class _HomePageState extends State<HomePage> {
       _syncUserProfile();
       _initializeAndSyncContacts();
     });
-    fetchReminders();
     fetchToDos();
     fetchTasks();
+    fetchReminders();
+  }
+
+  Future<void> _initPreferences() async {
+    _prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _locationPermissionAsked =
+          _prefs.getBool('location_permission_asked') ?? false;
+      _contactsPermissionAsked =
+          _prefs.getBool('contacts_permission_asked') ?? false;
+    });
+  }
+
+  Future<void> fetchReminders() async {
+    setState(() => isLoadingReminders = true);
+    try {
+      final response = await _apiClient.getReminders(); // no params → latest
+      if (response['success'] == true) {
+        final List<dynamic> data = response['data']['data'] as List<dynamic>;
+        setState(() {
+          reminders = data
+              .cast<Map<String, dynamic>>()
+              .take(3) // only top 3
+              .toList();
+        });
+      } else {
+        _showSnack('Failed to load reminders');
+      }
+    } catch (e) {
+      debugPrint('fetchReminders error: $e');
+      _showSnack('Failed to load reminders');
+    } finally {
+      setState(() => isLoadingReminders = false);
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -154,9 +190,7 @@ class _HomePageState extends State<HomePage> {
       final String? token = results[0] as String?;
       final (Position position, String timezone) =
           results[1] as (Position, String);
-
       if (token == null) {
-        _showSnack('FCM token missing – aborting profile sync');
         return;
       }
 
@@ -211,16 +245,21 @@ class _HomePageState extends State<HomePage> {
   Future<(Position, String)> _obtainLocationAndTimezone() async {
     final TimezoneInfo timezoneInfo = await FlutterTimezone.getLocalTimezone();
     final String timezone = timezoneInfo.identifier;
+
     final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      _showLocationServiceDialog();
+      if (!_locationPermissionAsked) {
+        _showLocationServiceDialog();
+        await _prefs.setBool('location_permission_asked', true);
+      }
       throw Exception('Location services are disabled.');
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
 
-    if (permission == LocationPermission.denied) {
+    if (permission == LocationPermission.denied && !_locationPermissionAsked) {
       permission = await Geolocator.requestPermission();
+      await _prefs.setBool('location_permission_asked', true);
 
       if (permission == LocationPermission.denied) {
         _showLocationPermissionDialog();
@@ -229,7 +268,10 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (permission == LocationPermission.deniedForever) {
-      _showLocationPermissionDialog(permanent: true);
+      if (!_locationPermissionAsked) {
+        _showLocationPermissionDialog(permanent: true);
+        await _prefs.setBool('location_permission_asked', true);
+      }
       throw Exception('Location permission permanently denied');
     }
 
@@ -322,96 +364,90 @@ class _HomePageState extends State<HomePage> {
   // Contacts sync – skip if empty
   // -----------------------------------------------------------------------
   // Updated contacts permission dialog (with recursion guard)
-void _showContactsPermissionDialog({bool permanent = false}) {
-  showDialog(
-    context: context,
-    builder: (BuildContext dialogContext) => AlertDialog(  // Use dialogContext
-      title: const Text('Contacts Permission Required'),
-      content: Text(
-        permanent
-            ? 'Contacts permissions are permanently denied. Please enable them in app settings.'
-            : 'Contacts permission is required to sync your contacts.',
-      ),
-      actions: [
-        if (!permanent)
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),  // Pop dialogContext
-            child: const Text('Cancel'),
-          ),
-        TextButton(
-          onPressed: () {
-            Navigator.pop(dialogContext);  // Pop first
-            if (permanent) {
-              openAppSettings();
-            } else {
-              // Guard against recursion: Check permission before retrying
-              Permission.contacts.request().then((status) {
-                if (status.isGranted) {
-                  _initializeAndSyncContacts();
-                } else {
-                  _showSnack('Permission still denied');
-                }
-              });
-            }
-          },
-          child: Text(permanent ? 'Open Settings' : 'Grant Permission'),
+  void _showContactsPermissionDialog({bool permanent = false}) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        // Use dialogContext
+        title: const Text('Contacts Permission Required'),
+        content: Text(
+          permanent
+              ? 'Contacts permissions are permanently denied. Please enable them in app settings.'
+              : 'Contacts permission is required to sync your contacts.',
         ),
-      ],
-    ),
-  );
-}
-
-// Updated contacts sync (minor: add explicit permission check if ContactsService doesn't handle it)
-Future<void> _initializeAndSyncContacts() async {
-  try {
-    // Explicit check to avoid loops
-    final PermissionStatus status = await Permission.contacts.status;
-    if (!status.isGranted) {
-      if (status.isPermanentlyDenied) {
-        _showContactsPermissionDialog(permanent: true);
-      } else {
-        _showContactsPermissionDialog();
-      }
-      return;
-    }
-
-    final contacts = await ContactsService.fetchContactsSafely();
-    if (contacts == null || contacts.isEmpty) {
-      if (contacts == null) _showSnack('No contacts permission');
-      else _showSnack('No contacts to sync');
-      return;
-    }
-
-    final payload = _apiClient.prepareSyncContactsPayload(contacts);
-    final response = await _apiClient.syncContacts(payload);
-    final msg = response['statusCode'] == 200
-        ? 'Contacts synced successfully'
-        : 'Failed to sync contacts: ${response['data']['message']}';
-    _showSnack(msg);
-  } catch (e) {
-    debugPrint('Contacts sync error: $e');  // Log for debugging
-    // _showSnack('Error syncing contacts: $e');  // Uncomment if desired
+        actions: [
+          if (!permanent)
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext), // Pop dialogContext
+              child: const Text('Cancel'),
+            ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext); // Pop first
+              if (permanent) {
+                openAppSettings();
+              } else {
+                // Guard against recursion: Check permission before retrying
+                Permission.contacts.request().then((status) {
+                  if (status.isGranted) {
+                    _initializeAndSyncContacts();
+                  } else {
+                    _showSnack('Permission still denied');
+                  }
+                });
+              }
+            },
+            child: Text(permanent ? 'Open Settings' : 'Grant Permission'),
+          ),
+        ],
+      ),
+    );
   }
-}
+
+  // Updated contacts sync (minor: add explicit permission check if ContactsService doesn't handle it)
+  Future<void> _initializeAndSyncContacts() async {
+    try {
+      final PermissionStatus status = await Permission.contacts.status;
+
+      if (status.isGranted) {
+        // Proceed
+      } else if (status.isPermanentlyDenied) {
+        if (!_contactsPermissionAsked) {
+          _showContactsPermissionDialog(permanent: true);
+          await _prefs.setBool('contacts_permission_asked', true);
+        }
+        return;
+      } else if (status.isDenied && !_contactsPermissionAsked) {
+        _showContactsPermissionDialog();
+        await _prefs.setBool('contacts_permission_asked', true);
+        return;
+      } else {
+        return; // Denied before, don't ask
+      }
+
+      final contacts = await ContactsService.fetchContactsSafely();
+      if (contacts == null || contacts.isEmpty) {
+        _showSnack(
+          contacts == null ? 'No contacts permission' : 'No contacts to sync',
+        );
+        return;
+      }
+
+      final payload = _apiClient.prepareSyncContactsPayload(contacts);
+      final response = await _apiClient.syncContacts(payload);
+      final msg = response['statusCode'] == 200
+          ? 'Contacts synced successfully'
+          : 'Failed to sync contacts: ${response['data']['message']}';
+      _showSnack(msg);
+    } catch (e) {
+      debugPrint('Contacts sync error: $e');
+    }
+  }
+
   // -----------------------------------------------------------------------
   // Data fetchers
   // -----------------------------------------------------------------------
-  Future<void> fetchReminders() async {
-    setState(() => isLoadingReminders = true);
-    try {
-      final response = await _apiClient.getReminders();
-      if (response['statusCode'] == 200) {
-        setState(() {
-          reminders = List<Map<String, dynamic>>.from(response['data']['data']);
-        });
-      }
-    } catch (e) {
-      _showSnack('Failed to load reminders');
-    } finally {
-      setState(() => isLoadingReminders = false);
-    }
-  }
-
   Future<void> fetchToDos() async {
     setState(() => isLoadingTodos = true);
     try {
@@ -547,23 +583,20 @@ Future<void> _initializeAndSyncContacts() async {
         final displayName = _userFirstName?.isNotEmpty == true
             ? _userFirstName!
             : (state is AuthAuthenticated
-                  ? state.user?.firstName ?? 'User'
+                  ? state.user.firstName ?? 'User'
                   : 'User');
 
         return Scaffold(
           body: Stack(
             children: [
-              // Background matching splash page
+              // Background
               Container(color: const Color(0xFF111827)),
               Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0x992A57E8), // #2A57E8 at 60%
-                      Colors.transparent,
-                    ],
+                    colors: [Color(0x992A57E8), Colors.transparent],
                   ),
                 ),
               ),
@@ -572,7 +605,7 @@ Future<void> _initializeAndSyncContacts() async {
               SafeArea(
                 child: Column(
                   children: [
-                    // Header with profile, greeting and blue card
+                    // Header: Greeting + Blue Card
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                       child: Column(
@@ -607,7 +640,7 @@ Future<void> _initializeAndSyncContacts() async {
                           ),
                           const SizedBox(height: 16),
 
-                          // Greeting text
+                          // Greeting
                           Text(
                             'Hello, $displayName!',
                             style: const TextStyle(
@@ -617,7 +650,6 @@ Future<void> _initializeAndSyncContacts() async {
                             ),
                           ),
                           const SizedBox(height: 4),
-
                           Text(
                             'Let\'s explore the way in which I can\nassist you.',
                             style: const TextStyle(
@@ -629,7 +661,7 @@ Future<void> _initializeAndSyncContacts() async {
                           ),
                           const SizedBox(height: 16),
 
-                          // Blue gradient card
+                          // Blue gradient card (kept as per design)
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(20),
@@ -690,70 +722,58 @@ Future<void> _initializeAndSyncContacts() async {
 
                     const SizedBox(height: 24),
 
-                    // Scrollable content
+                    // Scrollable Sections
                     Expanded(
                       child: ListView(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         children: [
-                          // Tasks Section
-                          if (tasks.isNotEmpty) ...[
-                            _buildSectionHeader(
-                              'Active Tasks',
-                              LucideIcons.zap,
-                              () {
-                                context.go('/tasks');
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            if (isLoadingTasks)
-                              const Center(child: CircularProgressIndicator())
-                            else
-                              ...tasks
-                                  .take(3)
-                                  .map((task) => _buildTaskCard(task)),
-                            const SizedBox(height: 24),
-                          ],
+                          // === Active Tasks Section ===
+                          _buildSectionHeader(
+                            'Active Tasks',
+                            LucideIcons.zap,
+                            () => context.go('/tasks'),
+                          ),
+                          const SizedBox(height: 12),
+                          if (isLoadingTasks)
+                            const Center(child: CircularProgressIndicator())
+                          else if (tasks.isEmpty)
+                            _buildEmptyState('No active tasks')
+                          else
+                            ...tasks
+                                .take(3)
+                                .map((task) => _buildTaskCard(task)),
+                          const SizedBox(height: 24),
 
-                          // Reminders Section
-                          if (reminders.isNotEmpty) ...[
-                            _buildSectionHeader(
-                              'Upcoming',
-                              LucideIcons.calendar,
-                              () {
-                                context.go('/reminders');
-                              },
+                          _buildSectionHeader(
+                            'Reminders',
+                            LucideIcons.calendar,
+                            () => context.go('/reminders'),
+                          ),
+                          const SizedBox(height: 12),
+                          if (isLoadingReminders)
+                            const Center(child: CircularProgressIndicator())
+                          else if (reminders.isEmpty)
+                            _buildEmptyState('No reminders')
+                          else
+                            ...reminders.map(
+                              (reminder) => _buildReminderCard(reminder),
                             ),
-                            const SizedBox(height: 12),
-                            if (isLoadingReminders)
-                              const Center(child: CircularProgressIndicator())
-                            else
-                              ...reminders
-                                  .take(3)
-                                  .map(
-                                    (reminder) => _buildReminderCard(reminder),
-                                  ),
-                            const SizedBox(height: 24),
-                          ],
-
-                          // To-Dos Section
-                          if (todos.isNotEmpty) ...[
-                            _buildSectionHeader(
-                              'To-Do',
-                              LucideIcons.clipboardList,
-                              () {
-                                context.go('/todos');
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            if (isLoadingTodos)
-                              const Center(child: CircularProgressIndicator())
-                            else
-                              ...todos
-                                  .take(3)
-                                  .map((todo) => _buildToDoCard(todo)),
-                            const SizedBox(height: 24),
-                          ],
-
+                          const SizedBox(height: 24),
+                          // === To-Do Section ===
+                          _buildSectionHeader(
+                            'To-Do',
+                            LucideIcons.clipboardList,
+                            () => context.go('/todos'),
+                          ),
+                          const SizedBox(height: 12),
+                          if (isLoadingTodos)
+                            const Center(child: CircularProgressIndicator())
+                          else if (todos.isEmpty)
+                            _buildEmptyState('No to-dos')
+                          else
+                            ...todos
+                                .take(3)
+                                .map((todo) => _buildToDoCard(todo)),
                           const SizedBox(height: 100),
                         ],
                       ),
@@ -765,6 +785,27 @@ Future<void> _initializeAndSyncContacts() async {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E3A5F).withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Center(
+        child: Text(
+          message,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.white.withOpacity(0.6),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ),
     );
   }
 
@@ -1035,111 +1076,165 @@ Future<void> _initializeAndSyncContacts() async {
 
   // Reminder card matching the style
   Widget _buildReminderCard(Map<String, dynamic> reminder) {
-    final utcTime = DateTime.parse(reminder['reminder_time']);
-    final localTime = utcTime.toLocal();
-    final formattedTime = DateFormat('MMM d, h:mm a').format(localTime);
+    try {
+      final String timeStr = reminder['reminder_time'] as String;
+      final DateTime utcTime = DateTime.parse(timeStr).toUtc();
+      final DateTime localTime = utcTime.toLocal(); // IST
 
-    return GestureDetector(
-      onTap: () => context.go('/reminders'),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF2D4A6F).withOpacity(0.6),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Title
-                Expanded(
-                  child: Text(
-                    reminder['title'] ?? 'Reminder',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                // Bell icon
-                Container(
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF59E0B).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Icon(
-                    LucideIcons.bell,
-                    size: 14,
-                    color: Color(0xFFF59E0B),
-                  ),
-                ),
-              ],
+      final now = DateTime.now();
+      final isToday =
+          localTime.year == now.year &&
+          localTime.month == now.month &&
+          localTime.day == now.day;
+      final isTomorrow =
+          localTime.year == now.add(const Duration(days: 1)).year &&
+          localTime.month == now.add(const Duration(days: 1)).month &&
+          localTime.day == now.add(const Duration(days: 1)).day;
+      final isPast = localTime.isBefore(now);
+
+      String dateLabel;
+      if (isToday) {
+        dateLabel = 'Today';
+      } else if (isTomorrow) {
+        dateLabel = 'Tomorrow';
+      } else if (isPast) {
+        dateLabel = DateFormat('MMM d').format(localTime);
+      } else {
+        dateLabel = DateFormat('MMM d').format(localTime);
+      }
+
+      final timeText = DateFormat('h:mm a').format(localTime);
+      final fullDateTime = '$dateLabel, $timeText';
+
+      return GestureDetector(
+        onTap: () => context.go('/reminders'),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isPast
+                ? const Color(0xFF2D4A6F).withOpacity(0.4)
+                : const Color(0xFF2D4A6F).withOpacity(0.6),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isPast
+                  ? Colors.white.withOpacity(0.05)
+                  : Colors.white.withOpacity(0.1),
+              width: 1,
             ),
-            const SizedBox(height: 6),
-
-            // Description
-            Text(
-              reminder['description'] ?? 'UX and Research Discussion',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.white.withOpacity(0.6),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Footer with timestamp and icons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      LucideIcons.clock,
-                      size: 14,
-                      color: Colors.white.withOpacity(0.5),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      formattedTime,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      reminder['title'] ?? 'Reminder',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withOpacity(0.5),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: isPast
+                            ? Colors.white.withOpacity(0.6)
+                            : Colors.white,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ],
+                  ),
+                  Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      color: isPast
+                          ? Colors.grey.withOpacity(0.2)
+                          : const Color(0xFFF59E0B).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Icon(
+                      LucideIcons.bell,
+                      size: 14,
+                      color: isPast ? Colors.grey : const Color(0xFFF59E0B),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                reminder['description'] ?? 'No description',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.white.withOpacity(isPast ? 0.4 : 0.6),
                 ),
-                Row(
-                  children: [
-                    Icon(
-                      LucideIcons.copy,
-                      size: 16,
-                      color: Colors.white.withOpacity(0.5),
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(
-                      LucideIcons.trash2,
-                      size: 16,
-                      color: Colors.white.withOpacity(0.5),
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(
-                      LucideIcons.moreVertical,
-                      size: 16,
-                      color: Colors.white.withOpacity(0.5),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        LucideIcons.clock,
+                        size: 14,
+                        color: Colors.white.withOpacity(isPast ? 0.3 : 0.5),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        fullDateTime,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(isPast ? 0.3 : 0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Icon(
+                        LucideIcons.copy,
+                        size: 16,
+                        color: Colors.white.withOpacity(isPast ? 0.3 : 0.5),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(
+                        LucideIcons.trash2,
+                        size: 16,
+                        color: Colors.white.withOpacity(isPast ? 0.3 : 0.5),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(
+                        LucideIcons.moreVertical,
+                        size: 16,
+                        color: Colors.white.withOpacity(isPast ? 0.3 : 0.5),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
+      );
+    } catch (e) {
+      debugPrint('Error parsing reminder: $e | Data: $reminder');
+      return _buildErrorCard('Failed to load reminder');
+    }
+  }
+
+  Widget _buildErrorCard(String message) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.withOpacity(0.3)),
+      ),
+      child: Text(
+        message,
+        style: const TextStyle(color: Colors.red, fontSize: 12),
       ),
     );
   }

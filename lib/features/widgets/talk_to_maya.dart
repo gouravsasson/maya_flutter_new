@@ -104,7 +104,7 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
           current == UltravoxSessionStatus.thinking;
     });
 
-    // Stop listening pulse, start speaking pulse
+    // Animation logic (unchanged)
     if (current == UltravoxSessionStatus.speaking) {
       _pulseController.stop();
       _speakingPulseController.repeat();
@@ -112,40 +112,69 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
       _speakingPulseController.stop();
       _pulseController.repeat();
     } else {
-      _speakingPulseController.stop();
       _pulseController.stop();
+      _speakingPulseController.stop();
     }
 
+    // Clear live transcript when idle
     if (current == UltravoxSessionStatus.idle &&
-        _previousStatus == 'speaking') {
-      Future.delayed(const Duration(seconds: 2), () {
+        _previousStatus.contains('speaking')) {
+      Future.delayed(const Duration(seconds: 1), () {
         if (!mounted) return;
         setState(() {
           _currentTranscriptChunk = '';
-          _isListening = false;
-          _isConnecting = false;
         });
       });
     }
+
     _previousStatus = current.toString();
   }
 
   void _onDataMessage() {
-    final msg = _session!.lastDataMessage;
-    if (msg['type'] != 'transcript') return;
+    final transcripts = _session!.transcripts;
 
-    final transcript = _session!.transcripts.last;
-    if (!transcript.isFinal) return;
+    if (transcripts.isEmpty) return;
 
+    // Get the latest transcript (could be partial or final)
+    final latestTranscript = transcripts.last;
+
+    // Update live streaming chunk (even if not final)
     setState(() {
-      _currentTranscriptChunk = transcript.text;
-      _conversation.add({
-        'type': transcript.speaker == Role.user ? 'user' : 'maya',
-        'text': _currentTranscriptChunk,
-      });
-      _currentTranscriptChunk = '';
-      if (_conversation.length > 10) _conversation.removeAt(0);
+      _currentTranscriptChunk = latestTranscript.text;
     });
+
+    // Only add to conversation when it's final AND not already added
+    if (latestTranscript.isFinal) {
+      final text = latestTranscript.text.trim();
+      if (text.isNotEmpty) {
+        // Avoid duplicates
+        final lastMsg = _conversation.isNotEmpty
+            ? _conversation.last['text']
+            : null;
+        final speakerType = latestTranscript.speaker == Role.user
+            ? 'user'
+            : 'maya';
+
+        if (lastMsg != text ||
+            _conversation.isEmpty ||
+            _conversation.last['type'] != speakerType) {
+          setState(() {
+            _conversation.add({'type': speakerType, 'text': text});
+            // Keep only last 10 messages
+            if (_conversation.length > 10) {
+              _conversation.removeAt(0);
+            }
+          });
+        }
+      }
+
+      // Clear live chunk after final
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && _session!.transcripts.last == latestTranscript) {
+          setState(() => _currentTranscriptChunk = '');
+        }
+      });
+    }
   }
 
   void _onDebugMessage() {
@@ -327,41 +356,43 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
                       const SizedBox(height: 8),
 
                       // ── NEW: Voice-wave + Status in a tight row ──
-                     Row(
-  mainAxisAlignment: MainAxisAlignment.center,
-  children: [
-    // Left spacer (mirrors right spacer)
-    const SizedBox(width: 16), // Half of 24 + 8 = 32 → use 16 on each side
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Left spacer (mirrors right spacer)
+                          const SizedBox(
+                            width: 16,
+                          ), // Half of 24 + 8 = 32 → use 16 on each side
+                          // Voice-wave – visible only when connected
+                          if (_isListening && !_isConnecting)
+                            const AnimatedVoiceWave(
+                              isActive: true,
+                              duration: Duration(milliseconds: 1200),
+                            )
+                          else
+                            const SizedBox(width: 24), // same size as wave
 
-    // Voice-wave – visible only when connected
-    if (_isListening && !_isConnecting)
-      const AnimatedVoiceWave(
-        isActive: true,
-        duration: Duration(milliseconds: 1200),
-      )
-    else
-      const SizedBox(width: 24), // same size as wave
+                          const SizedBox(width: 8),
 
-    const SizedBox(width: 8),
+                          // Status text
+                          Expanded(
+                            child: Text(
+                              _status,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 0.4,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
 
-    // Status text
-    Expanded(
-      child: Text(
-        _status,
-        style: const TextStyle(
-          color: Colors.white70,
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.4,
-        ),
-        textAlign: TextAlign.center,
-      ),
-    ),
-
-    // Right spacer to balance
-    const SizedBox(width: 16),
-  ],
-),],
+                          // Right spacer to balance
+                          const SizedBox(width: 16),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
                 Expanded(
@@ -505,6 +536,7 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
                   ),
                   child: Column(
                     children: [
+                      // In build(), update the live transcript container:
                       if (_currentTranscriptChunk.isNotEmpty)
                         Container(
                           width: double.infinity,
@@ -520,9 +552,11 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
                           ),
                           child: Row(
                             children: [
-                              const Icon(
-                                Icons.record_voice_over,
-                                color: Color(0xFF2A57E8),
+                              Icon(
+                                _session!.transcripts.last.speaker == Role.user
+                                    ? Icons.person
+                                    : Icons.smart_toy,
+                                color: const Color(0xFF2A57E8),
                                 size: 20,
                               ),
                               const SizedBox(width: 8),
@@ -530,11 +564,23 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
                                 child: Text(
                                   _currentTranscriptChunk,
                                   style: const TextStyle(
-                                    color: Colors.white,
+                                    color: Colors.white70,
                                     fontSize: 16,
                                   ),
                                 ),
                               ),
+                              // Optional: small typing indicator
+                              if (!_session!.transcripts.last.isFinal)
+                                const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation(
+                                      Colors.cyan,
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -657,10 +703,10 @@ class AnimatedVoiceWave extends StatefulWidget {
   final Duration duration;
 
   const AnimatedVoiceWave({
-    Key? key,
+    super.key,
     required this.isActive,
     this.duration = const Duration(milliseconds: 1200),
-  }) : super(key: key);
+  });
 
   @override
   State<AnimatedVoiceWave> createState() => _AnimatedVoiceWaveState();

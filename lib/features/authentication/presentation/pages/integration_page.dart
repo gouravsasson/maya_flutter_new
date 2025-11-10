@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:Maya/features/widgets/integration.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:Maya/core/network/api_client.dart';
 
 class IntegrationsPage extends StatefulWidget {
   const IntegrationsPage({super.key});
@@ -15,7 +16,7 @@ class IntegrationsPage extends StatefulWidget {
 
 Future<void> _launchURL(String url) async {
   try {
-    final Uri uri = Uri.parse(Uri.encodeFull(url));
+    final Uri uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
@@ -31,7 +32,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   GoogleSignInAccount? _currentUser;
   bool _isInitializing = false;
   final _storage = const FlutterSecureStorage();
-
+  late int _currentUserId;
   final List<Integration> integrations = [
     Integration(
       id: 'google-calendar',
@@ -47,8 +48,9 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
         'https://www.googleapis.com/auth/calendar',
         'https://www.googleapis.com/auth/drive.file',
         'https://www.googleapis.com/auth/spreadsheets',
-        'email',
-        'profile',
+        "https://www.googleapis.com/auth/gmail.readonly",
+		"https://www.googleapis.com/auth/gmail.modify",
+		"https://www.googleapis.com/auth/gmail.send",
       ],
     ),
     Integration(
@@ -67,6 +69,24 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   void initState() {
     super.initState();
     _initializeGoogleSignIn();
+    _loadCurrentUser();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    try {
+      final result = await getIt<ApiClient>().getCurrentUser();
+      if (result['statusCode'] == 200) {
+        final userData = result['data']['data'] as Map<String, dynamic>;
+        setState(() {
+          _currentUserId = userData['ID'] as int;
+        });
+        debugPrint('Maya User ID loaded: $_currentUserId');
+      } else {
+        debugPrint('Failed to load user: ${result['data']['message']}');
+      }
+    } catch (e, st) {
+      debugPrint('Error loading current user: $e\n$st');
+    }
   }
 
   Future<void> _initializeGoogleSignIn() async {
@@ -76,7 +96,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
         clientId:
             '452755436213-5hcr78ntadqv75462th9qb3oue5hdgtg.apps.googleusercontent.com',
         serverClientId:
-            '452755436213-5d2ujo6g7d4tthk86adluob7q4frege6.apps.googleusercontent.com',
+            '452755436213-iqqujbpasvp3o0qn8b7rf6u5uasldbbe.apps.googleusercontent.com',
       );
       await _checkStoredTokens();
       _googleSignIn.authenticationEvents.listen((event) {
@@ -244,55 +264,82 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
   }
 
   Future<void> _handleGoogleSignIn(Integration integration) async {
+    if (_currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not loaded. Please try again.')),
+      );
+      return;
+    }
+
     try {
+      // 1. Sign-in (reuse session if possible)
       GoogleSignInAccount? account = _currentUser;
       if (account == null) {
         account = await _googleSignIn.authenticate(
           scopeHint: integration.scopes,
         );
-        setState(() {
-          _currentUser = account;
-        });
+        if (account == null) return; // cancelled
+        setState(() => _currentUser = account);
       }
 
+      // 2. Get server auth code
       final authClient = account.authorizationClient;
       final serverAuth = await authClient.authorizeServer(integration.scopes);
-      final auth = await authClient.authorizeScopes(integration.scopes);
-      if (serverAuth == null) {
+      final String? authCode = serverAuth?.serverAuthCode;
+
+      // DEBUG: Print Google response
+      debugPrint('=== GOOGLE RESPONSE ===');
+      debugPrint('Google User ID  : ${account.id}');
+      debugPrint('Email           : ${account.email}');
+      debugPrint('Auth Code       : $authCode');
+      debugPrint('========================');
+
+      if (authCode == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to retrieve server auth code')),
+          const SnackBar(content: Text('Failed to get auth code from Google')),
         );
         return;
       }
 
-      _showTokensDialog(
-        integration.id,
-        auth.accessToken,
-        serverAuth.serverAuthCode,
+      // 3. Send **Maya user ID** + **Google auth code** to backend
+      final result = await getIt<ApiClient>().googleAccessTokenMobile(
+        userId: _currentUserId,   // <-- Maya user ID
+        authCode:authCode,
       );
 
-      await _sendTokensToApi(
-        integration.id,
-        auth.accessToken,
-        serverAuth.serverAuthCode,
-        integration.scopes.join(' '),
-      );
+      if (result['statusCode'] != 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Backend error: ${result['data']['message'] ?? 'Unknown'}',
+            ),
+          ),
+        );
+        return;
+      }
+
+      final tokenInfo = result['data']['data'] as Map<String, dynamic>;
+
       await _storeTokens(
         integration.id,
-        auth.accessToken,
-        serverAuth.serverAuthCode,
+        tokenInfo['access_token'] as String,
+        tokenInfo['refresh_token'] as String?,
+        tokenInfo,
       );
 
-      setState(() {
-        integration.connected = true;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Successfully connected!')));
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Sign-in error: $e')));
+      setState(() => integration.connected = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Google Calendar connected!')),
+      );
+
+      // Optional: show tokens (remove in production)
+      _showTokensDialog(
+        integration.id,
+        tokenInfo['AccessToken'] as String,
+        tokenInfo['RefreshToken'] as String?,
+      );
+    } catch (e, st) {
+      debugPrint('Google Sign-In error: $e\n$st');
     }
   }
 
@@ -300,6 +347,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     String integrationId,
     String accessToken,
     String? serverAuthCode,
+    Map<String, dynamic> tokenInfo,
   ) async {
     await _storage.write(
       key: '${integrationId}_access_token',

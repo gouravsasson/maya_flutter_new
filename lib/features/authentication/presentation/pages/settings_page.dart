@@ -358,8 +358,11 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _isLoading = true);
     try {
       final r = await call();
-      if (r['statusCode'] == 200) _showSnackBar(successMsg);
-      else _showSnackBar('Failed');
+      if (r['statusCode'] == 200) {
+        _showSnackBar(successMsg);
+      } else {
+        _showSnackBar('Failed');
+      }
     } catch (e) {
       // _showSnackBar('Error: $e');
     } finally {
@@ -427,9 +430,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   _buildBluetoothSection(),
                   const SizedBox(height: 16),
                   _buildNotificationSection(),
-                  const SizedBox(height: 16),
-                  _buildAdditionalSettingsSection(),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 20)
                 ],
               ),
             ),
@@ -680,7 +681,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildSwitchRow({required String label, required bool value, required ValueChanged<bool> onChanged}) => Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)), Switch(value: value, onChanged: onChanged, activeColor: const Color(0xFF2A57E8), inactiveThumbColor: const Color(0xFF6B7280), inactiveTrackColor: const Color(0xFF374151))],
+        children: [Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)), Switch(value: value, onChanged: onChanged, activeThumbColor: const Color(0xFF2A57E8), inactiveThumbColor: const Color(0xFF6B7280), inactiveTrackColor: const Color(0xFF374151))],
       );
 
   Widget _buildWifiCard({required String name, required String signal, required bool connected}) => Container(

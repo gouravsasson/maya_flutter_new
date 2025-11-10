@@ -6,13 +6,11 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: const ColorScheme.dark(
-        primary: Color(0xFF2A57E8),      // Brand blue for primary elements
-        background: Color(0xFF111827),   // Dark base background
-        onBackground: Colors.white,      // White text on dark bg
+        primary: Color(0xFF2A57E8),      // White text on dark bg
         surface: Color(0xFF111827),      // For cards/surfaces (same as bg)
         onSurface: Colors.white,         // Text on surfaces
         onSurfaceVariant: Color(0xFF111827), // Subtle variants
-        surfaceVariant: Color.fromRGBO(189, 189, 189, 1), // Subtle grey for hints
+        surfaceContainerHighest: Color.fromRGBO(189, 189, 189, 1), // Subtle grey for hints
         outlineVariant: Color.fromRGBO(189, 189, 189, 1), // Borders/subtle
       ),
       scaffoldBackgroundColor: Color(0xFF111827), // Dark base from splash

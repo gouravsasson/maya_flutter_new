@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 import 'package:Maya/core/services/storage_service.dart';
+import 'package:intl/intl.dart';
 import '../constants/app_constants.dart';
 
 final getIt = GetIt.instance;
@@ -136,11 +137,20 @@ class ApiClient {
   }
 
   // Google Access Token Mobile API
-  Future<Map<String, dynamic>> googleAccessTokenMobile(String code) async {
+  /// Sends `userId` + `authCode` to your backend and returns the response map.
+  Future<Map<String, dynamic>> googleAccessTokenMobile({
+    required int userId,
+    required String authCode,
+  }) async {
     final response = await get(
-      _protectedDio,
-      '/productivity/callback/google?code=$code',
+      // _protectedDio,
+      _publicDio,
+      // '/productivity/callback/google',
+      '/productivity/google/oauth/callback',
+      queryParameters: {'code':authCode,'state':userId}
+      // data: {'user_id': userId, 'server_auth_code': authCode},
     );
+
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
@@ -293,12 +303,29 @@ class ApiClient {
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
-  Future<Map<String, dynamic>> getReminders({int page = 1}) async {
+  // core/network/api_client.dart  (or wherever ApiClient lives)
+  Future<Map<String, dynamic>> getReminders({
+    int page = 1,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? timeFilter,
+  }) async {
+    // Build query string
+    final Map<String, dynamic> query = {};
+    if (startDate != null)
+      query['start_date'] = DateFormat('yyyy-MM-dd').format(startDate);
+    if (endDate != null)
+      query['end_date'] = DateFormat('yyyy-MM-dd').format(endDate);
+    if (timeFilter != null && timeFilter != 'All')
+      query['time_filter'] = timeFilter.toLowerCase();
+
     final response = await get(
       _protectedDio,
-      '/productivity/reminder/get?page=$page',
+      '/productivity/reminder/get',
+      queryParameters: query,
     );
-    return {'statusCode': response.statusCode, 'data': response.data};
+
+    return {'success': response.statusCode == 200, 'data': response.data};
   }
 
   Future<Map<String, dynamic>> saveLocation(
@@ -714,20 +741,22 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> getGenerations() async {
-    final response = await _protectedDio.get(
-      '/productivity/generations/',
-    );
+    final response = await _protectedDio.get('/productivity/generations/');
     print('getGenerations response: ${response.data}');
     print('getGenerations statusCode: ${response.statusCode}');
     return {'statusCode': response.statusCode, 'data': response.data};
   }
-  Future<Map<String, dynamic>> updateGenerationStatus(String generationId, String action) async {
-  final response = await _protectedDio.patch(
-    'productivity/generations/status',
-    data: {'generation_id': generationId, 'action': action},
-  );
-  print('updateGenerationStatus response: ${response.data}');
-  print('updateGenerationStatus statusCode: ${response.statusCode}');
-  return {'statusCode': response.statusCode, 'data': response.data};
-}
+
+  Future<Map<String, dynamic>> updateGenerationStatus(
+    String generationId,
+    String action,
+  ) async {
+    final response = await _protectedDio.patch(
+      'productivity/generations/status',
+      data: {'generation_id': generationId, 'action': action},
+    );
+    print('updateGenerationStatus response: ${response.data}');
+    print('updateGenerationStatus statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
 }

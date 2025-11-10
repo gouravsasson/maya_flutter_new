@@ -404,7 +404,7 @@ class ProfilePage extends StatelessWidget {
     }
     try {
       final dateTime = DateTime.parse(createdAt);
-      return DateFormat('MMM dd, h:mm a').format(dateTime) + ' IST';
+      return '${DateFormat('MMM dd, h:mm a').format(dateTime)} IST';
     } catch (e) {
       return 'Oct 29, 11:45 AM IST';
     }
