@@ -434,7 +434,7 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
                                   shape: BoxShape.circle,
                                   image: const DecorationImage(
                                     image: AssetImage(
-                                      '../../../assets/Layer_1.png',
+                                      'assets/Layer_1.png',
                                     ),
                                     fit: BoxFit.contain,
                                   ),

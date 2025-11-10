@@ -292,358 +292,220 @@ class _RemindersPageState extends State<RemindersPage> {
                       const SizedBox(height: 24),
 
                       // Timeline
-                      Expanded(
-                        child: reminders.isEmpty
-                            ? const Center(
-                                child: Text(
-                                  'No reminders for this day',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.white70,
-                                  ),
-                                ),
-                              )
-                            : NotificationListener<ScrollNotification>(
-                                onNotification:
-                                    (ScrollNotification notification) {
-                                      if (notification
-                                          is ScrollUpdateNotification) {
-                                        // Sync both scroll views
-                                        _scrollController.jumpTo(
-                                          notification.metrics.pixels,
-                                        );
-                                      }
-                                      return false;
-                                    },
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Time Labels (Fixed, but scrollable)
-                                    SizedBox(
-                                      width: 60,
-                                      child: ListView.builder(
-                                        controller: _scrollController,
-                                        physics: const ClampingScrollPhysics(),
-                                        itemCount: timeSlots.length,
-                                        itemBuilder: (context, i) {
-                                          final hour = int.parse(
-                                            timeSlots[i].split(':')[0],
-                                          );
-                                          final period = hour < 12
-                                              ? 'AM'
-                                              : 'PM';
-                                          final displayHour = hour == 0
-                                              ? 12
-                                              : (hour > 12 ? hour - 12 : hour);
-                                          return Container(
-                                            height: 100,
-                                            alignment: Alignment.topRight,
-                                            padding: const EdgeInsets.only(
-                                              right: 8,
-                                              top: 4,
-                                            ),
-                                            child: Text(
-                                              '${displayHour.toString().padLeft(2, '0')}:00\n$period',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.white.withOpacity(
-                                                  0.6,
-                                                ),
-                                                height: 1.2,
-                                              ),
-                                              textAlign: TextAlign.right,
-                                            ),
-                                          );
-                                        },
+               // Timeline
+Expanded(
+  child: reminders.isEmpty
+      ? const Center(
+          child: Text(
+            'No reminders for this day',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white70,
+            ),
+          ),
+        )
+      : SingleChildScrollView(
+          controller: _scrollController,
+          physics: const BouncingScrollPhysics(),
+          child: SizedBox(
+            height: timelineHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Time Labels (scrolls together because inside same scroll view)
+                SizedBox(
+                  width: 60,
+                  child: Column(
+                    children: timeSlots.map((slot) {
+                      final hour = int.parse(slot.split(':')[0]);
+                      final period = hour < 12 ? 'AM' : 'PM';
+                      final displayHour =
+                          hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+                      return Container(
+                        height: 100,
+                        alignment: Alignment.topRight,
+                        padding: const EdgeInsets.only(right: 8, top: 4),
+                        child: Text(
+                          '${displayHour.toString().padLeft(2, '0')}:00\n$period',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withOpacity(0.6),
+                            height: 1.2,
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+                // Vertical Line
+                Container(
+                  width: 3,
+                  height: timelineHeight,
+                  color: const Color(0xFF2A57E8),
+                ),
+
+                // Reminder cards positioned on timeline
+                Expanded(
+                  child: Stack(
+                    children: reminders.map((reminder) {
+                      final reminderTime = DateTime.parse(
+                        reminder['reminder_time'],
+                      ).toLocal();
+
+                      final hour = reminderTime.hour;
+                      final minute = reminderTime.minute;
+                      final topPosition =
+                          (hour * 100.0) + (minute / 60.0 * 100.0);
+
+                      final isPast = reminderTime.isBefore(DateTime.now());
+                      final timeText =
+                          DateFormat('h:mm a').format(reminderTime);
+
+                      final dateLabel = reminderTime.isToday
+                          ? 'Today'
+                          : reminderTime.isTomorrow
+                              ? 'Tomorrow'
+                              : DateFormat('MMM d').format(reminderTime);
+
+                      final fullDateTime = '$dateLabel, $timeText';
+
+                      return Positioned(
+                        top: topPosition,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 6),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: isPast
+                                ? const Color(0xFF2D4A6F).withOpacity(0.4)
+                                : const Color(0xFF2D4A6F).withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isPast
+                                  ? Colors.white.withOpacity(0.05)
+                                  : Colors.white.withOpacity(0.1),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Title + Bell
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      reminder['title'] ?? 'Reminder',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: isPast
+                                            ? Colors.white.withOpacity(0.6)
+                                            : Colors.white,
                                       ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-
-                                    // Vertical Line
-                                    Container(
-                                      width: 3,
-                                      height: timelineHeight,
-                                      color: const Color(0xFF2A57E8),
+                                  ),
+                                  Container(
+                                    width: 22,
+                                    height: 22,
+                                    decoration: BoxDecoration(
+                                      color: isPast
+                                          ? Colors.grey.withOpacity(0.2)
+                                          : const Color(0xFFF59E0B).withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(4),
                                     ),
+                                    child: Icon(
+                                      LucideIcons.bell,
+                                      size: 14,
+                                      color: isPast
+                                          ? Colors.grey
+                                          : const Color(0xFFF59E0B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
 
-                                    // Reminders (Scrollable Stack)
-                                    Expanded(
-                                      child: NotificationListener<ScrollNotification>(
-                                        onNotification:
-                                            (ScrollNotification notification) {
-                                              if (notification
-                                                  is ScrollUpdateNotification) {
-                                                _scrollController.jumpTo(
-                                                  notification.metrics.pixels,
-                                                );
-                                              }
-                                              return false;
-                                            },
-                                        child: SingleChildScrollView(
-                                          controller: _scrollController,
-                                          physics:
-                                              const ClampingScrollPhysics(),
-                                          child: SizedBox(
-                                            height: timelineHeight,
-                                            child: Stack(
-                                              children: reminders.map((
-                                                reminder,
-                                              ) {
-                                                final reminderTime =
-                                                    DateTime.parse(
-                                                      reminder['reminder_time']
-                                                          as String,
-                                                    ).toLocal();
-                                                final hour = reminderTime.hour;
-                                                final minute =
-                                                    reminderTime.minute;
-                                                final topPosition =
-                                                    (hour * 100.0) +
-                                                    (minute / 60.0 * 100.0);
+                              // Description
+                              Text(
+                                reminder['description'] ?? 'No description',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.white.withOpacity(
+                                      isPast ? 0.4 : 0.6),
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 12),
 
-                                                final isPast = reminderTime
-                                                    .isBefore(DateTime.now());
-                                                final timeText = DateFormat(
-                                                  'h:mm a',
-                                                ).format(reminderTime);
-                                                final dateLabel =
-                                                    reminderTime.isToday
-                                                    ? 'Today'
-                                                    : reminderTime.isTomorrow
-                                                    ? 'Tomorrow'
-                                                    : DateFormat(
-                                                        'MMM d',
-                                                      ).format(reminderTime);
-                                                final fullDateTime =
-                                                    '$dateLabel, $timeText';
-
-                                                return Positioned(
-                                                  top: topPosition,
-                                                  left: 0,
-                                                  right: 0,
-                                                  child: Container(
-                                                    margin:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 16,
-                                                          vertical: 6,
-                                                        ),
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                          16,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: isPast
-                                                          ? const Color(
-                                                              0xFF2D4A6F,
-                                                            ).withOpacity(0.4)
-                                                          : const Color(
-                                                              0xFF2D4A6F,
-                                                            ).withOpacity(0.6),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            12,
-                                                          ),
-                                                      border: Border.all(
-                                                        color: isPast
-                                                            ? Colors.white
-                                                                  .withOpacity(
-                                                                    0.05,
-                                                                  )
-                                                            : Colors.white
-                                                                  .withOpacity(
-                                                                    0.1,
-                                                                  ),
-                                                      ),
-                                                    ),
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Row(
-                                                          mainAxisAlignment:
-                                                              MainAxisAlignment
-                                                                  .spaceBetween,
-                                                          children: [
-                                                            Expanded(
-                                                              child: Text(
-                                                                reminder['title'] ??
-                                                                    'Reminder',
-                                                                style: TextStyle(
-                                                                  fontSize: 15,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w600,
-                                                                  color: isPast
-                                                                      ? Colors
-                                                                            .white
-                                                                            .withOpacity(
-                                                                              0.6,
-                                                                            )
-                                                                      : Colors
-                                                                            .white,
-                                                                ),
-                                                                overflow:
-                                                                    TextOverflow
-                                                                        .ellipsis,
-                                                              ),
-                                                            ),
-                                                            Container(
-                                                              width: 22,
-                                                              height: 22,
-                                                              decoration: BoxDecoration(
-                                                                color: isPast
-                                                                    ? Colors
-                                                                          .grey
-                                                                          .withOpacity(
-                                                                            0.2,
-                                                                          )
-                                                                    : const Color(
-                                                                        0xFFF59E0B,
-                                                                      ).withOpacity(
-                                                                        0.2,
-                                                                      ),
-                                                                borderRadius:
-                                                                    BorderRadius.circular(
-                                                                      4,
-                                                                    ),
-                                                              ),
-                                                              child: Icon(
-                                                                LucideIcons
-                                                                    .bell,
-                                                                size: 14,
-                                                                color: isPast
-                                                                    ? Colors
-                                                                          .grey
-                                                                    : const Color(
-                                                                        0xFFF59E0B,
-                                                                      ),
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                        const SizedBox(
-                                                          height: 6,
-                                                        ),
-                                                        Text(
-                                                          reminder['description'] ??
-                                                              'No description',
-                                                          style: TextStyle(
-                                                            fontSize: 13,
-                                                            color: Colors.white
-                                                                .withOpacity(
-                                                                  isPast
-                                                                      ? 0.4
-                                                                      : 0.6,
-                                                                ),
-                                                          ),
-                                                          maxLines: 2,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                        const SizedBox(
-                                                          height: 12,
-                                                        ),
-                                                        Row(
-                                                          mainAxisAlignment:
-                                                              MainAxisAlignment
-                                                                  .spaceBetween,
-                                                          children: [
-                                                            Row(
-                                                              children: [
-                                                                Icon(
-                                                                  LucideIcons
-                                                                      .clock,
-                                                                  size: 14,
-                                                                  color: Colors
-                                                                      .white
-                                                                      .withOpacity(
-                                                                        isPast
-                                                                            ? 0.3
-                                                                            : 0.5,
-                                                                      ),
-                                                                ),
-                                                                const SizedBox(
-                                                                  width: 6,
-                                                                ),
-                                                                Text(
-                                                                  fullDateTime,
-                                                                  style: TextStyle(
-                                                                    fontSize:
-                                                                        12,
-                                                                    color: Colors
-                                                                        .white
-                                                                        .withOpacity(
-                                                                          isPast
-                                                                              ? 0.3
-                                                                              : 0.5,
-                                                                        ),
-                                                                  ),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                            Row(
-                                                              children: [
-                                                                Icon(
-                                                                  LucideIcons
-                                                                      .copy,
-                                                                  size: 16,
-                                                                  color: Colors
-                                                                      .white
-                                                                      .withOpacity(
-                                                                        isPast
-                                                                            ? 0.3
-                                                                            : 0.5,
-                                                                      ),
-                                                                ),
-                                                                const SizedBox(
-                                                                  width: 12,
-                                                                ),
-                                                                Icon(
-                                                                  LucideIcons
-                                                                      .trash2,
-                                                                  size: 16,
-                                                                  color: Colors
-                                                                      .white
-                                                                      .withOpacity(
-                                                                        isPast
-                                                                            ? 0.3
-                                                                            : 0.5,
-                                                                      ),
-                                                                ),
-                                                                const SizedBox(
-                                                                  width: 12,
-                                                                ),
-                                                                Icon(
-                                                                  LucideIcons
-                                                                      .moreVertical,
-                                                                  size: 16,
-                                                                  color: Colors
-                                                                      .white
-                                                                      .withOpacity(
-                                                                        isPast
-                                                                            ? 0.3
-                                                                            : 0.5,
-                                                                      ),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                );
-                                              }).toList(),
-                                            ),
-                                          ),
+                              // Time + Actions
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        LucideIcons.clock,
+                                        size: 14,
+                                        color: Colors.white.withOpacity(
+                                            isPast ? 0.3 : 0.5),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        fullDateTime,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.white.withOpacity(
+                                              isPast ? 0.3 : 0.5),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
+                                    ],
+                                  ),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        LucideIcons.copy,
+                                        size: 16,
+                                        color: Colors.white.withOpacity(
+                                            isPast ? 0.3 : 0.5),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Icon(
+                                        LucideIcons.trash2,
+                                        size: 16,
+                                        color: Colors.white.withOpacity(
+                                            isPast ? 0.3 : 0.5),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Icon(
+                                        LucideIcons.moreVertical,
+                                        size: 16,
+                                        color: Colors.white.withOpacity(
+                                            isPast ? 0.3 : 0.5),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                      ),
-                    ],
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+),
+     ],
                   ),
           ),
         ],
@@ -668,4 +530,3 @@ extension DateTimeExtension on DateTime {
         day == tomorrow.day;
   }
 }
-
