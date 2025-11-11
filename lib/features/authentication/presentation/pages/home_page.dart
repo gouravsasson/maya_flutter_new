@@ -695,21 +695,27 @@ class _HomePageState extends State<HomePage> {
                                   ),
                                 ),
                                 const SizedBox(height: 16),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 10,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.25),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Text(
-                                    'Start Now',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
+                                GestureDetector(
+                                  onTap: () {
+                                    context.push('/maya');
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 150),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.30),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Text(
+                                      'Start Now',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -1045,27 +1051,6 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ],
                 ),
-                Row(
-                  children: [
-                    Icon(
-                      LucideIcons.copy,
-                      size: 16,
-                      color: Colors.white.withOpacity(0.5),
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(
-                      LucideIcons.trash2,
-                      size: 16,
-                      color: Colors.white.withOpacity(0.5),
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(
-                      LucideIcons.moreVertical,
-                      size: 16,
-                      color: Colors.white.withOpacity(0.5),
-                    ),
-                  ],
-                ),
               ],
             ),
           ],
@@ -1187,27 +1172,6 @@ class _HomePageState extends State<HomePage> {
                           fontSize: 12,
                           color: Colors.white.withOpacity(isPast ? 0.3 : 0.5),
                         ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Icon(
-                        LucideIcons.copy,
-                        size: 16,
-                        color: Colors.white.withOpacity(isPast ? 0.3 : 0.5),
-                      ),
-                      const SizedBox(width: 12),
-                      Icon(
-                        LucideIcons.trash2,
-                        size: 16,
-                        color: Colors.white.withOpacity(isPast ? 0.3 : 0.5),
-                      ),
-                      const SizedBox(width: 12),
-                      Icon(
-                        LucideIcons.moreVertical,
-                        size: 16,
-                        color: Colors.white.withOpacity(isPast ? 0.3 : 0.5),
                       ),
                     ],
                   ),
