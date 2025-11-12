@@ -3,48 +3,37 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:Maya/firebase_options.dart';
-import 'config/routes/app_router.dart';
+import 'package:get_it/get_it.dart';
+
+import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
 import 'features/authentication/presentation/bloc/auth_bloc.dart';
 import 'features/authentication/presentation/bloc/auth_event.dart';
 import 'injection_container.dart' as di;
 
-// Background message handler
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  print("Handling a background message: ${message.messageId}");
-  // Add custom logic for background notifications, e.g., saving to local storage
+  print("🔔 Handling background message: ${message.messageId}");
 }
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await di.init();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Initialize Firebase Messaging
-  final FirebaseMessaging messaging = FirebaseMessaging.instance;
-
-  // Request permission for notifications (iOS)
-  NotificationSettings settings = await messaging.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-  print('User granted permission: ${settings.authorizationStatus}');
-
-  // Set up background message handler
+  final messaging = FirebaseMessaging.instance;
+  await messaging.requestPermission(alert: true, badge: true, sound: true);
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
   @override
-  _MyAppState createState() => _MyAppState();
+  State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
@@ -54,64 +43,44 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _authBloc = di.sl<AuthBloc>();
-    _router = AppRouter.createRouter(_authBloc);
-
-    // Initialize Firebase Messaging listeners
+    final sl = GetIt.instance;
+    _authBloc = sl<AuthBloc>();
+    _router = sl<GoRouter>(); // ✅ uses the DI router
     _setupFirebaseMessaging();
-
     _authBloc.add(AppStarted());
   }
 
   void _setupFirebaseMessaging() {
-    // Handle foreground messages
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('Received foreground message: ${message.notification?.title}');
-      if (message.notification != null) {
-        // Display a snackbar or dialog for foreground notifications
+    FirebaseMessaging.onMessage.listen((message) {
+      if (!mounted) return;
+      final notif = message.notification;
+      if (notif != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${message.notification?.title}: ${message.notification?.body}',
-            ),
-          ),
+          SnackBar(content: Text('${notif.title ?? ''}: ${notif.body ?? ''}')),
         );
       }
     });
 
-    // Handle notification when app is opened from a terminated state
-    FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
+    FirebaseMessaging.instance.getInitialMessage().then((message) {
       if (message != null && message.data.containsKey('route')) {
-        print('App opened from terminated state: ${message.messageId}');
-        _handleNotificationNavigation(message);
+        context.go(message.data['route']);
       }
     });
 
-    // Handle notification when app is in background but opened
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('App opened from background: ${message.messageId}');
-      _handleNotificationNavigation(message);
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      if (message.data.containsKey('route')) {
+        context.go(message.data['route']);
+      }
     });
-  }
-
-  void _handleNotificationNavigation(RemoteMessage message) {
-    // Extract route from notification data
-    final String? route = message.data['route'];
-    if (route != null && mounted) {
-      print('Navigating to route: $route');
-      context.go(route); // Use go_router to navigate
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<AuthBloc>.value(
+    return BlocProvider.value(
       value: _authBloc,
       child: MaterialApp.router(
-        title: 'Maya App',
+        title: 'Maya',
         theme: AppTheme.theme,
-        // darkTheme: AppTheme.darkTheme, // Added dark theme
-        // themeMode: ThemeMode.system, // Follow OS dark/light mode
         routerConfig: _router,
         debugShowCheckedModeBanner: false,
       ),

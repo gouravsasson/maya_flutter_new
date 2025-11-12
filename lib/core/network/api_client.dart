@@ -357,12 +357,15 @@ class ApiClient {
   }) async {
     // Build query string
     final Map<String, dynamic> query = {};
-    if (startDate != null)
+    if (startDate != null) {
       query['start_date'] = DateFormat('yyyy-MM-dd').format(startDate);
-    if (endDate != null)
+    }
+    if (endDate != null) {
       query['end_date'] = DateFormat('yyyy-MM-dd').format(endDate);
-    if (timeFilter != null && timeFilter != 'All')
+    }
+    if (timeFilter != null && timeFilter != 'All') {
       query['time_filter'] = timeFilter.toLowerCase();
+    }
 
     final response = await get(
       _protectedDio,

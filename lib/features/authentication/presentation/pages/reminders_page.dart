@@ -133,7 +133,7 @@ class _RemindersPageState extends State<RemindersPage> {
                         child: Row(
                           children: [
                             GestureDetector(
-                              onTap: () => context.push('/other'),
+                              onTap: () => context.pop(),
                               child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(

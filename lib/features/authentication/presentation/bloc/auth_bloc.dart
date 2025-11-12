@@ -115,7 +115,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             print('🔍 VERIFICATION: State after 100ms = ${state.runtimeType}');
           });
 
-          NavigationService.showSnackBar('Logged in successfully');
           print('✅ Login process completed successfully');
         },
       );
@@ -146,7 +145,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         print('✅ Logout successful');
         authService.stopTokenManagement();
         emit(AuthUnauthenticated());
-        NavigationService.showSnackBar('Logged out successfully');
 
         // GoRouter will automatically redirect to /loginSS due to redirect logic
       },

@@ -397,7 +397,7 @@ class _TasksPageState extends State<TasksPage> {
 
     return GestureDetector(
       onTap: () {
-        context.go('/tasks/${task.id}', extra: {'query': task.query});
+        context.push('/tasks/${task.id}', extra: {'query': task.query});
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),

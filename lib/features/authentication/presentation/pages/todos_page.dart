@@ -110,9 +110,7 @@ class _TodosPageState extends State<TodosPage> {
     }
   }
 
-  void _onNewTask() {
-    context.go('/add-task');
-  }
+ 
 
   void _onScroll() {
     if (_scrollController.position.pixels >=
@@ -158,7 +156,7 @@ class _TodosPageState extends State<TodosPage> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             GestureDetector(
-                              onTap: () => context.push('/other'),
+                              onTap: () => context.pop(),
                               child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(

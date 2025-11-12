@@ -204,7 +204,7 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
     print('Got a debug message: ${msg.toString()}');
 
     // Check for search tool calls and play typing sound
-    if (msg is Map<String, dynamic> && msg['type'] == 'debug') {
+    if (msg['type'] == 'debug') {
       final message = msg['message'].toString();
       if ((message.contains('"type": "deep_search"') ||
               message.contains('"type": "simple_search"')) &&

@@ -258,7 +258,7 @@ class _GenerationsPageState extends State<GenerationsPage> {
                       child: Row(
                         children: [
                           GestureDetector(
-                            onTap: () => context.push('/other'),
+                            onTap: () => context.pop(),
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(

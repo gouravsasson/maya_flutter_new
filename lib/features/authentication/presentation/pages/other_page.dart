@@ -218,7 +218,7 @@ class _OtherPageState extends State<OtherPage> {
             ),
           ),
           OutlinedButton(
-            onPressed: () => context.go('/profile'),
+            onPressed: () => context.push('/profile'),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF2A57E8),
               side: const BorderSide(color: Color(0xFF2A57E8)),
@@ -291,7 +291,7 @@ class _OtherPageState extends State<OtherPage> {
     required String title,
   }) {
     return GestureDetector(
-      onTap: () => context.go(route),
+      onTap: () => context.push(route),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -344,7 +344,7 @@ final authBloc = BlocProvider.of<AuthBloc>(context);
   
   // Wait a tick for state to propagate, then navigate (or let redirect handle)
   await Future.delayed(const Duration(milliseconds: 100));
-  context.go('/login');
+  context.push('/login');
 },
       icon: const Icon(Icons.logout, color: Colors.white, size: 18),
       label: const Text(

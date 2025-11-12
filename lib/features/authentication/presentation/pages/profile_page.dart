@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';
-import '../../../authentication/presentation/bloc/auth_state.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -78,7 +77,7 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Row(
             children: [
               GestureDetector(
-                onTap: () => context.push('/other'),
+                onTap: () => context.pop(),
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(

@@ -125,7 +125,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-                        onPressed: () => context.push('/tasks'),
+                        onPressed: () => context.pop(),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
@@ -202,7 +202,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                                         subtask: subtask,
                                       ),
                                     );
-                                  }).toList(),
+                                  }),
 
                                   const SizedBox(height: 24),
                                 ],

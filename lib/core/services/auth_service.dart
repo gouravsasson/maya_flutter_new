@@ -91,7 +91,6 @@ class AuthService {
       final refreshed = await _attemptTokenRefresh();
       if (!refreshed) {
         print('❌ Token refresh failed, performing auto logout...');
-        await _performAutoLogout();
         return; // Exit early, don't continue the timer
       }
     } finally {
@@ -147,21 +146,6 @@ class AuthService {
     }
   }
 
-  Future<void> _performAutoLogout() async {
-    print('🚪 Performing auto logout...');
 
-    // CRITICAL: Stop token management FIRST to prevent more refresh attempts
-    stopTokenManagement();
 
-    // Clear all stored data
-    await _storageService.clearAll();
-
-    // Navigate to login and show dialog
-    final currentContext = NavigationService.navigatorKey.currentContext;
-    if (currentContext != null) {
-      currentContext.go('/login');
-      await Future.delayed(Duration(milliseconds: 100));
-      NavigationService.showSessionExpiredDialog();
-    }
-  }
 }

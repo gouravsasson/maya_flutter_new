@@ -13,7 +13,6 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
-import '../../../authentication/presentation/bloc/auth_event.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
 import 'package:Maya/core/services/notification_service.dart';
 import 'package:Maya/core/services/contact_service.dart';
@@ -705,7 +704,7 @@ class _HomePageState extends State<HomePage> {
                                   ),
                                   const SizedBox(height: 16),
                                   GestureDetector(
-                                    onTap: () => context.push('/maya'),
+                                    onTap: () => context.go('/maya'),
                                     child: AnimatedContainer(
                                       duration: const Duration(
                                         milliseconds: 150,
@@ -916,7 +915,7 @@ class _HomePageState extends State<HomePage> {
 
     return GestureDetector(
       onTap: () =>
-          context.push('/tasks/${task.id}', extra: {'query': task.query}),
+          context.go('/tasks/${task.id}', extra: {'query': task.query}),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
