@@ -45,7 +45,7 @@ class TaskDetail {
           'No query',
       status: status.isNotEmpty
           ? status
-          : (success ? 'completed' : (error.isNotEmpty ? 'failed' : 'pending')),
+          : (success ? 'complete' : (error.isNotEmpty ? 'failed' : 'pending')),
       error: error.isNotEmpty ? error : 'None',
       timestamp: formattedTimestamp,
     );
@@ -86,6 +86,20 @@ class _TasksPageState extends State<TasksPage> {
     super.dispose();
   }
 
+  String? _mapFilterToStatus(String filter) {
+    switch (filter) {
+      case 'complete':
+        return 'complete';
+      case 'failed':
+        return 'failed';
+      case 'pending':
+        return 'pending'; // or 'approval_pending' if backend uses that
+      case 'all':
+      default:
+        return null;
+    }
+  }
+
   Future<void> fetchTasks({int page = 1}) async {
     if (page == 1) {
       setState(() {
@@ -99,11 +113,17 @@ class _TasksPageState extends State<TasksPage> {
     }
 
     try {
-      final response = await apiClient.fetchTasks(page: page);
+      final statusFilter = _mapFilterToStatus(selectedFilter);
+      final response = await apiClient.fetchTasks(
+        page: page,
+        status: statusFilter,
+      );
+
       final data = response['data'];
       if (response['statusCode'] == 200 && data['success'] == true) {
         final List<dynamic> taskList =
             data['data']?['sessions'] as List<dynamic>? ?? [];
+
         setState(() {
           final newTasks = taskList
               .map((json) => TaskDetail.fromJson(json))
@@ -113,7 +133,9 @@ class _TasksPageState extends State<TasksPage> {
           } else {
             tasks.addAll(newTasks);
           }
-          hasMore = newTasks.isNotEmpty;
+          hasMore =
+              newTasks.isNotEmpty &&
+              taskList.length >= 20; // assuming 20 per page
           currentPage = page;
           isLoading = false;
           isLoadingMore = false;
@@ -146,7 +168,7 @@ class _TasksPageState extends State<TasksPage> {
 
   String _getFilterStatus(String status) {
     final lower = status.toLowerCase();
-    if (lower == 'succeeded' || lower == 'completed') return 'completed';
+    if (lower == 'complete') return 'complete';
     if (lower == 'failed') return 'failed';
     return 'pending'; // includes approval_pending, etc.
   }
@@ -221,7 +243,7 @@ class _TasksPageState extends State<TasksPage> {
                       children: [
                         _buildFilterChip('all', 'All Tasks'),
                         const SizedBox(width: 8),
-                        _buildFilterChip('completed', 'Completed'),
+                        _buildFilterChip('complete', 'Completed'),
                         const SizedBox(width: 8),
                         _buildFilterChip('pending', 'Pending'),
                         const SizedBox(width: 8),
@@ -310,9 +332,14 @@ class _TasksPageState extends State<TasksPage> {
     final bool isSelected = selectedFilter == filter;
     return GestureDetector(
       onTap: () {
-        setState(() {
-          selectedFilter = filter;
-        });
+        if (selectedFilter != filter) {
+          setState(() {
+            selectedFilter = filter;
+            hasMore = true;
+            tasks.clear(); // clear old tasks
+          });
+          fetchTasks(); 
+        }
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -348,7 +375,6 @@ class _TasksPageState extends State<TasksPage> {
 
     switch (task.status.toLowerCase()) {
       case 'succeeded':
-      case 'completed':
         statusColor = const Color(0xFF10B981);
         statusLabel = 'Completed';
         statusIcon = LucideIcons.checkCircle2;

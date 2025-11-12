@@ -4,7 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:Maya/core/network/api_client.dart';
 import 'package:Maya/core/services/mic_service.dart';
 import 'package:ultravox_client/ultravox_client.dart';
-import 'package:audioplayers/audioplayers.dart'; 
+import 'package:audioplayers/audioplayers.dart';
 
 class TalkToMaya extends StatefulWidget {
   const TalkToMaya({super.key});
@@ -65,17 +65,33 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
   }
 
   void _setupAnimations() {
-    _orbController = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
-    _orbScaleAnimation = Tween<double>(begin: 1.0, end: 1.15)
-        .animate(CurvedAnimation(parent: _orbController, curve: Curves.easeInOut));
+    _orbController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _orbScaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.15,
+    ).animate(CurvedAnimation(parent: _orbController, curve: Curves.easeInOut));
 
-    _pulseController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800));
-    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.25)
-        .animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    );
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.25).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
 
-    _speakingPulseController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
-    _speakingPulseAnimation =
-        Tween<double>(begin: 1.0, end: 1.1).animate(CurvedAnimation(parent: _speakingPulseController, curve: Curves.easeInOut));
+    _speakingPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _speakingPulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(
+        parent: _speakingPulseController,
+        curve: Curves.easeInOut,
+      ),
+    );
   }
 
   @override
@@ -104,12 +120,14 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
     final st = _session!.status;
     setState(() {
       _status = _mapStatusToSpeech(st);
-      _isListening = st == UltravoxSessionStatus.listening ||
+      _isListening =
+          st == UltravoxSessionStatus.listening ||
           st == UltravoxSessionStatus.speaking ||
           st == UltravoxSessionStatus.thinking;
     });
 
-    if (st == UltravoxSessionStatus.disconnecting || st == UltravoxSessionStatus.disconnected) {
+    if (st == UltravoxSessionStatus.disconnecting ||
+        st == UltravoxSessionStatus.disconnected) {
       _ignoreTranscripts = true;
     }
 
@@ -130,7 +148,9 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
 
     // Gate: if we should ignore transcripts (disconnecting/disconnected)
     final s = _session?.status;
-    if (_ignoreTranscripts || s == UltravoxSessionStatus.disconnecting || s == UltravoxSessionStatus.disconnected) {
+    if (_ignoreTranscripts ||
+        s == UltravoxSessionStatus.disconnecting ||
+        s == UltravoxSessionStatus.disconnected) {
       if (_currentTranscriptChunk.isNotEmpty) {
         setState(() => _currentTranscriptChunk = '');
         _shared.clearTranscript();
@@ -186,7 +206,8 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
     // Check for search tool calls and play typing sound
     if (msg is Map<String, dynamic> && msg['type'] == 'debug') {
       final message = msg['message'].toString();
-      if ((message.contains('"type": "deep_search"') || message.contains('"type": "simple_search"')) &&
+      if ((message.contains('"type": "deep_search"') ||
+              message.contains('"type": "simple_search"')) &&
           !_isPlayingTypingSound) {
         _playTypingSound();
       }
@@ -201,7 +222,9 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
     // Play 5 quick keypress sounds with slight delays
     for (int i = 0; i < 5; i++) {
       await Future.delayed(const Duration(milliseconds: 100));
-      await _audioPlayer.play(AssetSource('typing.mp3')); // Adjust path as needed
+      await _audioPlayer.play(
+        AssetSource('typing.mp3'),
+      ); // Adjust path as needed
     }
 
     // Reset flag after a short delay
@@ -230,65 +253,64 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
     }
   }
 
+  Future<void> _onStart() async {
+    // If an active session is present, treat tap as a stop request instead.
+    if (_shared.isSessionActive &&
+        _session?.status != UltravoxSessionStatus.disconnected) {
+      await _onStop();
+      return;
+    }
 
- Future<void> _onStart() async {
-  // If an active session is present, treat tap as a stop request instead.
-  if (_shared.isSessionActive && _session?.status != UltravoxSessionStatus.disconnected) {
-    await _onStop();
-    return;
-  }
+    final granted = await MicrophonePermissionHandler.requestPermission();
+    if (!granted) return;
 
-  final granted = await MicrophonePermissionHandler.requestPermission();
-  if (!granted) return;
+    setState(() {
+      _isConnecting = true;
+      _isMicMuted = false;
+      _isSpeakerMuted = false;
+    });
 
-  setState(() {
-    _isConnecting = true;
-    _isMicMuted = false;
-    _isSpeakerMuted = false;
-  });
+    _ignoreTranscripts = false;
+    _orbController.forward(from: 0);
+    _pulseController.repeat();
 
-  _ignoreTranscripts = false;
-  _orbController.forward(from: 0);
-  _pulseController.repeat();
+    try {
+      final payload = _apiClient.prepareStartThunderPayload('main');
+      final res = await _apiClient.startThunder(payload['agent_type']);
 
-  try {
-    final payload = _apiClient.prepareStartThunderPayload('main');
-    final res = await _apiClient.startThunder(payload['agent_type']);
+      if (res['statusCode'] == 200) {
+        final joinUrl = res['data']['data']['joinUrl'];
 
-    if (res['statusCode'] == 200) {
-      final joinUrl = res['data']['data']['joinUrl'];
+        _shared.init();
+        _session = _shared.session;
 
-      _shared.init();
-      _session = _shared.session;
+        _session?.statusNotifier.removeListener(_onStatusChange);
+        _session?.dataMessageNotifier.removeListener(_onDataMessage);
+        _session?.experimentalMessageNotifier.removeListener(_onDebugMessage);
 
-      _session?.statusNotifier.removeListener(_onStatusChange);
-      _session?.dataMessageNotifier.removeListener(_onDataMessage);
-      _session?.experimentalMessageNotifier.removeListener(_onDebugMessage);
+        _session?.statusNotifier.addListener(_onStatusChange);
+        _session?.dataMessageNotifier.addListener(_onDataMessage);
+        _session?.experimentalMessageNotifier.addListener(_onDebugMessage);
 
-      _session?.statusNotifier.addListener(_onStatusChange);
-      _session?.dataMessageNotifier.addListener(_onDataMessage);
-      _session?.experimentalMessageNotifier.addListener(_onDebugMessage);
+        await _session!.joinCall(joinUrl);
 
-      await _session!.joinCall(joinUrl);
+        _session!.micMuted = _isMicMuted;
+        _session!.speakerMuted = _isSpeakerMuted;
 
-      _session!.micMuted = _isMicMuted;
-      _session!.speakerMuted = _isSpeakerMuted;
-
-      setState(() => _isConnecting = false);
-    } else {
+        setState(() => _isConnecting = false);
+      } else {
+        setState(() {
+          _isConnecting = false;
+          _currentTranscriptChunk = 'Failed to start session';
+        });
+      }
+    } catch (e) {
       setState(() {
         _isConnecting = false;
-        _currentTranscriptChunk = 'Failed to start session';
+        _currentTranscriptChunk = 'Error: $e';
       });
     }
-  } catch (e) {
-    setState(() {
-      _isConnecting = false;
-      _currentTranscriptChunk = 'Error: $e';
-    });
   }
-}
-
 
   Future<void> _onStop() async {
     // Immediately block late transcripts
@@ -303,7 +325,7 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
       _isConnecting = false;
       _currentTranscriptChunk = '';
 
-    _status = 'Talk To Maya';
+      _status = 'Talk To Maya';
     });
 
     // Unbind listeners before resetting session to avoid stray callbacks
@@ -330,8 +352,6 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
     _orbController.reverse(from: 1.0);
 
     if (mounted) {
-      
-
       // Update local copies to reflect cleared shared state
       setState(() {
         _conversation = List.from(_shared.conversation);
@@ -417,37 +437,55 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       IconButton(
                         icon: Icon(
                           _isMicMuted ? Icons.mic_off : Icons.mic,
-                          color: _controlsDisabled ? Colors.grey : (_isMicMuted ? Colors.grey : Colors.white),
+                          color: _controlsDisabled
+                              ? Colors.grey
+                              : (_isMicMuted ? Colors.grey : Colors.white),
                         ),
                         onPressed: _controlsDisabled ? null : _toggleMicMute,
                       ),
                       IconButton(
                         icon: Icon(
                           _isSpeakerMuted ? Icons.volume_off : Icons.volume_up,
-                          color: _controlsDisabled ? Colors.grey : (_isSpeakerMuted ? Colors.grey : Colors.white),
+                          color: _controlsDisabled
+                              ? Colors.grey
+                              : (_isSpeakerMuted ? Colors.grey : Colors.white),
                         ),
-                        onPressed: _controlsDisabled ? null : _toggleSpeakerMute,
+                        onPressed: _controlsDisabled
+                            ? null
+                            : _toggleSpeakerMute,
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(_status, style: const TextStyle(color: Colors.white70, fontSize: 17)),
+                Text(
+                  _status,
+                  style: const TextStyle(color: Colors.white70, fontSize: 17),
+                ),
                 const SizedBox(height: 24),
 
                 GestureDetector(
-                  onTap: () => _isListening || _isConnecting ? _onStop() : _onStart(),
+                  onTap: () =>
+                      _isListening || _isConnecting ? _onStop() : _onStart(),
                   child: AnimatedBuilder(
-                    animation: Listenable.merge([_orbController, _speakingPulseController]),
+                    animation: Listenable.merge([
+                      _orbController,
+                      _speakingPulseController,
+                    ]),
                     builder: (_, __) => Transform.scale(
-                      scale: _orbScaleAnimation.value * _speakingPulseAnimation.value,
+                      scale:
+                          _orbScaleAnimation.value *
+                          _speakingPulseAnimation.value,
                       child: Container(
                         width: 180,
                         height: 180,
@@ -459,7 +497,11 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
                           ),
                         ),
                         child: _isConnecting
-                            ? const Center(child: CircularProgressIndicator(color: Colors.cyan))
+                            ? const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.cyan,
+                                ),
+                              )
                             : null,
                       ),
                     ),
@@ -470,15 +512,24 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
                 Expanded(
                   child: ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                    itemCount: _conversation.length + (_currentTranscriptChunk.isNotEmpty ? 1 : 0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 20,
+                    ),
+                    itemCount:
+                        _conversation.length +
+                        (_currentTranscriptChunk.isNotEmpty ? 1 : 0),
                     itemBuilder: (_, i) {
-                      if (_currentTranscriptChunk.isNotEmpty && i == _conversation.length) {
+                      if (_currentTranscriptChunk.isNotEmpty &&
+                          i == _conversation.length) {
                         return Align(
                           alignment: Alignment.centerLeft,
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.09),
                               borderRadius: BorderRadius.circular(18),
@@ -498,15 +549,25 @@ class _TalkToMayaState extends State<TalkToMaya> with TickerProviderStateMixin {
                       final isUser = msg['type'] == 'user';
 
                       return Align(
-                        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: isUser
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(isUser ? 0.22 : 0.12),
+                            color: Colors.white.withOpacity(
+                              isUser ? 0.22 : 0.12,
+                            ),
                             borderRadius: BorderRadius.circular(18),
                           ),
-                          child: Text(msg['text'], style: const TextStyle(color: Colors.white)),
+                          child: Text(
+                            msg['text'],
+                            style: const TextStyle(color: Colors.white),
+                          ),
                         ),
                       );
                     },

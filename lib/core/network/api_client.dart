@@ -191,10 +191,19 @@ class ApiClient {
   }
 
   // Fetch Tasks API
-  Future<Map<String, dynamic>> fetchTasks({int page = 1}) async {
+  Future<Map<String, dynamic>> fetchTasks({
+    int? page = 1,
+    String? status, 
+  }) async {
+    final queryParams = <String, String>{'page': page.toString()};
+    if (status != null && status != 'all') {
+      queryParams['status'] = status;
+    }
+
     final response = await get(
       _protectedDio,
-      '/thunder/get-tool-call-sessions?page=$page',
+      '/thunder/get-tool-call-sessions',
+      queryParameters: queryParams,
     );
     print('fetchTasks response: ${response.data}');
     print('fetchTasks statusCode: ${response.statusCode}');
@@ -751,25 +760,17 @@ class ApiClient {
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
-
-
-
   Future<Map<String, dynamic>> saveFirefliesKey({
-  required int userId,
-  required String apiKey,
-}) async {
-  final response = await _protectedDio.post(
-    '/auth/fireflies/save-key',
-    data: {
-      'fireflies_api_key': apiKey,
-    },
-  );
+    required int userId,
+    required String apiKey,
+  }) async {
+    final response = await _protectedDio.post(
+      '/auth/fireflies/save-key',
+      data: {'fireflies_api_key': apiKey},
+    );
 
-  return {
-    'statusCode': response.statusCode,
-    'data': response.data,
-  };
-}
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
 
   Map<String, dynamic> prepareSaveLocationPayload(
     double latitude,
@@ -798,6 +799,16 @@ class ApiClient {
       "timezone": timezone,
       "phone_number": phoneNumber,
     };
+  }
+
+  Future<Map<String, dynamic>> updateUserProfilePartial(
+    Map<String, dynamic> fieldsToUpdate,
+  ) async {
+    final response = await _protectedDio.patch(
+      '/auth/users/update',
+      data: fieldsToUpdate,
+    );
+    return {'statusCode': response.statusCode, 'data': response.data};
   }
 
   Future<Map<String, dynamic>> getGenerations() async {
