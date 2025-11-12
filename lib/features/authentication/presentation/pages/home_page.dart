@@ -177,6 +177,7 @@ class _HomePageState extends State<HomePage> {
       final userData = userResp['data'] as Map<String, dynamic>;
       final String firstName = userData['first_name']?.toString() ?? '';
       final String lastName = userData['last_name']?.toString() ?? '';
+      final String phoneNumber = userData['phone_number']?.toString() ?? '';
       setState(() {
         _userFirstName = firstName;
         _userLastName = lastName;
@@ -201,6 +202,7 @@ class _HomePageState extends State<HomePage> {
         latitude: position.latitude,
         longitude: position.longitude,
         timezone: timezone,
+        phoneNumber:phoneNumber,
       );
 
       if (updateResp['statusCode'] == 200) {
@@ -577,6 +579,7 @@ class _HomePageState extends State<HomePage> {
   // UI
   // -----------------------------------------------------------------------
   @override
+  @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
@@ -601,139 +604,143 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
 
-              // Content
+              // Scrollable Content
               SafeArea(
-                child: Column(
-                  children: [
-                    // Header: Greeting + Blue Card
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Profile image
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1E293B),
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.2),
-                                width: 2,
-                              ),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(22),
-                              child: Image.asset(
-                                'assets/maya_logo.png',
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Icon(
-                                    LucideIcons.user,
-                                    color: Colors.white,
-                                    size: 24,
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Greeting
-                          Text(
-                            'Hello, $displayName!',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Let\'s explore the way in which I can\nassist you.',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white,
-                              height: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Blue gradient card (kept as per design)
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFF2563EB,
-                                  ).withOpacity(0.3),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 8),
+                child: CustomScrollView(
+                  slivers: [
+                    // === Header Section ===
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Profile image
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E293B),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.2),
+                                  width: 2,
                                 ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Generate complex algorithms\nand clean code with ease.',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white,
-                                    height: 1.4,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                GestureDetector(
-                                  onTap: () {
-                                    context.push('/maya');
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(22),
+                                child: Image.asset(
+                                  'assets/maya_logo.png',
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Icon(
+                                      LucideIcons.user,
+                                      color: Colors.white,
+                                      size: 24,
+                                    );
                                   },
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 150),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 10,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Greeting
+                            Text(
+                              'Hello, $displayName!',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Let\'s explore the way in which I can\nassist you.',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Blue gradient card
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Color(0xFF3B82F6),
+                                    Color(0xFF2563EB),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFF2563EB,
+                                    ).withOpacity(0.3),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Generate complex algorithms\nand clean code with ease.',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.white,
+                                      height: 1.4,
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.30),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Text(
-                                      'Start Now',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  GestureDetector(
+                                    onTap: () => context.push('/maya'),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 150,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.30),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Text(
+                                        'Start Now',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 24),
+                          ],
+                        ),
                       ),
                     ),
 
-                    const SizedBox(height: 24),
-
-                    // Scrollable Sections
-                    Expanded(
-                      child: ListView(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        children: [
-                          // === Active Tasks Section ===
+                    // === Scrollable Sections ===
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          // Active Tasks
                           _buildSectionHeader(
                             'Active Tasks',
                             LucideIcons.zap,
@@ -750,6 +757,7 @@ class _HomePageState extends State<HomePage> {
                                 .map((task) => _buildTaskCard(task)),
                           const SizedBox(height: 24),
 
+                          // Reminders
                           _buildSectionHeader(
                             'Reminders',
                             LucideIcons.calendar,
@@ -761,11 +769,10 @@ class _HomePageState extends State<HomePage> {
                           else if (reminders.isEmpty)
                             _buildEmptyState('No reminders')
                           else
-                            ...reminders.map(
-                              (reminder) => _buildReminderCard(reminder),
-                            ),
+                            ...reminders.map((r) => _buildReminderCard(r)),
                           const SizedBox(height: 24),
-                          // === To-Do Section ===
+
+                          // To-Do
                           _buildSectionHeader(
                             'To-Do',
                             LucideIcons.clipboardList,
@@ -780,8 +787,8 @@ class _HomePageState extends State<HomePage> {
                             ...todos
                                 .take(3)
                                 .map((todo) => _buildToDoCard(todo)),
-                          const SizedBox(height: 100),
-                        ],
+                          const SizedBox(height: 100), // Bottom padding
+                        ]),
                       ),
                     ),
                   ],

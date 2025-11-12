@@ -114,6 +114,42 @@ class ApiClient {
     return {'email': email, 'password': password};
   }
 
+  Future<Map<String, dynamic>> forgotPassword(String email) async {
+    final response = await post(
+      _publicDio,
+      '/auth/forgot-password',
+      data: {'email': email},
+    );
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  Future<Map<String, dynamic>> resetPassword(
+    String email,
+    String otp,
+    String newPassword,
+    String confirmPassword,
+  ) async {
+    final response = await post(
+      _publicDio,
+      '/auth/reset-password',
+      data: {
+        'email': email,
+        'new_password': newPassword,
+        'confirm_password': confirmPassword,
+      },
+    );
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  Future<Map<String, dynamic>> verifyOTP(String email, String otp) async {
+    final response = await post(
+      _publicDio,
+      '/auth/verify-otp',
+      data: {'email': email, 'otp': otp},
+    );
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
   // Google Sign-In API
   Future<Map<String, dynamic>> googleLogin(Map<String, dynamic> payload) async {
     final response = await post(_publicDio, '/auth/google/', data: payload);
@@ -147,7 +183,7 @@ class ApiClient {
       _publicDio,
       // '/productivity/callback/google',
       '/productivity/google/oauth/callback',
-      queryParameters: {'code':authCode,'state':userId}
+      queryParameters: {'code': authCode, 'state': userId},
       // data: {'user_id': userId, 'server_auth_code': authCode},
     );
 
@@ -696,6 +732,7 @@ class ApiClient {
     required double latitude,
     required double longitude,
     required String timezone,
+    required String phoneNumber,
   }) async {
     final payload = prepareUpdateUserProfilePayload(
       firstName: firstName,
@@ -704,6 +741,7 @@ class ApiClient {
       latitude: latitude,
       longitude: longitude,
       timezone: timezone,
+      phoneNumber: phoneNumber,
     );
 
     final response = await _protectedDio.patch(
@@ -712,6 +750,26 @@ class ApiClient {
     );
     return {'statusCode': response.statusCode, 'data': response.data};
   }
+
+
+
+
+  Future<Map<String, dynamic>> saveFirefliesKey({
+  required int userId,
+  required String apiKey,
+}) async {
+  final response = await _protectedDio.post(
+    '/auth/fireflies/save-key',
+    data: {
+      'fireflies_api_key': apiKey,
+    },
+  );
+
+  return {
+    'statusCode': response.statusCode,
+    'data': response.data,
+  };
+}
 
   Map<String, dynamic> prepareSaveLocationPayload(
     double latitude,
@@ -729,6 +787,7 @@ class ApiClient {
     required double latitude,
     required double longitude,
     required String timezone,
+    required String phoneNumber,
   }) {
     return {
       "first_name": firstName,
@@ -737,6 +796,7 @@ class ApiClient {
       "latitude": latitude,
       "longitude": longitude,
       "timezone": timezone,
+      "phone_number": phoneNumber,
     };
   }
 
@@ -757,6 +817,23 @@ class ApiClient {
     );
     print('updateGenerationStatus response: ${response.data}');
     print('updateGenerationStatus statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  Future<Map<String, dynamic>> changePassword({
+    required String oldPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    final response = await _protectedDio.post(
+      '/auth/change-password',
+      data: {
+        'old_password': oldPassword,
+        'new_password': newPassword,
+        'confirm_password': confirmPassword,
+      },
+    );
+
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 }
