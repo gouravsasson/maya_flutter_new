@@ -84,7 +84,39 @@ late int _currentUserId;
     _initializeGoogleSignIn();
 
   _loadCurrentUser();
+  _loadIntegrationStatus();
   }
+
+  Future<void> _loadIntegrationStatus() async {
+  try {
+    final result = await getIt<ApiClient>().getIntegrationStatus();
+
+    if (result['statusCode'] == 200) {
+      final Map<String, dynamic> data = result['data']['data'] as Map<String, dynamic>;
+
+      setState(() {
+        for (final integration in integrations) {
+          switch (integration.id) {
+            case 'google-calendar':
+              integration.connected = data['google'] ?? false;
+              break;
+            case 'gohighlevel':
+              integration.connected = data['ghl'] ?? false;
+              break;
+            case 'fireflies':
+              integration.connected = data['fireflies'] ?? false;
+              break;
+          }
+        }
+      });
+    }
+  } catch (e) {
+    debugPrint('Failed to load integration status: $e');
+    // Fallback – keep the local-storage values that were already read
+  }
+}
+
+
 
   Future<void> _loadCurrentUser() async {
   try {

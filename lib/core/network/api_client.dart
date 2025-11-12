@@ -694,6 +694,14 @@ class ApiClient {
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
+
+  Future<Map<String, dynamic>> getIntegrationStatus() async {
+    final response = await _protectedDio.get('/auth/integration/status');
+    print('getCurrentUser response: ${response.data}');
+    print('getCurrentUser statusCode: ${response.statusCode}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
   Future<Map<String, dynamic>> updateNotificationPreferences({
     required bool emailNotifications,
     required bool pushNotifications,
