@@ -21,15 +21,24 @@ class _TabLayoutState extends State<TabLayout> {
     {'route': '/other', 'icon': FeatherIcons.moreHorizontal, 'label': 'Other'},
   ];
 
-  /// Keeps visited tab order (so back moves across tabs intuitively)
+  /// Persistent tab backstack across navigations
   static final List<int> _tabHistory = [0];
 
   bool _isDialogShowing = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Ensure the initial tab is tracked
+    if (!_tabHistory.contains(widget.currentIndex)) {
+      _tabHistory.add(widget.currentIndex);
+    }
+  }
+
+  @override
   void didUpdateWidget(covariant TabLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Record tab change in history
+    // Keep track of tab switches
     if (widget.currentIndex != _tabHistory.last) {
       _tabHistory.remove(widget.currentIndex);
       _tabHistory.add(widget.currentIndex);
@@ -38,33 +47,29 @@ class _TabLayoutState extends State<TabLayout> {
 
   Future<bool> _handleBack(BuildContext context) async {
     final router = GoRouter.of(context);
+    final uri = router.routeInformationProvider.value.uri.toString();
 
-    // 1️⃣ Pop within the current tab stack if possible
-    if (router.canPop()) {
+    // 1️⃣ Handle in-tab back (inner route)
+    if (_isInnerRoute(uri)) {
       router.pop();
       return false;
     }
 
-    // 2️⃣ Go back to previous tab if history exists
+    // 2️⃣ Go to previous tab if history exists
     if (_tabHistory.length > 1) {
       _tabHistory.removeLast();
       final previousIndex = _tabHistory.last;
+      final prevRoute = _tabs[previousIndex]['route'] as String;
 
-      // Defensive: trigger tab switch after frame
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final prevRoute = _tabs[previousIndex]['route'] as String;
-        final router = GoRouter.of(context);
-        final currentUri = router.routeInformationProvider.value.uri.toString();
-
-        if (currentUri != prevRoute) {
+        if (router.routeInformationProvider.value.uri.toString() != prevRoute) {
           context.go(prevRoute);
         }
       });
-
       return false;
     }
 
-    // 3️⃣ Prompt exit (only once)
+    // 3️⃣ Exit prompt
     if (_isDialogShowing) return false;
     _isDialogShowing = true;
 
@@ -82,17 +87,11 @@ class _TabLayoutState extends State<TabLayout> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogCtx).pop(false),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white70),
-            ),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogCtx).pop(true),
-            child: const Text(
-              'Exit',
-              style: TextStyle(color: Colors.redAccent),
-            ),
+            child: const Text('Exit', style: TextStyle(color: Colors.redAccent)),
           ),
         ],
       ),
@@ -100,6 +99,16 @@ class _TabLayoutState extends State<TabLayout> {
 
     _isDialogShowing = false;
     return shouldExit ?? false;
+  }
+
+  /// Returns true if the route is a subpage (like `/tasks/:id`).
+  bool _isInnerRoute(String uri) {
+    for (final tab in _tabs) {
+      final route = tab['route']!;
+      if (uri == route) return false;
+    }
+    // If not a tab root, treat as an inner route
+    return true;
   }
 
   @override
@@ -110,10 +119,7 @@ class _TabLayoutState extends State<TabLayout> {
         backgroundColor: const Color(0xFF111827),
         extendBody: true,
         body: widget.child,
-        bottomNavigationBar: _buildBottomNavigationBar(
-          context,
-          widget.currentIndex,
-        ),
+        bottomNavigationBar: _buildBottomNavigationBar(context, widget.currentIndex),
       ),
     );
   }
@@ -167,11 +173,9 @@ class _TabLayoutState extends State<TabLayout> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              tab['icon'] as IconData,
-                              size: 22,
-                              color: isActive ? activeColor : inactiveColor,
-                            ),
+                            Icon(tab['icon'] as IconData,
+                                size: 22,
+                                color: isActive ? activeColor : inactiveColor),
                             const SizedBox(height: 4),
                             Text(
                               tab['label'] as String,

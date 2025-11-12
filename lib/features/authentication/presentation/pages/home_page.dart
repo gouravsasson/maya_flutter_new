@@ -704,7 +704,7 @@ class _HomePageState extends State<HomePage> {
                                   ),
                                   const SizedBox(height: 16),
                                   GestureDetector(
-                                    onTap: () => context.go('/maya'),
+                                    onTap: () => context.push('/maya'),
                                     child: AnimatedContainer(
                                       duration: const Duration(
                                         milliseconds: 150,
@@ -745,7 +745,7 @@ class _HomePageState extends State<HomePage> {
                           _buildSectionHeader(
                             'Active Tasks',
                             LucideIcons.zap,
-                            () => context.go('/tasks'),
+                            () => context.push('/tasks'),
                           ),
                           const SizedBox(height: 12),
                           if (isLoadingTasks)
@@ -762,7 +762,7 @@ class _HomePageState extends State<HomePage> {
                           _buildSectionHeader(
                             'Reminders',
                             LucideIcons.calendar,
-                            () => context.go('/reminders'),
+                            () => context.push('/reminders'),
                           ),
                           const SizedBox(height: 12),
                           if (isLoadingReminders)
@@ -777,7 +777,7 @@ class _HomePageState extends State<HomePage> {
                           _buildSectionHeader(
                             'To-Do',
                             LucideIcons.clipboardList,
-                            () => context.go('/todos'),
+                            () => context.push('/todos'),
                           ),
                           const SizedBox(height: 12),
                           if (isLoadingTodos)
@@ -915,7 +915,7 @@ class _HomePageState extends State<HomePage> {
 
     return GestureDetector(
       onTap: () =>
-          context.go('/tasks/${task.id}', extra: {'query': task.query}),
+          context.push('/tasks/${task.id}', extra: {'query': task.query}),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
@@ -1100,7 +1100,7 @@ class _HomePageState extends State<HomePage> {
       final fullDateTime = '$dateLabel, $timeText';
 
       return GestureDetector(
-        onTap: () => context.go('/reminders'),
+        onTap: () => context.push('/reminders'),
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
