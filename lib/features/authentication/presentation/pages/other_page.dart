@@ -3,7 +3,6 @@ import 'package:Maya/features/authentication/presentation/bloc/auth_bloc.dart';
 import 'package:Maya/features/authentication/presentation/bloc/auth_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
@@ -157,9 +156,9 @@ class _OtherPageState extends State<OtherPage> {
   // PROFILE SECTION – uses real user data
   // --------------------------------------------------------------
   Widget _buildProfileSection(BuildContext context) {
-    final name = _user?.fullName ?? 'Kaarthi';
-    final email = _user?.email ?? 'kaarthi@example.com';
-    final avatarLetter = _user?.initials ?? 'K';
+    final name = _user?.fullName ;
+    final email = _user?.email;
+    final avatarLetter = _user?.initials;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -184,7 +183,7 @@ class _OtherPageState extends State<OtherPage> {
             ),
             child: Center(
               child: Text(
-                avatarLetter,
+                avatarLetter ?? '',
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -199,7 +198,7 @@ class _OtherPageState extends State<OtherPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  name,
+                  name ?? '',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -208,7 +207,7 @@ class _OtherPageState extends State<OtherPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  email,
+                  email ?? '',
                   style: const TextStyle(
                     fontSize: 14,
                     color: Color.fromRGBO(189, 189, 189, 1),
@@ -218,7 +217,7 @@ class _OtherPageState extends State<OtherPage> {
             ),
           ),
           OutlinedButton(
-            onPressed: () => context.push('/profile'),
+            onPressed: () => context.go('/profile'),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF2A57E8),
               side: const BorderSide(color: Color(0xFF2A57E8)),
@@ -291,7 +290,7 @@ class _OtherPageState extends State<OtherPage> {
     required String title,
   }) {
     return GestureDetector(
-      onTap: () => context.push(route),
+      onTap: () => context.go(route),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -332,20 +331,16 @@ class _OtherPageState extends State<OtherPage> {
   // LOGOUT BUTTON
   // --------------------------------------------------------------
 Widget _buildLogoutButton(BuildContext context) {
-  final secureStorage = const FlutterSecureStorage();
   return SizedBox(
     width: double.infinity,
     child: ElevatedButton.icon(
       onPressed: () async {
-final authBloc = BlocProvider.of<AuthBloc>(context);
-  
-  // Dispatch logout event (handles token clear + state emit)
-  authBloc.add(LogoutRequested());  // Replace with your actual logout event
-  
-  // Wait a tick for state to propagate, then navigate (or let redirect handle)
-  await Future.delayed(const Duration(milliseconds: 100));
-  context.push('/login');
-},
+        final authBloc=BlocProvider.of<AuthBloc>(context);
+        authBloc.add(LogoutRequested());
+        await Future.delayed(const Duration(milliseconds: 100));
+          context.go('/login');
+
+      },
       icon: const Icon(Icons.logout, color: Colors.white, size: 18),
       label: const Text(
         'Log out',
@@ -366,4 +361,5 @@ final authBloc = BlocProvider.of<AuthBloc>(context);
     ),
   );
 }
+
 }

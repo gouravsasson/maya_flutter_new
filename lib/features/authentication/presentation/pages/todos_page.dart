@@ -35,44 +35,47 @@ class _TodosPageState extends State<TodosPage> {
   }
 
   Future<void> fetchToDos({int page = 1}) async {
-    if (page == 1) {
-      setState(() => isLoadingTodos = true);
-    } else {
-      setState(() => isLoadingMore = true);
-    }
-
-    try {
-      final response = await GetIt.I<ApiClient>().getToDo(page: page);
-      if (response['statusCode'] == 200) {
-        final newTodos = List<Map<String, dynamic>>.from(
-          response['data']['data'],
-        );
-        setState(() {
-          if (page == 1) {
-            todos = newTodos;
-          } else {
-            todos.addAll(newTodos);
-          }
-          hasMore =
-              newTodos.isNotEmpty &&
-              (response['meta']['current_page'] <
-                  response['meta']['total_pages']);
-          currentPage = page;
-        });
-      } else {
-        _showSnackBar(
-          'Failed to fetch todos: ${response['message'] ?? 'Unknown error'}',
-        );
-      }
-    } catch (e) {
-      _showSnackBar('Error fetching todos: $e');
-    } finally {
-      setState(() {
-        isLoadingTodos = false;
-        isLoadingMore = false;
-      });
-    }
+  if (page == 1) {
+    setState(() => isLoadingTodos = true);
+  } else {
+    setState(() => isLoadingMore = true);
   }
+
+  try {
+    final response = await GetIt.I<ApiClient>().getToDo(page: page);
+
+    if (response['statusCode'] == 200) {
+      final newTodos = List<Map<String, dynamic>>.from(
+        response['data']['data'],
+      );
+
+      setState(() {
+        if (page == 1) {
+          todos = newTodos;
+        } else {
+          todos.addAll(newTodos);
+        }
+
+        // ❌ Your API has no pagination meta
+        // So disable infinite scroll
+        hasMore = false;
+
+        currentPage = page;
+      });
+    } else {
+      _showSnackBar(
+        'Failed to fetch todos: ${response['message'] ?? 'Unknown error'}',
+      );
+    }
+  } catch (e) {
+    _showSnackBar('Error fetching todos: $e');
+  } finally {
+    setState(() {
+      isLoadingTodos = false;
+      isLoadingMore = false;
+    });
+  }
+}
 
   void _showSnackBar(String message) {
     if (mounted) {

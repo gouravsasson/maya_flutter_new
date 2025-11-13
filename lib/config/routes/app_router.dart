@@ -1,4 +1,5 @@
 import 'package:Maya/core/services/navigation_service.dart';
+import 'package:Maya/features/authentication/presentation/pages/forgot_password.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
@@ -30,7 +31,7 @@ class AppRouter {
   );
 
   AppRouter({required this.navigationService});
-
+  final public = ['/login', '/forgot-password'];
   GoRouter createRouter(AuthBloc authBloc) {
     // keep auth notifier in sync
     authStateNotifier.value = authBloc.state;
@@ -61,6 +62,11 @@ class AppRouter {
           path: '/login',
           parentNavigatorKey: navigationService.navigatorKey,
           builder: (_, __) => const LoginPage(),
+        ),
+        GoRoute(
+          path: '/forgot-password',
+          parentNavigatorKey: navigationService.navigatorKey,
+          builder: (_, __) => const ForgotPasswordPage(),
         ),
 
         // Tabs
@@ -123,11 +129,7 @@ class AppRouter {
         GoRoute(
           path: '/tasks/:taskId',
           parentNavigatorKey: navigationService.navigatorKey,
-          builder: (_, state) => TaskDetailPage(
-            sessionId: state.pathParameters['taskId']!,
-            apiClient: ApiClient(Dio(), Dio()),
-            taskQuery: '',
-          ),
+          builder: (_, state) => TaskDetailPage(),
         ),
         GoRoute(
           path: '/profile',
@@ -171,31 +173,29 @@ class AppRouter {
         final auth = authStateNotifier.value;
         final loc = state.uri.path;
 
-        final isAuthed = auth is AuthAuthenticated;
-        final isLoading = auth is AuthLoading || auth is AuthInitial;
+        final isAuthenticated = auth is AuthAuthenticated;
+        final isLoading = auth is AuthLoading;
 
-        // 1) While loading: stay only on splash
+        // Splash should only show while loading
         if (isLoading) {
           return loc == '/' ? null : '/';
         }
 
-        // 2) Unauthenticated users:
-        if (!isAuthed) {
-          // allow login
-          if (loc == '/login') return null;
-
-          // force login for everything else
+        // NOT loading anymore → this means auth is either authenticated or unauthenticated.
+        if (!isAuthenticated) {
+          // User NOT logged in
+          if (loc == '/login' || loc == '/forgot-password') {
+            return null;
+          }
+          // Not logged in → always go to login
           return '/login';
         }
 
-        // 3) Authenticated users:
-        // block splash and login
-        if (loc == '/' || loc == '/login') {
+        // Authenticated
+        if (loc == '/' || loc == '/login' || loc == '/forgot-password') {
           return '/home';
         }
 
-        // 4) Authenticated fallback:
-        // if user somehow reaches an unknown route → go home (NOT login)
         return null;
       },
     );

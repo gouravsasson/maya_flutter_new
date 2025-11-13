@@ -145,7 +145,7 @@ class ApiClient {
     final response = await post(
       _publicDio,
       '/auth/verify-otp',
-      data: {'email': email, 'otp': otp},
+      data: {'email': email, 'code': otp},
     );
     return {'statusCode': response.statusCode, 'data': response.data};
   }

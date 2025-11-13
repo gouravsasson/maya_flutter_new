@@ -212,11 +212,7 @@ class _LoginPageState extends State<LoginPage> {
                               TextButton(
                                 onPressed: () {
                                   // TODO: Navigate to forgot password
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Forgot password clicked'),
-                                    ),
-                                  );
+                                  context.go('/forgot-password');
                                 },
                                 child: const Text(
                                   'Forgot password?',

@@ -624,7 +624,7 @@ Future<void> _saveFirefliesKey(String apiKey) async {
                           children: [
                             GestureDetector(
                               onTap: () => context.pop(),
-                              child: Container(
+                              child: Container( 
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   color: const Color(
