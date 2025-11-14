@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get_it/get_it.dart';
+import 'package:flutter_query/flutter_query.dart'; // ← Required
 
 import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
@@ -14,7 +15,7 @@ import 'injection_container.dart' as di;
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  print("🔔 Handling background message: ${message.messageId}");
+  print("Handling background message: ${message.messageId}");
 }
 
 Future<void> main() async {
@@ -45,7 +46,7 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     final sl = GetIt.instance;
     _authBloc = sl<AuthBloc>();
-    _router = sl<GoRouter>(); // ✅ uses the DI router
+    _router = sl<GoRouter>();
     _setupFirebaseMessaging();
     _authBloc.add(AppStarted());
   }

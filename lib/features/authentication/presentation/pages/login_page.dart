@@ -212,7 +212,7 @@ class _LoginPageState extends State<LoginPage> {
                               TextButton(
                                 onPressed: () {
                                   // TODO: Navigate to forgot password
-                                  context.go('/forgot-password');
+                                  context.push('/forgot-password');
                                 },
                                 child: const Text(
                                   'Forgot password?',

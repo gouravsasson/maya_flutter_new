@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:Maya/features/widgets/skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -11,7 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'dart:io' show Platform;
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
 import 'package:Maya/core/services/notification_service.dart';
@@ -104,7 +105,8 @@ class _HomePageState extends State<HomePage> {
     final publicDio = Dio();
     final protectedDio = Dio();
     _apiClient = ApiClient(publicDio, protectedDio);
-
+    final countryCode = getCountryCode();
+    print(countryCode);
     _setupNotifications();
     // Defer profile/location/contacts sync to after first build
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -114,6 +116,22 @@ class _HomePageState extends State<HomePage> {
     fetchToDos();
     fetchTasks();
     fetchReminders();
+  }
+
+  String getCountryCode() {
+    try {
+      // This works on ALL platforms: iOS Simulator, Android, Web, etc.
+      final locale = WidgetsBinding.instance.platformDispatcher.locale;
+      final countryCode = locale.countryCode;
+
+      if (countryCode != null && countryCode.isNotEmpty) {
+        return countryCode; // e.g., "US", "IN", "GB"
+      }
+    } catch (e) {
+      debugPrint('WidgetsBinding locale failed: $e');
+    }
+
+    return 'Unknown';
   }
 
   Future<void> _initPreferences() async {
@@ -177,7 +195,6 @@ class _HomePageState extends State<HomePage> {
       final userData = userResp['data'] as Map<String, dynamic>;
       final String firstName = userData['first_name']?.toString() ?? '';
       final String lastName = userData['last_name']?.toString() ?? '';
-      final String phoneNumber = userData['phone_number']?.toString() ?? '';
 
       setState(() {
         _userFirstName = firstName;
@@ -187,7 +204,7 @@ class _HomePageState extends State<HomePage> {
       // Wait for FCM + Location/Timezone
       final results = await Future.wait([
         _waitForFcmToken(),
-        _obtainLocationAndTimezone(),
+        _obtainLocationAndTimezone(), // ← returns (Position, String)
       ]);
 
       final String? token = results[0] as String?;
@@ -196,12 +213,17 @@ class _HomePageState extends State<HomePage> {
 
       if (token == null) return;
 
-      // ✅ Only send dynamic fields that can change frequently
+      // Get country directly from locale
+      final String countryCode = getCountryCode();
+      final String country = countryCode == 'Unknown' ? 'Unknown' : countryCode;
+      print(countryCode);
+
       final Map<String, dynamic> payload = {
         "fcm_token": token,
         "latitude": position.latitude,
         "longitude": position.longitude,
         "timezone": timezone,
+        "country": country, // e.g., "IN", "US"
       };
 
       final updateResp = await _apiClient.updateUserProfilePartial(payload);
@@ -742,53 +764,79 @@ class _HomePageState extends State<HomePage> {
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
                           // Active Tasks
+                          // ---------------------------------------------------------------
+                          //  Inside the SliverList delegate (replace the old sections)
+                          // ---------------------------------------------------------------
+
+                          // === Active Tasks ===
                           _buildSectionHeader(
                             'Active Tasks',
                             LucideIcons.zap,
                             () => context.push('/tasks'),
                           ),
                           const SizedBox(height: 12),
-                          if (isLoadingTasks)
-                            const Center(child: CircularProgressIndicator())
-                          else if (tasks.isEmpty)
+
+                          if (isLoadingTasks) ...[
+                            // Show 3 skeletons while loading
+                            const SkeletonItem(),
+                            const SizedBox(height: 12),
+                            const SkeletonItem(),
+                            const SizedBox(height: 12),
+                            const SkeletonItem(),
+                          ] else if (tasks.isEmpty)
                             _buildEmptyState('No active tasks')
                           else
                             ...tasks
                                 .take(3)
                                 .map((task) => _buildTaskCard(task)),
+
                           const SizedBox(height: 24),
 
-                          // Reminders
+                          // === Reminders ===
                           _buildSectionHeader(
                             'Reminders',
                             LucideIcons.calendar,
                             () => context.push('/reminders'),
                           ),
                           const SizedBox(height: 12),
-                          if (isLoadingReminders)
-                            const Center(child: CircularProgressIndicator())
-                          else if (reminders.isEmpty)
+
+                          if (isLoadingReminders) ...[
+                            const SkeletonItem(),
+                            const SizedBox(height: 12),
+                            const SkeletonItem(),
+                            const SizedBox(height: 12),
+                            const SkeletonItem(),
+                          ] else if (reminders.isEmpty)
                             _buildEmptyState('No reminders')
                           else
                             ...reminders.map((r) => _buildReminderCard(r)),
+
                           const SizedBox(height: 24),
 
-                          // To-Do
+                          // === To‑Do ===
                           _buildSectionHeader(
                             'To-Do',
                             LucideIcons.clipboardList,
                             () => context.push('/todos'),
                           ),
                           const SizedBox(height: 12),
-                          if (isLoadingTodos)
-                            const Center(child: CircularProgressIndicator())
-                          else if (todos.isEmpty)
+
+                          if (isLoadingTodos) ...[
+                            const SkeletonItem(),
+                            const SizedBox(height: 12),
+                            const SkeletonItem(),
+                            const SizedBox(height: 12),
+                            const SkeletonItem(),
+                          ] else if (todos.isEmpty)
                             _buildEmptyState('No to-dos')
                           else
                             ...todos
                                 .take(3)
                                 .map((todo) => _buildToDoCard(todo)),
-                          const SizedBox(height: 100), // Bottom padding
+
+                          const SizedBox(
+                            height: 100,
+                          ), // Bottom padding // Bottom padding
                         ]),
                       ),
                     ),
@@ -950,16 +998,6 @@ class _HomePageState extends State<HomePage> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
-
-            // Subtitle/description
-            Text(
-              'UX and Research Discussion',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.white.withOpacity(0.6),
-              ),
-            ),
             const SizedBox(height: 12),
 
             // Footer with timestamp and arrow
@@ -1030,7 +1068,7 @@ class _HomePageState extends State<HomePage> {
 
             // Description
             Text(
-              todo['description'] ?? 'UX and Research Discussion',
+              todo['description'],
               style: TextStyle(
                 fontSize: 13,
                 color: Colors.white.withOpacity(0.6),

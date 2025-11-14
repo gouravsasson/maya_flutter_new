@@ -1,3 +1,4 @@
+import 'package:Maya/features/widgets/skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
@@ -88,15 +89,19 @@ class _TasksPageState extends State<TasksPage> {
 
   String? _mapFilterToStatus(String filter) {
     switch (filter) {
-      case 'complete':
-        return 'complete';
+      case 'succeeded':
+        return 'succeeded';
       case 'failed':
         return 'failed';
       case 'pending':
-        return 'pending'; // or 'approval_pending' if backend uses that
+        return 'pending';
+      case 'approval-pending':
+        return 'approval-pending';
+      case 'scheduled':
+        return 'scheduled';
       case 'all':
       default:
-        return null;
+        return null; // backend returns everything
     }
   }
 
@@ -168,9 +173,14 @@ class _TasksPageState extends State<TasksPage> {
 
   String _getFilterStatus(String status) {
     final lower = status.toLowerCase();
-    if (lower == 'complete') return 'complete';
+
+    if (lower == 'succeeded') return 'succeeded';
     if (lower == 'failed') return 'failed';
-    return 'pending'; // includes approval_pending, etc.
+    if (lower == 'pending') return 'pending';
+    if (lower == 'approval-pending') return 'approval-pending';
+    if (lower == 'scheduled') return 'scheduled';
+
+    return 'pending'; // fallback
   }
 
   @override
@@ -241,13 +251,20 @@ class _TasksPageState extends State<TasksPage> {
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        _buildFilterChip('all', 'All Tasks'),
+                        _buildFilterChip('all', 'All'),
                         const SizedBox(width: 8),
-                        _buildFilterChip('complete', 'Completed'),
+                        _buildFilterChip('succeeded', 'Completed'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('failed', 'Failed'),
                         const SizedBox(width: 8),
                         _buildFilterChip('pending', 'Pending'),
                         const SizedBox(width: 8),
-                        _buildFilterChip('failed', 'Failed'),
+                        _buildFilterChip(
+                          'approval-pending',
+                          'Approval Pending',
+                        ),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('scheduled', 'Scheduled'),
                       ],
                     ),
                   ),
@@ -258,8 +275,12 @@ class _TasksPageState extends State<TasksPage> {
                 // Tasks list
                 Expanded(
                   child: isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(color: Colors.white),
+                      ? ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                          itemCount: 5,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) => const SkeletonItem(),
                         )
                       : errorMessage != null
                       ? Center(
@@ -338,7 +359,7 @@ class _TasksPageState extends State<TasksPage> {
             hasMore = true;
             tasks.clear(); // clear old tasks
           });
-          fetchTasks(); 
+          fetchTasks();
         }
       },
       child: Container(
@@ -460,16 +481,7 @@ class _TasksPageState extends State<TasksPage> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
 
-            // Subtitle
-            Text(
-              'UX and Research Discussion',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.white.withOpacity(0.6),
-              ),
-            ),
             const SizedBox(height: 12),
 
             // Footer with timestamp and priority badge
