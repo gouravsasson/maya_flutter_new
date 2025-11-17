@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:Maya/features/widgets/skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -94,6 +95,9 @@ class _HomePageState extends State<HomePage> {
   String? _locationStatus;
   String? _userFirstName;
   String? _userLastName;
+  StreamSubscription<Position>? _locationSubscription;
+  Position? _lastSentPosition;
+  bool _isSendingLocation = false;
 
   // -----------------------------------------------------------------------
   // initState – wiring only
@@ -101,69 +105,88 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _initPreferences();
     final publicDio = Dio();
     final protectedDio = Dio();
     _apiClient = ApiClient(publicDio, protectedDio);
-    final countryCode = getCountryCode();
-    print(countryCode);
     _setupNotifications();
-    // Defer profile/location/contacts sync to after first build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _syncUserProfile();
-      _initializeAndSyncContacts();
-    });
+    _syncUserProfile();
+    _initializeAndSyncContacts();
+    fetchReminders();
     fetchToDos();
     fetchTasks();
-    fetchReminders();
+    _startLiveLocationTracking();
   }
 
-  String getCountryCode() {
-    try {
-      // This works on ALL platforms: iOS Simulator, Android, Web, etc.
-      final locale = WidgetsBinding.instance.platformDispatcher.locale;
-      final countryCode = locale.countryCode;
+  @override
+  void dispose() {
+    _locationSubscription?.cancel();
+    super.dispose();
+  }
 
-      if (countryCode != null && countryCode.isNotEmpty) {
-        return countryCode; // e.g., "US", "IN", "GB"
-      }
-    } catch (e) {
-      debugPrint('WidgetsBinding locale failed: $e');
+  void _startLiveLocationTracking() async {
+    // Ensure permissions first
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return; // You already handle dialogs elsewhere
     }
 
-    return 'Unknown';
-  }
+    _locationSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 5, // meters — triggers on slight movement
+          ),
+        ).listen((Position newPos) async {
+          // If it's the first reading
+          if (_lastSentPosition == null) {
+            _lastSentPosition = newPos;
+            await _sendLocationUpdate(newPos);
+            return;
+          }
 
-  Future<void> _initPreferences() async {
-    _prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _locationPermissionAsked =
-          _prefs.getBool('location_permission_asked') ?? false;
-      _contactsPermissionAsked =
-          _prefs.getBool('contacts_permission_asked') ?? false;
-    });
-  }
+          // Check if changed even slightly (>= 5 meters)
+          final distance = Geolocator.distanceBetween(
+            _lastSentPosition!.latitude,
+            _lastSentPosition!.longitude,
+            newPos.latitude,
+            newPos.longitude,
+          );
 
-  Future<void> fetchReminders() async {
-    setState(() => isLoadingReminders = true);
-    try {
-      final response = await _apiClient.getReminders(); // no params → latest
-      if (response['success'] == true) {
-        final List<dynamic> data = response['data']['data'] as List<dynamic>;
-        setState(() {
-          reminders = data
-              .cast<Map<String, dynamic>>()
-              .take(3) // only top 3
-              .toList();
+          if (distance >= 5) {
+            _lastSentPosition = newPos;
+            await _sendLocationUpdate(newPos);
+          }
         });
-      } else {
-        _showSnack('Failed to load reminders');
-      }
+  }
+
+  Future<void> _sendLocationUpdate(Position pos) async {
+    if (_isSendingLocation) return;
+    _isSendingLocation = true;
+
+    try {
+      final timezoneInfo = await FlutterTimezone.getLocalTimezone();
+      final country = _getUserCountry();
+
+      final payload = {
+        "latitude": pos.latitude,
+        "longitude": pos.longitude,
+        "timezone": timezoneInfo.identifier,
+        "country": country,
+      };
+
+      await _apiClient.updateUserProfile(
+        // dynamic fields:
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+        timezone: timezoneInfo.identifier,
+        country: country,
+      );
+      debugPrint("📍 Live location updated: $payload");
     } catch (e) {
-      debugPrint('fetchReminders error: $e');
-      _showSnack('Failed to load reminders');
+      debugPrint("Live location update error: $e");
     } finally {
-      setState(() => isLoadingReminders = false);
+      _isSendingLocation = false;
     }
   }
 
@@ -176,9 +199,13 @@ class _HomePageState extends State<HomePage> {
     _notification.firebaseInit(context);
     _notification.setupInteractMessage(context);
     _notification.isTokenRefresh();
-
     final token = await _notification.getDeviceToken();
     setState(() => _fcmToken = token);
+  }
+
+  String _getUserCountry() {
+    final locale = PlatformDispatcher.instance.locale;
+    return locale.countryCode ?? 'Unknown';
   }
 
   // -----------------------------------------------------------------------
@@ -195,6 +222,8 @@ class _HomePageState extends State<HomePage> {
       final userData = userResp['data'] as Map<String, dynamic>;
       final String firstName = userData['first_name']?.toString() ?? '';
       final String lastName = userData['last_name']?.toString() ?? '';
+      final String phoneNumber = userData['phone_number']?.toString() ?? '';
+      final userCountry = _getUserCountry();
 
       setState(() {
         _userFirstName = firstName;
@@ -204,7 +233,7 @@ class _HomePageState extends State<HomePage> {
       // Wait for FCM + Location/Timezone
       final results = await Future.wait([
         _waitForFcmToken(),
-        _obtainLocationAndTimezone(), // ← returns (Position, String)
+        _obtainLocationAndTimezone(),
       ]);
 
       final String? token = results[0] as String?;
@@ -213,20 +242,21 @@ class _HomePageState extends State<HomePage> {
 
       if (token == null) return;
 
-      // Get country directly from locale
-      final String countryCode = getCountryCode();
-      final String country = countryCode == 'Unknown' ? 'Unknown' : countryCode;
-      print(countryCode);
-
+      // ✅ Only send dynamic fields that can change frequently
       final Map<String, dynamic> payload = {
-        "fcm_token": token,
+        "fcm_token": token ?? '',
         "latitude": position.latitude,
         "longitude": position.longitude,
         "timezone": timezone,
-        "country": country, // e.g., "IN", "US"
+        "country": userCountry,
       };
-
-      final updateResp = await _apiClient.updateUserProfilePartial(payload);
+      final updateResp = await _apiClient.updateUserProfile(
+        fcmToken: token ?? '',
+        latitude: position.latitude,
+        longitude: position.longitude,
+        timezone: timezone,
+        country: userCountry,
+      );
 
       if (updateResp['statusCode'] == 200) {
         _showSnack('Profile synced successfully');
@@ -473,6 +503,30 @@ class _HomePageState extends State<HomePage> {
   // -----------------------------------------------------------------------
   // Data fetchers
   // -----------------------------------------------------------------------
+
+  Future<void> fetchReminders() async {
+    setState(() => isLoadingReminders = true);
+    try {
+      final response = await _apiClient.getReminders(); // no params → latest
+      if (response['success'] == true) {
+        final List<dynamic> data = response['data']['data'] as List<dynamic>;
+        setState(() {
+          reminders = data
+              .cast<Map<String, dynamic>>()
+              .take(3) // only top 3
+              .toList();
+        });
+      } else {
+        _showSnack('Failed to load reminders');
+      }
+    } catch (e) {
+      debugPrint('fetchReminders error: $e');
+      _showSnack('Failed to load reminders');
+    } finally {
+      setState(() => isLoadingReminders = false);
+    }
+  }
+
   Future<void> fetchToDos() async {
     setState(() => isLoadingTodos = true);
     try {

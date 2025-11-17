@@ -9,99 +9,34 @@ class RemindersPage extends StatefulWidget {
   const RemindersPage({super.key});
 
   @override
-  _RemindersPageState createState() => _RemindersPageState();
+  State<RemindersPage> createState() => _RemindersPageState();
 }
 
 class _RemindersPageState extends State<RemindersPage> {
   List<Map<String, dynamic>> reminders = [];
   bool isLoading = false;
   final ScrollController _scrollController = ScrollController();
+  DateTime selectedDate = DateTime.now();
 
-  // Selected date (updated on swipe/tap)
-  late DateTime selectedDate;
-
-  // PageView for swiping between days
-  late final PageController _pageController;
-  static const int _daysAroundToday = 500; // ±500 days (~3 years)
-  int _currentPageIndex = _daysAroundToday; // today = middle page
-
+  // 24 hours = 2400px → 1 hour = 100px → 1 minute = 100/60 = 1.6667px
+// NEW — TALLER & MORE SPACIOUS (recommended)
+static const double pixelsPerHour = 160.0;        // was 100 → now 60% taller
+static const double pixelsPerMinute = pixelsPerHour / 60.0; // auto = 2.666px per minute
+static const double cardHeight = 64.0;            // was 48 → now 33% taller
+static const double fullDayHeight = 24 * pixelsPerHour; // auto = 3840px (taller day)
   @override
   void initState() {
     super.initState();
-    selectedDate = DateTime.now();
-    _pageController = PageController(initialPage: _currentPageIndex)
-      ..addListener(_pageControllerListener);
     _fetchRemindersForDate();
   }
 
   @override
   void dispose() {
-    _pageController
-      ..removeListener(_pageControllerListener)
-      ..dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  // -----------------------------------------------------------------
-  // PageController listener – detects settled page
-  // -----------------------------------------------------------------
-  void _pageControllerListener() {
-    if (!_pageController.hasClients || !_pageController.position.haveDimensions) return;
-
-    final page = _pageController.page!;
-    final rounded = page.round();
-
-    if (rounded != _currentPageIndex) {
-      final newDate = _dateFromPage(rounded);
-      if (!newDate.isSameDate(selectedDate)) {
-        setState(() {
-          _currentPageIndex = rounded;
-          selectedDate = newDate;
-        });
-        _fetchRemindersForDate();
-      }
-    }
-  }
-
-  // -----------------------------------------------------------------
-  // Date ↔ Page helpers
-  // -----------------------------------------------------------------
-  DateTime _dateFromPage(int page) {
-    final daysDiff = page - _daysAroundToday;
-    return DateTime.now().add(Duration(days: daysDiff));
-  }
-
-  int _pageFromDate(DateTime date) {
-    final diff = date.difference(DateTime.now()).inDays;
-    return _daysAroundToday + diff;
-  }
-
-  // -----------------------------------------------------------------
-  // Navigation: Previous / Next Day (for chevrons)
-  // -----------------------------------------------------------------
-  void _previousDay() => _moveToPage(_currentPageIndex - 1);
-  void _nextDay() => _moveToPage(_currentPageIndex + 1);
-
-  void _moveToPage(int target) {
-    _pageController.animateToPage(
-      target,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-  }
-
-  // -----------------------------------------------------------------
-  // Week Navigation
-  // -----------------------------------------------------------------
-  DateTime _getWeekStart(DateTime date) =>
-      date.subtract(Duration(days: date.weekday % 7));
-
-  // -----------------------------------------------------------------
-  // Fetch reminders for selectedDate only
-  // -----------------------------------------------------------------
   Future<void> _fetchRemindersForDate() async {
-    if (isLoading) return;
     setState(() => isLoading = true);
     try {
       final response = await GetIt.I<ApiClient>().getReminders(
@@ -110,15 +45,12 @@ class _RemindersPageState extends State<RemindersPage> {
       );
 
       if (response['success'] == true) {
-        final dataMap = response['data'] as Map<String, dynamic>?;
-        final List<dynamic> raw = dataMap?['data'] as List<dynamic>? ?? [];
-        final List<Map<String, dynamic>> fetched = raw.cast<Map<String, dynamic>>();
+        final raw = (response['data'] as Map<String, dynamic>?)?['data'] as List<dynamic>? ?? [];
+        final fetched = raw.cast<Map<String, dynamic>>();
 
-        // Sort by reminder_time (UTC → local)
         fetched.sort((a, b) {
-          final ta = DateTime.parse(a['reminder_time'] as String).toLocal();
-          final tb = DateTime.parse(b['reminder_time'] as String).toLocal();
-          return ta.compareTo(tb);
+          return DateTime.parse(a['reminder_time'])
+              .compareTo(DateTime.parse(b['reminder_time']));
         });
 
         setState(() => reminders = fetched);
@@ -130,310 +62,211 @@ class _RemindersPageState extends State<RemindersPage> {
     }
   }
 
-  // -----------------------------------------------------------------
-  // Timeline Helpers
-  // -----------------------------------------------------------------
-  List<String> _generateTimeSlots() =>
-      List.generate(24, (h) => '${h.toString().padLeft(2, '0')}:00');
+  DateTime _getWeekStart(DateTime d) => d.subtract(Duration(days: d.weekday % 7));
 
-  // -----------------------------------------------------------------
-  // Build Timeline for a Single Day (used by PageView)
-  // -----------------------------------------------------------------
-  Widget _buildDayTimeline(DateTime day) {
-    final weekStart = _getWeekStart(day);
-    final weekDays = List.generate(7, (i) => weekStart.add(Duration(days: i)));
-    final dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  void _previousWeek() {
+    setState(() => selectedDate = selectedDate.subtract(const Duration(days: 7)));
+    _fetchRemindersForDate();
+  }
 
-    final headerText = day.isToday
-        ? "Today's reminders"
-        : "${DateFormat('MMM dd').format(day)} reminders";
+  void _nextWeek() {
+    setState(() => selectedDate = selectedDate.add(const Duration(days: 7)));
+    _fetchRemindersForDate();
+  }
 
-    final timeSlots = _generateTimeSlots();
-    const double timelineHeight = 24 * 100;
+  // PERFECT MINUTE-LEVEL MAPPING + AUTO SIDE-BY-SIDE
+  List<Widget> _buildReminderCards() {
+    final double timelineLeft = 63.0; // 60px labels + 3px blue line
+    final double availableWidth = MediaQuery.of(context).size.width - timelineLeft - 20;
 
-    return Column(
-      children: [
-        // Title + Date
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Text(
-                headerText,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+    // Group reminders by exact minute
+    final Map<int, List<_ReminderBlock>> groups = {};
+
+    for (var r in reminders) {
+      final dt = DateTime.parse(r['reminder_time']).toLocal();
+      final totalMinutes = dt.hour * 60 + dt.minute;
+      final block = _ReminderBlock(
+        reminder: r,
+        totalMinutes: totalMinutes,
+        isPast: dt.isBefore(DateTime.now()),
+        timeText: DateFormat('h:mm a').format(dt),
+      );
+      groups.putIfAbsent(totalMinutes, () => []).add(block);
+    }
+
+    final List<Widget> cards = [];
+
+    groups.forEach((minute, list) {
+      final double exactTop = minute * pixelsPerMinute;
+      final double centeredTop = exactTop - (cardHeight / 2);
+
+      final int count = list.length;
+      final double cardWidth = (availableWidth / count) - 12;
+
+      for (int i = 0; i < list.length; i++) {
+        final block = list[i];
+        final double left = timelineLeft + 10 + (i * (cardWidth + 12));
+
+        cards.add(
+          Positioned(
+            top: centeredTop,
+            left: left,
+            height: cardHeight,
+            width: cardWidth,
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(24),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(24),
+                onTap: () => _showReminderDetail(block.reminder),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: block.isPast
+                          ? [const Color(0xFF2D4A6F), const Color(0xFF1e3a5f)]
+                          : [const Color(0xFF3B82F6), const Color(0xFF2563EB)],
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white.withOpacity(0.25)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(LucideIcons.bell, size: 18, color: Colors.amber),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          block.reminder['title'] ?? 'Reminder',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        block.timeText,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const Spacer(),
+            ),
+          ),
+        );
+      }
+    });
+
+    return cards;
+  }
+
+  void _showReminderDetail(Map<String, dynamic> reminder) {
+    final dt = DateTime.parse(reminder['reminder_time']).toLocal();
+    final isPast = dt.isBefore(DateTime.now());
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        builder: (_, controller) => Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1A2333),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: ListView(
+            controller: controller,
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Icon(LucideIcons.bell, color: Colors.amber, size: 32),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      reminder['title'] ?? 'Reminder',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                reminder['description'] ?? 'No description provided.',
+                style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8), height: 1.5),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2D4A6F).withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(LucideIcons.calendar, color: Colors.white70, size: 20),
+                    const SizedBox(width: 12),
+                    Text(
+                      DateFormat('EEEE, MMMM d, yyyy • h:mm a').format(dt),
+                      style: const TextStyle(color: Colors.white, fontSize: 15),
+                    ),
+                  ],
+                ),
+              ),
+              if (isPast)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Text(
+                    "This reminder has passed",
+                    style: TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
+                  ),
+                ),
+              const SizedBox(height: 40),
             ],
           ),
         ),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              DateFormat('EEEE, dd MMM yyyy').format(day),
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white.withOpacity(0.7),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Week Picker
-        Row(
-          children: [
-            IconButton(
-              onPressed: _previousDay,
-              icon: const Icon(Icons.chevron_left, color: Colors.white),
-            ),
-            Expanded(
-              child: SizedBox(
-                height: 60,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: 7,
-                  itemBuilder: (context, i) {
-                    final dayInWeek = weekDays[i];
-                    final isCurrent = dayInWeek.isSameDate(selectedDate);
-                    return GestureDetector(
-                      onTap: () {
-                        if (!isCurrent) {
-                          final targetPage = _pageFromDate(dayInWeek);
-                          _moveToPage(targetPage); // Animated navigation
-                        }
-                      },
-                      child: Container(
-                        width: 40,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        decoration: BoxDecoration(
-                          color: isCurrent
-                              ? const Color(0xFF2A57E8).withOpacity(0.1)
-                              : null,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              dayNames[i],
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white.withOpacity(0.7),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${dayInWeek.day}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                                color: isCurrent
-                                    ? const Color(0xFF2A57E8)
-                                    : Colors.white.withOpacity(0.7),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            IconButton(
-              onPressed: _nextDay,
-              icon: const Icon(Icons.chevron_right, color: Colors.white),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-
-        // Timeline
-        Expanded(
-          child: isLoading
-              ? const Center(child: CircularProgressIndicator(color: Colors.white))
-              : reminders.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No reminders for this day',
-                        style: TextStyle(fontSize: 16, color: Colors.white70),
-                      ),
-                    )
-                  : SingleChildScrollView(
-                      controller: _scrollController,
-                      physics: const BouncingScrollPhysics(),
-                      child: SizedBox(
-                        height: timelineHeight,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Time Labels
-                            SizedBox(
-                              width: 60,
-                              child: Column(
-                                children: timeSlots.map((slot) {
-                                  final hour = int.parse(slot.split(':')[0]);
-                                  final period = hour < 12 ? 'AM' : 'PM';
-                                  final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-                                  return Container(
-                                    height: 100,
-                                    alignment: Alignment.topRight,
-                                    padding: const EdgeInsets.only(right: 8, top: 4),
-                                    child: Text(
-                                      '${displayHour.toString().padLeft(2, '0')}:00\n$period',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.white.withOpacity(0.6),
-                                        height: 1.2,
-                                      ),
-                                      textAlign: TextAlign.right,
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-
-                            // Vertical Line
-                            Container(
-                              width: 3,
-                              height: timelineHeight,
-                              color: const Color(0xFF2A57E8),
-                            ),
-
-                            // Reminder Cards
-                            Expanded(
-                              child: Stack(
-                                children: reminders.map((reminder) {
-                                  final reminderTime = DateTime.parse(reminder['reminder_time'] as String).toLocal();
-                                  final hour = reminderTime.hour;
-                                  final minute = reminderTime.minute;
-                                  final topPosition = (hour * 100.0) + (minute / 60.0 * 100.0);
-
-                                  final isPast = reminderTime.isBefore(DateTime.now());
-                                  final timeText = DateFormat('h:mm a').format(reminderTime);
-                                  final dateLabel = reminderTime.isToday
-                                      ? 'Today'
-                                      : reminderTime.isTomorrow
-                                          ? 'Tomorrow'
-                                          : DateFormat('MMM d').format(reminderTime);
-                                  final fullDateTime = '$dateLabel, $timeText';
-
-                                  return Positioned(
-                                    top: topPosition,
-                                    left: 0,
-                                    right: 0,
-                                    child: Container(
-                                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: isPast
-                                            ? const Color(0xFF2D4A6F).withOpacity(0.4)
-                                            : const Color(0xFF2D4A6F).withOpacity(0.6),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: isPast
-                                              ? Colors.white.withOpacity(0.05)
-                                              : Colors.white.withOpacity(0.1),
-                                        ),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          // Title + Bell
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  reminder['title'] ?? 'Reminder',
-                                                  style: TextStyle(
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: isPast
-                                                        ? Colors.white.withOpacity(0.6)
-                                                        : Colors.white,
-                                                  ),
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                              Container(
-                                                width: 22,
-                                                height: 22,
-                                                decoration: BoxDecoration(
-                                                  color: isPast
-                                                      ? Colors.grey.withOpacity(0.2)
-                                                      : const Color(0xFFF59E0B).withOpacity(0.2),
-                                                  borderRadius: BorderRadius.circular(4),
-                                                ),
-                                                child: Icon(
-                                                  LucideIcons.bell,
-                                                  size: 14,
-                                                  color: isPast ? Colors.grey : const Color(0xFFF59E0B),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 6),
-
-                                          // Description
-                                          Text(
-                                            reminder['description'] ?? 'No description',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: Colors.white.withOpacity(isPast ? 0.4 : 0.6),
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 12),
-
-                                          // Time
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                LucideIcons.clock,
-                                                size: 14,
-                                                color: Colors.white.withOpacity(isPast ? 0.3 : 0.5),
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                fullDateTime,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.white.withOpacity(isPast ? 0.3 : 0.5),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-        ),
-      ],
+      ),
     );
   }
 
-  // -----------------------------------------------------------------
-  // Main UI
-  // -----------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
+    final weekStart = _getWeekStart(selectedDate);
+    final weekDays = List.generate(7, (i) => weekStart.add(Duration(days: i)));
+    final dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final headerText = selectedDate.isToday ? "Today's reminders" : DateFormat('MMM dd').format(selectedDate);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -449,48 +282,146 @@ class _RemindersPageState extends State<RemindersPage> {
             ),
           ),
           SafeArea(
-            child: Column(
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                : Column(
                     children: [
-                      GestureDetector(
-                        onTap: () => context.pop(),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF111827).withOpacity(0.8),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white.withOpacity(0.1)),
-                          ),
-                          child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                      // Header
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            GestureDetector(
+                              onTap: () => context.push('/other'),
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF111827).withOpacity(0.8),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                                ),
+                                child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Text('Reminders', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                            const Spacer(),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Reminders',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(headerText, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                       ),
-                      const Spacer(),
+                      const SizedBox(height: 20),
+
+                      // Week Picker
+                      Row(
+                        children: [
+                          IconButton(onPressed: _previousWeek, icon: const Icon(Icons.chevron_left, color: Colors.white)),
+                          Expanded(
+                            child: SizedBox(
+                              height: 60,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: 7,
+                                itemBuilder: (_, i) {
+                                  final day = weekDays[i];
+                                  final isCurrent = day.year == selectedDate.year && day.month == selectedDate.month && day.day == selectedDate.day;
+                                  return GestureDetector(
+                                    onTap: () {
+                                      if (!isCurrent) {
+                                        setState(() => selectedDate = day);
+                                        _fetchRemindersForDate();
+                                      }
+                                    },
+                                    child: Container(
+                                      width: 46,
+                                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: isCurrent ? const Color(0xFF2A57E8).withOpacity(0.2) : null,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Text(dayNames[i], style: TextStyle(fontSize: 11, color: Colors.white70)),
+                                          const SizedBox(height: 4),
+                                          Text('${day.day}',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                                                color: isCurrent ? const Color(0xFF2A57E8) : Colors.white,
+                                              )),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          IconButton(onPressed: _nextWeek, icon: const Icon(Icons.chevron_right, color: Colors.white)),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Timeline — Perfect 1440-minute mapping
+                      Expanded(
+                        child: reminders.isEmpty
+                            ? const Center(child: Text('No reminders today', style: TextStyle(color: Colors.white70, fontSize: 16)))
+                            : SingleChildScrollView(
+                                controller: _scrollController,
+                                physics: const BouncingScrollPhysics(),
+                                child: SizedBox(
+                                  height: fullDayHeight,
+                                  child: Stack(
+                                    children: [
+                                      // Hour labels
+                                      ...List.generate(25, (h) {
+                                        final top = h * pixelsPerHour;
+                                        final label = h == 0
+                                            ? '12 AM'
+                                            : (h == 12
+                                                ? '12 PM'
+                                                : (h > 12 ? '${h - 12} PM' : '$h AM'));
+                                        return Positioned(
+                                          top: top,
+                                          left: 0,
+                                          child: SizedBox(
+                                            width: 60,
+                                            height: pixelsPerHour,
+                                            child: Align(
+                                              alignment: Alignment.topRight,
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(right: 8, top: 4),
+                                                child: Text(label, style: const TextStyle(fontSize: 11, color: Colors.white60)),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }),
+
+                                      // Blue timeline
+                                      Positioned(left: 60, top: 0, bottom: 0, child: Container(width: 3, color: const Color(0xFF2A57E8))),
+
+                                      // Subtle hour lines
+                                      ...List.generate(24, (h) => Positioned(
+                                            top: h * pixelsPerHour,
+                                            left: 63,
+                                            right: 0,
+                                            child: Container(height: 0.5, color: Colors.white.withOpacity(0.1)),
+                                          )),
+
+                                      // ONE-LINE CARDS — PERFECTLY MAPPED
+                                      ..._buildReminderCards(),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                      ),
                     ],
                   ),
-                ),
-
-                // Swipeable Timeline (PageView)
-                Expanded(
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: _daysAroundToday * 2 + 1,
-                    itemBuilder: (context, index) {
-                      final day = _dateFromPage(index);
-                      return _buildDayTimeline(day);
-                    },
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -498,20 +429,23 @@ class _RemindersPageState extends State<RemindersPage> {
   }
 }
 
-// -----------------------------------------------------------------
-// Extensions
-// -----------------------------------------------------------------
+class _ReminderBlock {
+  final Map<String, dynamic> reminder;
+  final int totalMinutes;
+  final bool isPast;
+  final String timeText;
+
+  _ReminderBlock({
+    required this.reminder,
+    required this.totalMinutes,
+    required this.isPast,
+    required this.timeText,
+  });
+}
+
 extension DateTimeExtension on DateTime {
   bool get isToday {
     final now = DateTime.now();
     return year == now.year && month == now.month && day == now.day;
   }
-
-  bool get isTomorrow {
-    final tomorrow = DateTime.now().add(const Duration(days: 1));
-    return year == tomorrow.year && month == tomorrow.month && day == tomorrow.day;
-  }
-
-  bool isSameDate(DateTime other) =>
-      year == other.year && month == other.month && day == other.day;
 }
