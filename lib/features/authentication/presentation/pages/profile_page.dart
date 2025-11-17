@@ -1,10 +1,17 @@
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:Maya/core/network/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';
+import 'package:get_it/get_it.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -17,25 +24,164 @@ class _ProfilePageState extends State<ProfilePage> {
   final firstNameController = TextEditingController();
   final lastNameController = TextEditingController();
   final phoneController = TextEditingController();
-
+  bool _isUploadingAvatar = false;
+  String? _avatarUrl;
+  File? _fileToUpload;
   Map<String, dynamic>? userData;
+  Future<Map<String, dynamic>>? _userFuture;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _userFuture = getIt<ApiClient>().getCurrentUser().then((res) {
+      if (res['statusCode'] == 200) {
+        userData = res['data']['data'];
+        firstNameController.text = userData?['first_name'] ?? '';
+        lastNameController.text = userData?['last_name'] ?? '';
+        phoneController.text = userData?['phone_number'] ?? '';
+        _avatarUrl = userData?['avatar'];
+      }
+      return res;
+    });
+  }
+
+  Future<void> _pickAndUploadAvatar() async {
+    Permission permission;
+
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      if (androidInfo.version.sdkInt >= 33) {
+        permission = Permission.photos;
+      } else {
+        permission = Permission.storage;
+      }
+    } else {
+      permission = Permission.photos; // iOS uses .photos
+    }
+
+    final status = await permission.request();
+
+    if (status.isGranted) {
+      _proceedWithImagePicker();
+    } else if (status.isDenied) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Please allow photo access to change your picture.',
+          ),
+          action: SnackBarAction(
+            label: 'Open Settings',
+            onPressed: () => openAppSettings(),
+          ),
+        ),
+      );
+    } else if (status.isPermanentlyDenied) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Photo access is blocked. Please enable it in Settings.',
+          ),
+          action: SnackBarAction(
+            label: 'Open Settings',
+            onPressed: () => openAppSettings(),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _proceedWithImagePicker() async {
+    final picker = ImagePicker();
+    final XFile? pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (pickedFile == null) return;
+
+    final CroppedFile? croppedFile = await ImageCropper().cropImage(
+      sourcePath: pickedFile.path,
+      compressFormat: ImageCompressFormat.jpg,
+      compressQuality: 90,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Avatar',
+          toolbarColor: const Color(0xFF2A57E8),
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+        ),
+        IOSUiSettings(title: 'Crop Avatar'),
+      ],
+    );
+
+    if (croppedFile == null) return;
+
+    // === SAFE FILE COPY ===
+    File validFile;
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final tempPath = '${tempDir.path}/$fileName';
+
+      final bytes = await File(croppedFile.path).readAsBytes();
+      validFile = await File(tempPath).writeAsBytes(bytes);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Image processing failed: $e')));
+      return;
+    }
+
+    if (!await validFile.exists()) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to save image')));
+      return;
+    }
+
+    setState(() {
+      _fileToUpload = validFile;
+      _isUploadingAvatar = true;
+    });
+
+    try {
+      final result = await getIt<ApiClient>().uploadUserAvatar(validFile);
+
+      if (result['statusCode'] == 200) {
+        final String? newUrl = result['data']?['avatar'] as String?;
+        setState(() {
+          _avatarUrl = newUrl;
+          _fileToUpload = null;
+          _isUploadingAvatar = false;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Avatar updated!')));
+      } else {
+        throw Exception(result['data']?['message'] ?? 'Upload failed');
+      }
+    } catch (e) {
+      setState(() {
+        _fileToUpload = null;
+        _isUploadingAvatar = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Upload error: $e')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, dynamic>>(
-      future: getIt<ApiClient>().getCurrentUser(),
+      future: _userFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return _loadingView();
         }
 
-        if (snapshot.hasData && snapshot.data?['statusCode'] == 200) {
-          userData = snapshot.data!['data']['data'];
-
-          firstNameController.text = userData?['first_name'] ?? '';
-          lastNameController.text = userData?['last_name'] ?? '';
-          phoneController.text = userData?['phone_number'] ?? '';
-        }
+       
 
         return Scaffold(
           backgroundColor: Colors.transparent,
@@ -215,37 +361,86 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildProfileHeader() {
-    final name = firstNameController.text.isNotEmpty
-        ? firstNameController.text
-        : 'User';
+    final name = firstNameController.text.isEmpty
+        ? 'User'
+        : firstNameController.text;
     final email = userData?['email'] ?? '';
     final avatarLetter = name.substring(0, 1).toUpperCase();
 
     return Row(
       children: [
-        // Gradient Avatar
-        Container(
-          width: 80,
-          height: 80,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF2A57E8), Color(0xFF1D4ED8)],
-            ),
-          ),
-          child: Center(
-            child: Text(
-              avatarLetter,
-              style: const TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+        // ------------------- AVATAR -------------------
+        GestureDetector(
+          onTap: _isUploadingAvatar ? null : _pickAndUploadAvatar,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Gradient fallback circle
+              Container(
+                width: 80,
+                height: 80,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF2A57E8), Color(0xFF1D4ED8)],
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    avatarLetter,
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
-            ),
+
+              // ──────── IMAGE LAYER ────────
+              // 1. Local preview while uploading
+              if (_isUploadingAvatar && _fileToUpload != null)
+                ClipOval(
+                  child: Image.file(
+                    _fileToUpload!,
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                  ),
+                )
+              // 2. Remote image (already uploaded)
+              else if (_avatarUrl != null)
+                ClipOval(
+                  child: Image.network(
+                    _avatarUrl!,
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (_, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      );
+                    },
+                    errorBuilder: (_, __, ___) => const SizedBox(),
+                  ),
+                ),
+
+              // Upload overlay
+              if (_isUploadingAvatar)
+                const Positioned.fill(
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                ),
+            ],
           ),
         ),
+
+        // ------------------- END AVATAR -------------------
         const SizedBox(width: 16),
 
         Expanded(
@@ -272,20 +467,26 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
 
+        // Change picture button
         TextButton(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Change picture functionality')),
-            );
-          },
-          child: const Text(
-            'Change Picture',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          onPressed: _isUploadingAvatar ? null : _pickAndUploadAvatar,
+          child: _isUploadingAvatar
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text(
+                  'Change Picture',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
         ),
       ],
     );

@@ -1,19 +1,34 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 import 'package:Maya/core/services/storage_service.dart';
 import 'package:intl/intl.dart';
 import '../constants/app_constants.dart';
+import 'package:http_parser/http_parser.dart';
 
 final getIt = GetIt.instance;
 
 class ApiClient {
   late final Dio _publicDio;
   late final Dio _protectedDio;
+  late final Dio _multipartDio;
 
   ApiClient(Dio publicDio, Dio protectedDio) {
     _publicDio = publicDio;
     _protectedDio = protectedDio;
 
+    _multipartDio = Dio(
+      BaseOptions(
+        baseUrl: AppConstants.protectedUrl,
+        connectTimeout: Duration(milliseconds: AppConstants.connectionTimeout),
+        receiveTimeout: Duration(milliseconds: AppConstants.receiveTimeout),
+        // Accept is OK; optional. Don't set Content-Type here.
+        headers: {
+          'Accept': 'application/json', // optional
+        },
+      ),
+    );
     // Configure public Dio instance
     _publicDio.options.baseUrl = AppConstants.baseUrl;
     _publicDio.options.connectTimeout = Duration(
@@ -22,7 +37,6 @@ class ApiClient {
     _publicDio.options.receiveTimeout = Duration(
       milliseconds: AppConstants.receiveTimeout,
     );
-    _publicDio.options.headers['Content-Type'] = 'application/json';
 
     // Configure protected Dio instance
     _protectedDio.options.baseUrl = AppConstants.protectedUrl;
@@ -32,7 +46,9 @@ class ApiClient {
     _protectedDio.options.receiveTimeout = Duration(
       milliseconds: AppConstants.receiveTimeout,
     );
-    _protectedDio.options.headers['Content-Type'] = 'application/json';
+    // _protectedDio.options.headers.remove('Content-Type');
+
+    // _protectedDio.options.contentType = null;
 
     // Add interceptors for both instances
     _publicDio.interceptors.add(
@@ -42,11 +58,32 @@ class ApiClient {
       LogInterceptor(requestBody: true, responseBody: true),
     );
 
+    _multipartDio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final token = await getIt<StorageService>().getAccessToken();
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          return handler.next(options);
+        },
+      ),
+    );
+
+    // Debug logs optional
+    _multipartDio.interceptors.add(
+      LogInterceptor(requestBody: true, responseBody: true),
+    );
+
     // Add authorization interceptor for protected Dio
     _protectedDio.interceptors.add(
       InterceptorsWrapper(
         onRequest:
             (RequestOptions options, RequestInterceptorHandler handler) async {
+              // if (options.data is FormData) {
+              //   options.headers.remove('Content-Type');
+              //   options.contentType = 'multipart/form-data';
+              // }
               final token = await getIt<StorageService>().getAccessToken();
               if (token != null) {
                 options.headers['Authorization'] = 'Bearer $token';
@@ -193,7 +230,7 @@ class ApiClient {
   // Fetch Tasks API
   Future<Map<String, dynamic>> fetchTasks({
     int? page = 1,
-    String? status, 
+    String? status,
   }) async {
     final queryParams = <String, String>{'page': page.toString()};
     if (status != null && status != 'all') {
@@ -697,7 +734,6 @@ class ApiClient {
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
-
   Future<Map<String, dynamic>> getIntegrationStatus() async {
     final response = await _protectedDio.get('/auth/integrations/status');
     print('getCurrentUser response: ${response.data}');
@@ -819,6 +855,29 @@ class ApiClient {
       '/auth/users/update',
       data: fieldsToUpdate,
     );
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  Future<Map<String, dynamic>> uploadUserAvatar(File imageFile) async {
+    final fileName = imageFile.path.split('/').last;
+
+    final formData = FormData.fromMap({
+      'profile_picture': await MultipartFile.fromFile(
+        imageFile.path,
+        filename: fileName,
+        contentType: MediaType("image", "jpg"),
+      ),
+    });
+
+    final response = await _multipartDio.patch(
+      '/auth/users/update',
+      data: formData,
+      // options: Options(contentType: 'multipart/form-data'),
+      onSendProgress: (sent, total) {
+        print("Upload: ${(sent / total * 100).toStringAsFixed(0)}%");
+      },
+    );
+
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
