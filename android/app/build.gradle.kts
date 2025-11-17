@@ -45,14 +45,21 @@ isCoreLibraryDesugaringEnabled = true
     }
 }
 
-    buildTypes {
-    release {
+   buildTypes {
+    getByName("release") {
         signingConfig = signingConfigs.getByName("customDebug")
+        isMinifyEnabled = true
+        isShrinkResources = true
+        proguardFiles(
+            getDefaultProguardFile("proguard-android-optimize.txt"),
+            "proguard-rules.pro"
+        )
     }
-    debug {
+    getByName("debug") {
         signingConfig = signingConfigs.getByName("customDebug")
     }
 }
+
 }
 
 flutter {
@@ -69,7 +76,7 @@ dependencies {
   // When using the BoM, don't specify versions in Firebase dependencies
   implementation("com.google.firebase:firebase-analytics")
 
-
+implementation("com.squareup.okhttp3:okhttp:5.3.0")
   // Add the dependencies for any other desired Firebase products
   // https://firebase.google.com/docs/android/setup#available-libraries
 }
