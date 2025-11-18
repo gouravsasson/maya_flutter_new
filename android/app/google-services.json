@@ -7,25 +7,6 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:210611802225:android:f619479b0ef87a32e5cbd0",
-        "android_client_info": {
-          "package_name": "com.ravan.maya"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAdpSpBQZ5uqTcNhv4EMqU64xKS8e_ns1Y"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
         "mobilesdk_app_id": "1:210611802225:android:51ae7f37958222dde5cbd0",
         "android_client_info": {
           "package_name": "com.ravan.maya"
