@@ -95,6 +95,7 @@ class _HomePageState extends State<HomePage> {
   String? _locationStatus;
   String? _userFirstName;
   String? _userLastName;
+  String? sessionId;
   StreamSubscription<Position>? _locationSubscription;
   Position? _lastSentPosition;
   bool _isSendingLocation = false;
@@ -224,10 +225,11 @@ class _HomePageState extends State<HomePage> {
       final String lastName = userData['last_name']?.toString() ?? '';
       final String phoneNumber = userData['phone_number']?.toString() ?? '';
       final userCountry = _getUserCountry();
-
+      
       setState(() {
         _userFirstName = firstName;
         _userLastName = lastName;
+        
       });
 
       // Wait for FCM + Location/Timezone

@@ -475,7 +475,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       final authClient = account.authorizationClient;
       final serverAuth = await authClient.authorizeServer(integration.scopes);
       final authCode = serverAuth?.serverAuthCode;
-
+      print(authCode);
       if (authCode == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to get auth code')),
