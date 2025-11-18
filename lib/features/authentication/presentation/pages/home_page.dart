@@ -13,8 +13,8 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io' show Platform;
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
-import '../../../authentication/presentation/bloc/auth_event.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
 import 'package:Maya/core/services/notification_service.dart';
 import 'package:Maya/core/services/contact_service.dart';
@@ -70,7 +70,6 @@ class TaskDetail {
 // ---------------------------------------------------------------------------
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
-
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -82,22 +81,24 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> todos = [];
   List<Map<String, dynamic>> reminders = [];
   List<TaskDetail> tasks = [];
+  late SharedPreferences _prefs;
+  bool _locationPermissionAsked = false;
+  bool _contactsPermissionAsked = false;
   bool isLoadingTodos = false;
   bool isLoadingReminders = false;
   bool isLoadingTasks = false;
+
   final NotificationServices _notification = NotificationServices();
   late final ApiClient _apiClient;
+
   String? _fcmToken;
   String? _locationStatus;
   String? _userFirstName;
   String? _userLastName;
-StreamSubscription<Position>? _locationSubscription;
-Position? _lastSentPosition;
-bool _isSendingLocation = false;
-  late SharedPreferences _prefs;
+  StreamSubscription<Position>? _locationSubscription;
+  Position? _lastSentPosition;
+  bool _isSendingLocation = false;
 
-  bool _locationPermissionAsked = false;
-  bool _contactsPermissionAsked = false;
   // -----------------------------------------------------------------------
   // initState – wiring only
   // -----------------------------------------------------------------------
@@ -114,85 +115,81 @@ bool _isSendingLocation = false;
     fetchToDos();
     fetchTasks();
     _startLiveLocationTracking();
-
   }
 
   @override
-void dispose() {
-  _locationSubscription?.cancel();
-  super.dispose();
-}
-
-
-
-void _startLiveLocationTracking() async {
-  // Ensure permissions first
-  LocationPermission permission = await Geolocator.checkPermission();
-  if (permission == LocationPermission.denied ||
-      permission == LocationPermission.deniedForever) {
-    return; // You already handle dialogs elsewhere
+  void dispose() {
+    _locationSubscription?.cancel();
+    super.dispose();
   }
 
-  _locationSubscription = Geolocator.getPositionStream(
-    locationSettings: const LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 5, // meters — triggers on slight movement
-    ),
-  ).listen((Position newPos) async {
-    // If it's the first reading
-    if (_lastSentPosition == null) {
-      _lastSentPosition = newPos;
-      await _sendLocationUpdate(newPos);
-      return;
+  void _startLiveLocationTracking() async {
+    // Ensure permissions first
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return; // You already handle dialogs elsewhere
     }
 
-    // Check if changed even slightly (>= 5 meters)
-    final distance = Geolocator.distanceBetween(
-      _lastSentPosition!.latitude,
-      _lastSentPosition!.longitude,
-      newPos.latitude,
-      newPos.longitude,
-    );
+    _locationSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 5, // meters — triggers on slight movement
+          ),
+        ).listen((Position newPos) async {
+          // If it's the first reading
+          if (_lastSentPosition == null) {
+            _lastSentPosition = newPos;
+            await _sendLocationUpdate(newPos);
+            return;
+          }
 
-    if (distance >= 5) {
-      _lastSentPosition = newPos;
-      await _sendLocationUpdate(newPos);
-    }
-  });
-}
+          // Check if changed even slightly (>= 5 meters)
+          final distance = Geolocator.distanceBetween(
+            _lastSentPosition!.latitude,
+            _lastSentPosition!.longitude,
+            newPos.latitude,
+            newPos.longitude,
+          );
 
-
-Future<void> _sendLocationUpdate(Position pos) async {
-  if (_isSendingLocation) return;
-  _isSendingLocation = true;
-
-  try {
-    final timezoneInfo = await FlutterTimezone.getLocalTimezone();
-    final country = _getUserCountry();
-
-    final payload = {
-      "latitude": pos.latitude,
-      "longitude": pos.longitude,
-      "timezone": timezoneInfo.identifier,
-      "country": country,
-    };
-
-await _apiClient.updateUserProfile(
-  
-  // dynamic fields:
-  latitude: pos.latitude,
-  longitude: pos.longitude,
-  timezone: timezoneInfo.identifier,
-  country: country,
-);
-    debugPrint("📍 Live location updated: $payload");
-
-  } catch (e) {
-    debugPrint("Live location update error: $e");
-  } finally {
-    _isSendingLocation = false;
+          if (distance >= 5) {
+            _lastSentPosition = newPos;
+            await _sendLocationUpdate(newPos);
+          }
+        });
   }
-}
+
+  Future<void> _sendLocationUpdate(Position pos) async {
+    if (_isSendingLocation) return;
+    _isSendingLocation = true;
+
+    try {
+      final timezoneInfo = await FlutterTimezone.getLocalTimezone();
+      final country = _getUserCountry();
+
+      final payload = {
+        "latitude": pos.latitude,
+        "longitude": pos.longitude,
+        "timezone": timezoneInfo.identifier,
+        "country": country,
+      };
+
+      await _apiClient.updateUserProfile(
+        // dynamic fields:
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+        timezone: timezoneInfo.identifier,
+        country: country,
+      );
+      debugPrint("📍 Live location updated: $payload");
+    } catch (e) {
+      debugPrint("Live location update error: $e");
+    } finally {
+      _isSendingLocation = false;
+    }
+  }
+
   // -----------------------------------------------------------------------
   // 1. Notification plumbing
   // -----------------------------------------------------------------------
@@ -206,16 +203,15 @@ await _apiClient.updateUserProfile(
     setState(() => _fcmToken = token);
   }
 
-
-String _getUserCountry() {
-  final locale = PlatformDispatcher.instance.locale;
-  return locale.countryCode ?? 'Unknown';
-}
+  String _getUserCountry() {
+    final locale = PlatformDispatcher.instance.locale;
+    return locale.countryCode ?? 'Unknown';
+  }
 
   // -----------------------------------------------------------------------
   // 2. Centralised profile sync (FCM + location + timezone)
   // -----------------------------------------------------------------------
- Future<void> _syncUserProfile() async {
+  Future<void> _syncUserProfile() async {
     try {
       final userResp = await _apiClient.getCurrentUser();
       if (userResp['statusCode'] != 200) {
@@ -227,7 +223,7 @@ String _getUserCountry() {
       final String firstName = userData['first_name']?.toString() ?? '';
       final String lastName = userData['last_name']?.toString() ?? '';
       final String phoneNumber = userData['phone_number']?.toString() ?? '';
-final userCountry = _getUserCountry();
+      final userCountry = _getUserCountry();
 
       setState(() {
         _userFirstName = firstName;
@@ -252,7 +248,7 @@ final userCountry = _getUserCountry();
         "latitude": position.latitude,
         "longitude": position.longitude,
         "timezone": timezone,
-  "country": userCountry,
+        "country": userCountry,
       };
       final updateResp = await _apiClient.updateUserProfile(
         fcmToken: token ?? '',
@@ -279,6 +275,7 @@ final userCountry = _getUserCountry();
     final completer = Completer<String?>();
     const timeout = Duration(seconds: 5);
     Timer? timer;
+
     void check() {
       if (_fcmToken != null) {
         timer?.cancel();
@@ -304,36 +301,44 @@ final userCountry = _getUserCountry();
     final TimezoneInfo timezoneInfo = await FlutterTimezone.getLocalTimezone();
     final String timezone = timezoneInfo.identifier;
 
-    // 1. Check if location service is enabled
     final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      _showLocationServiceDialog();
+      if (!_locationPermissionAsked) {
+        _showLocationServiceDialog();
+        await _prefs.setBool('location_permission_asked', true);
+      }
       throw Exception('Location services are disabled.');
     }
 
-    // 2. Check permission
     LocationPermission permission = await Geolocator.checkPermission();
 
-    // 3. Request only foreground permission
-    if (permission == LocationPermission.denied) {
+    if (permission == LocationPermission.denied && !_locationPermissionAsked) {
       permission = await Geolocator.requestPermission();
+      await _prefs.setBool('location_permission_asked', true);
+
       if (permission == LocationPermission.denied) {
         _showLocationPermissionDialog();
         throw Exception('Location permission denied');
       }
     }
+
     if (permission == LocationPermission.deniedForever) {
-      _showLocationPermissionDialog(permanent: true);
+      if (!_locationPermissionAsked) {
+        _showLocationPermissionDialog(permanent: true);
+        await _prefs.setBool('location_permission_asked', true);
+      }
       throw Exception('Location permission permanently denied');
     }
 
-    // 4. Get location
     try {
       final Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 15),
       ).timeout(const Duration(seconds: 15));
-      debugPrint('Location obtained: ${position.latitude}, ${position.longitude}');
+
+      debugPrint(
+        'Location obtained: ${position.latitude}, ${position.longitude}',
+      );
       setState(() => _locationStatus = 'granted');
       return (position, timezone);
     } on TimeoutException {
@@ -348,17 +353,24 @@ final userCountry = _getUserCountry();
   // -----------------------------------------------------------------------
   // UI dialogs
   // -----------------------------------------------------------------------
+  // Updated location service dialog
   void _showLocationServiceDialog() {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
+        // Use dialogContext
         title: const Text('Location Services Disabled'),
-        content: const Text('Please enable location services to save your location.'),
+        content: const Text(
+          'Please enable location services to save your location.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext), // Pop dialogContext
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () {
-              Navigator.pop(dialogContext);
+              Navigator.pop(dialogContext); // Pop first
               Geolocator.openLocationSettings();
             },
             child: const Text('Open Settings'),
@@ -368,10 +380,12 @@ final userCountry = _getUserCountry();
     );
   }
 
+  // Updated location permission dialog
   void _showLocationPermissionDialog({bool permanent = false}) {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
+        // Use dialogContext
         title: const Text('Location Permission Required'),
         content: Text(
           permanent
@@ -380,10 +394,14 @@ final userCountry = _getUserCountry();
         ),
         actions: [
           if (!permanent)
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext), // Pop dialogContext
+              child: const Text('Cancel'),
+            ),
           TextButton(
             onPressed: () {
-              Navigator.pop(dialogContext);
+              Navigator.pop(dialogContext); // Pop first
               if (permanent) {
                 openAppSettings();
               } else {
@@ -400,7 +418,50 @@ final userCountry = _getUserCountry();
   // -----------------------------------------------------------------------
   // Contacts sync – skip if empty
   // -----------------------------------------------------------------------
-    Future<void> _initializeAndSyncContacts() async {
+  // Updated contacts permission dialog (with recursion guard)
+  void _showContactsPermissionDialog({bool permanent = false}) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        // Use dialogContext
+        title: const Text('Contacts Permission Required'),
+        content: Text(
+          permanent
+              ? 'Contacts permissions are permanently denied. Please enable them in app settings.'
+              : 'Contacts permission is required to sync your contacts.',
+        ),
+        actions: [
+          if (!permanent)
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext), // Pop dialogContext
+              child: const Text('Cancel'),
+            ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext); // Pop first
+              if (permanent) {
+                openAppSettings();
+              } else {
+                // Guard against recursion: Check permission before retrying
+                Permission.contacts.request().then((status) {
+                  if (status.isGranted) {
+                    _initializeAndSyncContacts();
+                  } else {
+                    _showSnack('Permission still denied');
+                  }
+                });
+              }
+            },
+            child: Text(permanent ? 'Open Settings' : 'Grant Permission'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Updated contacts sync (minor: add explicit permission check if ContactsService doesn't handle it)
+  Future<void> _initializeAndSyncContacts() async {
     try {
       final PermissionStatus status = await Permission.contacts.status;
 
@@ -439,49 +500,27 @@ final userCountry = _getUserCountry();
     }
   }
 
-
-  void _showContactsPermissionDialog({bool permanent = false}) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Contacts Permission Required'),
-        content: Text(
-          permanent
-              ? 'Contacts permissions are permanently denied. Please enable them in app settings.'
-              : 'Contacts permission is required to sync your contacts.',
-        ),
-        actions: [
-          if (!permanent)
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              if (permanent) {
-                openAppSettings();
-              } else {
-                _initializeAndSyncContacts();
-              }
-            },
-            child: Text(permanent ? 'Open Settings' : 'Grant Permission'),
-          ),
-        ],
-      ),
-    );
-  }
-
   // -----------------------------------------------------------------------
   // Data fetchers
   // -----------------------------------------------------------------------
+
   Future<void> fetchReminders() async {
     setState(() => isLoadingReminders = true);
     try {
-      final response = await _apiClient.getReminders();
-      if (response['statusCode'] == 200) {
+      final response = await _apiClient.getReminders(); // no params → latest
+      if (response['success'] == true) {
+        final List<dynamic> data = response['data']['data'] as List<dynamic>;
         setState(() {
-          reminders = List<Map<String, dynamic>>.from(response['data']['data']);
+          reminders = data
+              .cast<Map<String, dynamic>>()
+              .take(3) // only top 3
+              .toList();
         });
+      } else {
+        _showSnack('Failed to load reminders');
       }
     } catch (e) {
+      debugPrint('fetchReminders error: $e');
       _showSnack('Failed to load reminders');
     } finally {
       setState(() => isLoadingReminders = false);
@@ -526,8 +565,16 @@ final userCountry = _getUserCountry();
   // -----------------------------------------------------------------------
   // To-Do CRUD helpers
   // -----------------------------------------------------------------------
-  Future<void> addToDo(String title, String description, {String? reminder}) async {
-    final payload = _apiClient.prepareCreateToDoPayload(title, description, reminder);
+  Future<void> addToDo(
+    String title,
+    String description, {
+    String? reminder,
+  }) async {
+    final payload = _apiClient.prepareCreateToDoPayload(
+      title,
+      description,
+      reminder,
+    );
     final response = await _apiClient.createToDo(payload);
     if (response['statusCode'] == 200) fetchToDos();
   }
@@ -580,12 +627,14 @@ final userCountry = _getUserCountry();
   // Sync & Copy Helpers
   // -----------------------------------------------------------------------
   void _forceSyncAll() async {
-    final snack = SnackBar(content: Text('Syncing...'), duration: Duration(seconds: 5));
+    final snack = SnackBar(
+      content: Text('Syncing...'),
+      duration: Duration(seconds: 5),
+    );
     ScaffoldMessenger.of(context).showSnackBar(snack);
-    await Future.wait([
-      _syncUserProfile(),
-      _initializeAndSyncContacts(),
-    ]);
+
+    await Future.wait([_syncUserProfile(), _initializeAndSyncContacts()]);
+
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     _showSnack('Sync completed');
   }
@@ -598,195 +647,183 @@ final userCountry = _getUserCountry();
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.logout, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('Logout'),
-          ],
-        ),
-        content: const Text(
-          'Are you sure you want to logout?\n\nGoRouter will automatically redirect you to the login page.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<AuthBloc>().add(LogoutRequested());
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   // -----------------------------------------------------------------------
   // UI
   // -----------------------------------------------------------------------
   @override
-@override
-Widget build(BuildContext context) {
-  return BlocBuilder<AuthBloc, AuthState>(
-    builder: (context, state) {
-      final displayName = _userFirstName?.isNotEmpty == true
-          ? _userFirstName!
-          : (state is AuthAuthenticated
-                ? state.user.firstName ?? 'User'
-                : 'User');
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        final displayName = _userFirstName?.isNotEmpty == true
+            ? _userFirstName!
+            : (state is AuthAuthenticated
+                  ? state.user.firstName ?? 'User'
+                  : 'User');
 
-      return Scaffold(
-        body: Stack(
-          children: [
-            // Background
-            Container(color: const Color(0xFF111827)),
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0x992A57E8), Colors.transparent],
+        return Scaffold(
+          body: Stack(
+            children: [
+              // Background
+              Container(color: const Color(0xFF111827)),
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x992A57E8), Colors.transparent],
+                  ),
                 ),
               ),
-            ),
 
-            SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 40),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // HEADER
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1E293B),
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.2),
-                                width: 2,
+              // Scrollable Content
+              SafeArea(
+                child: CustomScrollView(
+                  slivers: [
+                    // === Header Section ===
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Profile image
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E293B),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.2),
+                                  width: 2,
+                                ),
                               ),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(22),
-                              child: Image.asset(
-                                'assets/maya_logo.png',
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(
-                                  LucideIcons.user,
-                                  color: Colors.white,
-                                  size: 24,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(22),
+                                child: Image.asset(
+                                  'assets/maya_logo.png',
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Icon(
+                                      LucideIcons.user,
+                                      color: Colors.white,
+                                      size: 24,
+                                    );
+                                  },
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
+                            const SizedBox(height: 16),
 
-                          Text(
-                            'Hello, $displayName!',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Let\'s explore the way in which I can\nassist you.',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white,
-                              height: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Blue card
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                            // Greeting
+                            Text(
+                              'Hello, $displayName!',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w400,
                               ),
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF2563EB).withOpacity(0.3),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Generate complex algorithms\nand clean code with ease.',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white,
-                                    height: 1.4,
+                            const SizedBox(height: 4),
+                            Text(
+                              'Let\'s explore the way in which I can\nassist you.',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Blue gradient card
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Color(0xFF3B82F6),
+                                    Color(0xFF2563EB),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFF2563EB,
+                                    ).withOpacity(0.3),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
                                   ),
-                                ),
-                                const SizedBox(height: 16),
-                                GestureDetector(
-                                  onTap: () => context.push('/maya'),
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 150),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 10,
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Generate complex algorithms\nand clean code with ease.',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.white,
+                                      height: 1.4,
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.30),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Text(
-                                      'Start Now',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  GestureDetector(
+                                    onTap: () => context.push('/maya'),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 150,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.30),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Text(
+                                        'Start Now',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 24),
+                          ],
+                        ),
                       ),
                     ),
 
-                    const SizedBox(height: 24),
-
-                    // All content scrolls now
-                    Padding(
+                    // === Scrollable Sections ===
+                    SliverPadding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        children: [
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
                           // Active Tasks
-               _buildSectionHeader(
+                          // ---------------------------------------------------------------
+                          //  Inside the SliverList delegate (replace the old sections)
+                          // ---------------------------------------------------------------
+
+                          // === Active Tasks ===
+                          _buildSectionHeader(
                             'Active Tasks',
                             LucideIcons.zap,
                             () => context.push('/tasks'),
@@ -853,19 +890,19 @@ Widget build(BuildContext context) {
 
                           const SizedBox(
                             height: 100,
-                          ),           ],
+                          ), // Bottom padding // Bottom padding
+                        ]),
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   Widget _buildEmptyState(String message) {
     return Container(
@@ -1015,10 +1052,6 @@ Widget build(BuildContext context) {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
-
-            // Subtitle/description
-            
             const SizedBox(height: 12),
 
             // Footer with timestamp and arrow
@@ -1087,6 +1120,16 @@ Widget build(BuildContext context) {
             ),
             const SizedBox(height: 6),
 
+            // Description
+            Text(
+              todo['description'],
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.white.withOpacity(0.6),
+              ),
+            ),
+            const SizedBox(height: 12),
+
             // Footer with timestamp and icons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1149,7 +1192,7 @@ Widget build(BuildContext context) {
       final fullDateTime = '$dateLabel, $timeText';
 
       return GestureDetector(
-        onTap: () => context.go('/reminders'),
+        onTap: () => context.push('/reminders'),
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -1300,6 +1343,4 @@ Widget build(BuildContext context) {
       child: Icon(icon, size: 14, color: Colors.white.withOpacity(0.7)),
     );
   }
-
-
 }
