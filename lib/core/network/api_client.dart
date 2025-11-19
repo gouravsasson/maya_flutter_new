@@ -1,15 +1,15 @@
 import 'dart:io';
 
-import 'package:Maya/features/authentication/presentation/bloc/auth_bloc.dart';
-import 'package:Maya/features/authentication/presentation/bloc/auth_event.dart';
+
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 import 'package:Maya/core/services/storage_service.dart';
 import 'package:intl/intl.dart';
 import '../constants/app_constants.dart';
 
+import 'package:Maya/features/authentication/presentation/bloc/auth_bloc.dart';
+import 'package:Maya/features/authentication/presentation/bloc/auth_event.dart';
 import 'package:http_parser/http_parser.dart';
-
 final getIt = GetIt.instance;
 
 class ApiClient {
@@ -20,7 +20,7 @@ class ApiClient {
   ApiClient(Dio publicDio, Dio protectedDio) {
     _publicDio = publicDio;
     _protectedDio = protectedDio;
-
+    
     // ✅ CRITICAL: Multipart Dio with NO Content-Type preset
     _multipartDio = Dio(
       BaseOptions(
@@ -59,30 +59,31 @@ class ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final token = await getIt<StorageService>().getAccessToken();
-          final sessionId = await getIt<StorageService>().getSessionId();
+           final sessionId = await getIt<StorageService>().getSessionId();
           print(sessionId);
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
 
-          if (sessionId != null && options.path.contains('/auth/users/me')) {
+           if (sessionId != null && options.path.contains('/auth/users/me')) {
             options.headers['X-Session-Id'] = sessionId;
           }
-
+          
           // ✅ Ensure Dio auto-generates Content-Type with boundary
           // Remove any preset Content-Type so FormData can set it properly
           if (options.data is FormData) {
             options.headers.remove('Content-Type');
           }
-
+          
           return handler.next(options);
         },
         onError: (DioException error, ErrorInterceptorHandler handler) async {
           // ❌ NEVER retry multipart uploads - they break on retry
+          
 
           if (error.response?.statusCode == 401) {
-            final encodedRefreshToken = await getIt<StorageService>()
-                .getRefreshToken();
+            final encodedRefreshToken =
+                await getIt<StorageService>().getRefreshToken();
 
             if (encodedRefreshToken != null) {
               final response = await refreshToken(encodedRefreshToken);
@@ -90,15 +91,9 @@ class ApiClient {
               if (response['statusCode'] == 200) {
                 final tokenData = response['data']['data'];
 
-                await getIt<StorageService>().saveAccessToken(
-                  tokenData['access_token'],
-                );
-                await getIt<StorageService>().saveRefreshToken(
-                  tokenData['refresh_token'],
-                );
-                await getIt<StorageService>().saveTokenExpiryDate(
-                  tokenData['expiry_duration'],
-                );
+                await getIt<StorageService>().saveAccessToken(tokenData['access_token']);
+                await getIt<StorageService>().saveRefreshToken(tokenData['refresh_token']);
+                await getIt<StorageService>().saveTokenExpiryDate(tokenData['expiry_duration']);
 
                 final RequestOptions requestOptions = error.requestOptions;
                 requestOptions.headers['Authorization'] =
@@ -149,10 +144,16 @@ class ApiClient {
             },
         onError: (DioException error, ErrorInterceptorHandler handler) async {
           // ❌ Do NOT retry profile update endpoint
+         if (error.response?.statusCode == 403) {
+    // Auto logout on 403
+    await getIt<StorageService>().clearAll();
+    getIt<AuthBloc>().add(LogoutRequested()); 
+    
+  }
 
           if (error.response?.statusCode == 401) {
-            final encodedRefreshToken = await getIt<StorageService>()
-                .getRefreshToken();
+            final encodedRefreshToken =
+                await getIt<StorageService>().getRefreshToken();
 
             if (encodedRefreshToken != null) {
               final response = await refreshToken(encodedRefreshToken);
@@ -160,15 +161,9 @@ class ApiClient {
               if (response['statusCode'] == 200) {
                 final tokenData = response['data']['data'];
 
-                await getIt<StorageService>().saveAccessToken(
-                  tokenData['access_token'],
-                );
-                await getIt<StorageService>().saveRefreshToken(
-                  tokenData['refresh_token'],
-                );
-                await getIt<StorageService>().saveTokenExpiryDate(
-                  tokenData['expiry_duration'],
-                );
+                await getIt<StorageService>().saveAccessToken(tokenData['access_token']);
+                await getIt<StorageService>().saveRefreshToken(tokenData['refresh_token']);
+                await getIt<StorageService>().saveTokenExpiryDate(tokenData['expiry_duration']);
 
                 final RequestOptions requestOptions = error.requestOptions;
                 requestOptions.headers['Authorization'] =
@@ -221,38 +216,17 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> forgotPassword(String email) async {
-    final response = await post(
-      _publicDio,
-      '/auth/forgot-password',
-      data: {'email': email},
-    );
+    final response = await post(_publicDio, '/auth/forgot-password', data: {'email': email});
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
-  Future<Map<String, dynamic>> resetPassword(
-    String email,
-    String otp,
-    String newPassword,
-    String confirmPassword,
-  ) async {
-    final response = await post(
-      _publicDio,
-      '/auth/reset-password',
-      data: {
-        'email': email,
-        'new_password': newPassword,
-        'confirm_password': confirmPassword,
-      },
-    );
+  Future<Map<String, dynamic>> resetPassword(String email, String otp, String newPassword, String confirmPassword) async {
+    final response = await post(_publicDio, '/auth/reset-password', data: {'email': email, 'new_password': newPassword, 'confirm_password': confirmPassword});
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
   Future<Map<String, dynamic>> verifyOTP(String email, String otp) async {
-    final response = await post(
-      _publicDio,
-      '/auth/verify-otp',
-      data: {'email': email, 'otp': otp},
-    );
+    final response = await post(_publicDio, '/auth/verify-otp', data: {'email': email, 'otp': otp});
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
@@ -304,17 +278,14 @@ class ApiClient {
     final response = await get(
       _publicDio,
       '/productivity/google/oauth/callback',
-      queryParameters: {'code': authCode, 'state': userId},
+      queryParameters: {'code':authCode,'state':userId}
     );
 
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
   // Fetch Tasks API
-  Future<Map<String, dynamic>> fetchTasks({
-    int page = 1,
-    String? status,
-  }) async {
+  Future<Map<String, dynamic>> fetchTasks({int page=1, String? status}) async {
     final response = await get(
       _protectedDio,
       '/thunder/get-tool-call-sessions?page=$page',
@@ -404,12 +375,9 @@ class ApiClient {
   }
 
   // Get To-Do API
-  Future<Map<String, dynamic>> getToDo({int page = 1}) async {
+  Future<Map<String, dynamic>> getToDo({int page=1}) async {
     print('getToDo');
-    final response = await get(
-      _protectedDio,
-      '/productivity/todo/get?page=$page',
-    );
+    final response = await get(_protectedDio, '/productivity/todo/get?page=$page');
     print('getToDo response: ${response.data}');
     print('getToDo statusCode: ${response.statusCode}');
     return {'statusCode': response.statusCode, 'data': response.data};
@@ -683,11 +651,7 @@ class ApiClient {
 
   // Prepare Get Volume Payload
   Map<String, dynamic> prepareGetVolumePayload() {
-    return prepareMqttPublishPayload(
-      '{"action":"get_speaker_volume"}',
-      2,
-      false,
-    );
+    return prepareMqttPublishPayload('{"action":"get_speaker_volume"}', 2, false);
   }
 
   Map<String, dynamic> prepareSetMicVolumePayload(int level) {
@@ -700,7 +664,11 @@ class ApiClient {
 
   // Prepare Get Microphone Volume Payload
   Map<String, dynamic> prepareGetMicVolumePayload() {
-    return prepareMqttPublishPayload('{"action":"get_mic_volume"}', 2, false);
+    return prepareMqttPublishPayload(
+      '{"action":"get_mic_volume"}',
+      2,
+      false,
+    );
   }
 
   Future<Map<String, dynamic>> rebootDevice() async {
@@ -731,12 +699,20 @@ class ApiClient {
   }
 
   Map<String, dynamic> prepareRebootPayload() {
-    return prepareMqttPublishPayload('{"action":"reboot"}', 2, false);
+    return prepareMqttPublishPayload(
+      '{"action":"reboot"}',
+      2,
+      false,
+    );
   }
 
   // Prepare Shutdown Payload
   Map<String, dynamic> prepareShutdownPayload() {
-    return prepareMqttPublishPayload('{"action":"shutdown"}', 2, false);
+    return prepareMqttPublishPayload(
+      '{"action":"shutdown"}',
+      2,
+      false,
+    );
   }
 
   // Set Wake Word API
@@ -795,25 +771,27 @@ class ApiClient {
 
   // Prepare Get Wake Word Payload
   Map<String, dynamic> prepareGetWakeWordPayload() {
-    return prepareMqttPublishPayload('{"action":"get_wake_word"}', 2, false);
+    return prepareMqttPublishPayload(
+      '{"action":"get_wake_word"}',
+      2,
+      false,
+    );
   }
 
   // Prepare Wake Maya Payload
   Map<String, dynamic> prepareWakeMayaPayload() {
-    return prepareMqttPublishPayload('{"action":"wake_maya"}', 2, false);
+    return prepareMqttPublishPayload(
+      '{"action":"wake_maya"}',
+      2,
+      false,
+    );
   }
+Future<Map<String, dynamic>> getCurrentUser() async {
+  final response = await _protectedDio.get('/auth/users/me');
+  
+  return {'statusCode': response.statusCode, 'data': response.data};
+}
 
-  Future<Map<String, dynamic>> getCurrentUser() async {
-    final response = await _protectedDio.get('/auth/users/me');
-
-    if (response.statusCode == 403) {
-      // Auto logout on 403
-      await getIt<StorageService>().clearAll();
-      getIt<AuthBloc>().add(LogoutRequested());
-    }
-
-    return {'statusCode': response.statusCode, 'data': response.data};
-  }
 
   Future<Map<String, dynamic>> updateNotificationPreferences({
     required bool emailNotifications,
@@ -859,7 +837,11 @@ class ApiClient {
     double longitude,
     String timezone,
   ) {
-    return {"latitude": latitude, "longitude": longitude, "timezone": timezone};
+    return {
+      "latitude": latitude,
+      "longitude": longitude,
+      "timezone": timezone,
+    };
   }
 
   Map<String, dynamic> prepareUpdateUserProfilePayload({
@@ -882,19 +864,14 @@ class ApiClient {
     };
   }
 
-  Future<Map<String, dynamic>> getGenerations() async {
+  Future<Map<String,dynamic>> getGenerations() async {
     final response = await _protectedDio.get('/productivity/generations');
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
-  Future<Map<String, dynamic>> updateGenerationStatus(
-    String generationId,
-    String action,
-  ) async {
-    final response = await _protectedDio.patch(
-      '/productivity/generations/status',
-      data: {'generation_id': generationId, 'action': action},
-    );
+  Future<Map<String,dynamic>> updateGenerationStatus(String generationId, String action)async{
+    final response= await _protectedDio.patch('/productivity/generations/status',
+    data:{'generation_id': generationId, 'action': action});
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 
@@ -904,10 +881,15 @@ class ApiClient {
   }) async {
     final response = await _protectedDio.post(
       '/auth/fireflies/save-key',
-      data: {'fireflies_api_key': apiKey},
+      data: {
+        'fireflies_api_key': apiKey,
+      },
     );
 
-    return {'statusCode': response.statusCode, 'data': response.data};
+    return {
+      'statusCode': response.statusCode,
+      'data': response.data,
+    };
   }
 
   Future<Map<String, dynamic>> changePassword({
@@ -924,7 +906,10 @@ class ApiClient {
       },
     );
 
-    return {'statusCode': response.statusCode, 'data': response.data};
+    return {
+      'statusCode': response.statusCode,
+      'data': response.data,
+    };
   }
 
   // ✅ Avatar upload only - uses multipart Dio
@@ -933,62 +918,81 @@ class ApiClient {
   }
 
   // ✅ Main update function - intelligently chooses multipart vs JSON
-  Future<Map<String, dynamic>> updateUserProfile({
-    File? avatar,
-    String? firstName,
-    String? lastName,
-    String? phoneNumber,
-    String? fcmToken,
-    double? latitude,
-    double? longitude,
-    String? timezone,
-    String? country,
-  }) async {
-    try {
-      final Map<String, dynamic> map = {};
+Future<Map<String, dynamic>> updateUserProfile({
+  File? avatar,
+  String? firstName,
+  String? lastName,
+  String? phoneNumber,
+  String? fcmToken,
+  double? latitude,
+  double? longitude,
+  String? timezone,
+  String? country,
+}) async {
+  try {
+    final Map<String, dynamic> map = {};
 
-      // Add text fields if provided
-      if (firstName != null) map['first_name'] = firstName;
-      if (lastName != null) map['last_name'] = lastName;
-      if (phoneNumber != null) map['phone_number'] = phoneNumber;
-      if (fcmToken != null) map['fcm_token'] = fcmToken;
-      if (latitude != null) map['latitude'] = latitude.toString();
-      if (longitude != null) map['longitude'] = longitude.toString();
-      if (timezone != null) map['timezone'] = timezone;
-      if (country != null) map['country'] = country;
+    // Add text fields if provided
+    if (firstName != null) map['first_name'] = firstName;
+    if (lastName != null) map['last_name'] = lastName;
+    if (phoneNumber != null) map['phone_number'] = phoneNumber;
+    if (fcmToken != null) map['fcm_token'] = fcmToken;
+    if (latitude != null) map['latitude'] = latitude.toString();
+    if (longitude != null) map['longitude'] = longitude.toString();
+    if (timezone != null) map['timezone'] = timezone;
+    if (country != null) map['country'] = country;
 
-      // Add file if present
-      if (avatar != null) {
-        final fileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        map['profile_image'] = await MultipartFile.fromFile(
-          avatar.path,
-          filename: fileName,
-          contentType: MediaType('image', 'jpeg'),
-        );
-      }
-
-      final formData = FormData.fromMap(map);
-
-      print("📤 Updating via MULTIPART");
-
-      final response = await _multipartDio.patch(
-        '/auth/users/update',
-        data: formData,
-        options: Options(
-          headers: {
-            // ❌ Do NOT set Content-Type manually
-            // Dio will auto-generate boundary header
-          },
-        ),
+    // Add file if present
+    if (avatar != null) {
+      final fileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      map['profile_image'] = await MultipartFile.fromFile(
+        avatar.path,
+        filename: fileName,
+        contentType: MediaType('image', 'jpeg'),
       );
-
-      return {'statusCode': response.statusCode, 'data': response.data};
-    } on DioException catch (e) {
-      print("❌ Dio Exception: ${e.response?.data}");
-      return {
-        'statusCode': e.response?.statusCode ?? 500,
-        'data': e.response?.data ?? {'success': false},
-      };
     }
+
+    final formData = FormData.fromMap(map);
+
+    print("📤 Updating via MULTIPART");
+
+    final response = await _multipartDio.patch(
+      '/auth/users/update',
+      data: formData,
+      options: Options(
+        headers: {
+          // ❌ Do NOT set Content-Type manually
+          // Dio will auto-generate boundary header
+        },
+      ),
+    );
+
+    return {
+      'statusCode': response.statusCode,
+      'data': response.data,
+    };
+  } on DioException catch (e) {
+    print("❌ Dio Exception: ${e.response?.data}");
+    return {
+      'statusCode': e.response?.statusCode ?? 500,
+      'data': e.response?.data ?? {'success': false},
+    };
   }
+}
+
+Future<Map<String, dynamic>> handleAsanaSignIn() async {
+  final response = await _protectedDio.get('productivity/asana/oauth/login');
+  return {'statusCode': response.statusCode, 'data': response.data};
+}
+
+
+Future<Map<String, dynamic>> handleMetaSignIn() async {
+  final response = await _protectedDio.get('productivity/meta/oauth/login');
+  return {'statusCode': response.statusCode, 'data': response.data};
+}
+
+Future<Map<String, dynamic>> handleStripeSignIn() async {
+  final response = await _protectedDio.get('productivity/stripe/connect');
+  return {'statusCode': response.statusCode, 'data': response.data};
+}
 }

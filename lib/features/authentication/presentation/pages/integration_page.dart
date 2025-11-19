@@ -18,7 +18,7 @@ class IntegrationsPage extends StatefulWidget {
 
 Future<void> _launchURL(String url) async {
   try {
-    final Uri uri = Uri.parse(Uri.encodeFull(url));
+    final Uri uri = Uri.parse(url);  // <-- Remove Uri.encodeFull(url)
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
@@ -26,6 +26,7 @@ Future<void> _launchURL(String url) async {
     }
   } catch (e) {
     print('Error launching URL: $e');
+    
   }
 }
 
@@ -76,6 +77,36 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       category: 'productivity',
       scopes: [],
     ),
+    Integration(
+      id: 'asana',
+      name: 'Asana',
+      description: 'Manage your tasks and projects',
+      icon: Icons.task,
+      iconColor: Color(0xFF007AFF),
+      connected: false,
+      category: 'productivity',
+      scopes: [],
+    ),
+    Integration(
+      id: 'meta',
+      name: 'Meta',
+      description: 'Manage your meta account',
+      icon: Icons.facebook,
+      iconColor: Color(0xFF1877F2),
+      connected: false,
+      category: 'social',
+      scopes: [],
+    ),
+    Integration(
+      id: 'stripe',
+      name: 'Stripe',
+      description: 'Manage your stripe account',
+      icon: Icons.credit_card,
+      iconColor: Color(0xFF007AFF),
+      connected: false,
+      category: 'payment',
+      scopes: [],
+    ),
   ];
 
   @override
@@ -106,6 +137,15 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
                 break;
               case 'fireflies':
                 integration.connected = data['fireflies'] ?? false;
+                break;
+              case 'asana':
+                integration.connected = data['asana'] ?? false;
+                break;
+              case 'meta':
+                integration.connected = data['meta'] ?? false;
+                break;
+              case 'stripe':
+                integration.connected = data['stripe'] ?? false;
                 break;
             }
           }
@@ -475,7 +515,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
       final authClient = account.authorizationClient;
       final serverAuth = await authClient.authorizeServer(integration.scopes);
       final authCode = serverAuth?.serverAuthCode;
-      print(authCode);
+
       if (authCode == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to get auth code')),
@@ -581,6 +621,76 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
     }
   }
 
+
+  Future<void> _handleAsanaSignIn(Integration integration) async {
+    await _launchIntegrationUrl(
+      requester: () => getIt<ApiClient>().handleAsanaSignIn(),
+      integrationName: integration.name,
+    );
+  }
+
+  Future<void> _handleMetaSignIn(Integration integration) async {
+    await _launchIntegrationUrl(
+      requester: () => getIt<ApiClient>().handleMetaSignIn(),
+      integrationName: integration.name,
+    );
+  }
+
+  Future<void> _handleStripeSignIn(Integration integration) async {
+    await _launchIntegrationUrl(
+      requester: () => getIt<ApiClient>().handleStripeSignIn(),
+      integrationName: integration.name,
+    );
+  }
+
+  Future<void> _launchIntegrationUrl({
+    required Future<Map<String, dynamic>> Function() requester,
+    required String integrationName,
+  }) async {
+    try {
+      final result = await requester();
+      print("result: ${result['data']}");
+      if (result['statusCode'] == 200) {
+        final url = _extractIntegrationUrl(result['data']);
+        if (url != null) {
+          await _launchURL(url);
+          return;
+        }
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unable to open $integrationName connection.'),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error launching $integrationName: $e'),
+        ),
+      );
+    }
+  }
+
+  String? _extractIntegrationUrl(dynamic responseData) {
+    if (responseData is Map<String, dynamic>) {
+      final directUrl = responseData['url'];
+      if (directUrl is String && directUrl.isNotEmpty) {
+        return directUrl;
+      }
+      final nestedData = responseData['data'];
+      if (nestedData is Map<String, dynamic>) {
+        final nestedUrl = nestedData['url'];
+        if (nestedUrl is String && nestedUrl.isNotEmpty) {
+          return nestedUrl;
+        }
+      }
+    }
+    return null;
+  }
+
+
+  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -679,17 +789,25 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
                                   final integration = integrations[index];
                                   return GestureDetector(
                                     onTap: () {
-                                      if (integration.id == 'google-calendar') {
-                                        _handleGoogleSignIn(integration);
-                                      } else if (integration.id ==
-                                          'gohighlevel') {
-                                        _launchURL(
-                                          'https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=https%3A%2F%2Fmaya.ravan.ai%2Fapi%2Fcrm%2Fleadconnector%2Fcode&client_id=68755e91a1a7f90cd15877d5-me8gas4x&scope=socialplanner%2Fpost.readonly+saas%2Flocation.write+socialplanner%2Foauth.readonly+saas%2Flocation.read+socialplanner%2Foauth.write+conversations%2Freports.readonly+calendars%2Fresources.write+campaigns.readonly+conversations.readonly+conversations.write+conversations%2Fmessage.readonly+conversations%2Fmessage.write+calendars%2Fgroups.readonly+calendars%2Fgroups.write+calendars%2Fresources.readonly+calendars%2Fevents.write+calendars%2Fevents.readonly+calendars.write+calendars.readonly+businesses.write+businesses.readonly+conversations%2Flivechat.write+contacts.readonly+contacts.write+objects%2Fschema.readonly+objects%2Fschema.write+objects%2Frecord.readonly+objects%2Frecord.write+associations.write+associations.readonly+associations%2Frelation.readonly+associations%2Frelation.write+courses.write+courses.readonly+forms.readonly+forms.write+invoices.readonly+invoices.write+invoices%2Fschedule.readonly+invoices%2Fschedule.write+invoices%2Ftemplate.readonly+invoices%2Ftemplate.write+invoices%2Festimate.readonly+invoices%2Festimate.write+links.readonly+lc-email.readonly+links.write+locations%2FcustomValues.readonly+medias.write+medias.readonly+locations%2Ftemplates.readonly+locations%2Ftags.write+funnels%2Fredirect.readonly+funnels%2Fpage.readonly+funnels%2Ffunnel.readonly+oauth.write+oauth.readonly+opportunities.readonly+opportunities.write+socialplanner%2Fpost.write+socialplanner%2Faccount.readonly+socialplanner%2Faccount.write+socialplanner%2Fcsv.readonly+socialplanner%2Fcsv.write+socialplanner%2Fcategory.readonly+socialplanner%2Ftag.readonly+store%2Fshipping.readonly+socialplanner%2Fstatistics.readonly+store%2Fshipping.write+store%2Fsetting.readonly+surveys.readonly+store%2Fsetting.write+workflows.readonly+emails%2Fschedule.readonly+emails%2Fbuilder.write+emails%2Fbuilder.readonly+wordpress.site.readonly+blogs%2Fpost.write+blogs%2Fpost-update.write+blogs%2Fcheck-slug.readonly+blogs%2Fcategory.readonly+blogs%2Fauthor.readonly+socialplanner%2Fcategory.write+socialplanner%2Ftag.write+blogs%2Fposts.readonly+blogs%2Flist.readonly+charges.readonly+charges.write+marketplace-installer-details.readonly+twilioaccount.read+documents_contracts%2Flist.readonly+documents_contracts%2FsendLink.write+documents_contracts_template%2FsendLink.write+documents_contracts_template%2Flist.readonly+products%2Fcollection.write+products%2Fcollection.readonly+products%2Fprices.write+products%2Fprices.readonly+products.write+products.readonly+payments%2Fcustom-provider.write+payments%2Fcoupons.write+payments%2Fcustom-provider.readonly+payments%2Fcoupons.readonly+payments%2Fsubscriptions.readonly+payments%2Ftransactions.readonly+payments%2Fintegration.write+payments%2Fintegration.readonly+payments%2Forders.write+payments%2Forders.readonly+funnels%2Fredirect.write+funnels%2Fpagecount.readonly&version_id=68755e91a1a7f90cd15877d5',
-                                        );
-                                      } else if (integration.id ==
-                                          'fireflies') {
-                                        _showFirefliesKeyPopup();
-                                      }
+                                      if (integration.id ==
+                                            'google-calendar') {
+                                          _handleGoogleSignIn(integration);
+                                        } else if (integration.id ==
+                                            'gohighlevel') {
+                                          _launchURL(
+                                            'https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=https%3A%2F%2Fmaya.ravan.ai%2Fapi%2Fcrm%2Fleadconnector%2Fcode&client_id=68755e91a1a7f90cd15877d5-me8gas4x&scope=socialplanner%2Fpost.readonly+saas%2Flocation.write+socialplanner%2Foauth.readonly+saas%2Flocation.read+socialplanner%2Foauth.write+conversations%2Freports.readonly+calendars%2Fresources.write+campaigns.readonly+conversations.readonly+conversations.write+conversations%2Fmessage.readonly+conversations%2Fmessage.write+calendars%2Fgroups.readonly+calendars%2Fgroups.write+calendars%2Fresources.readonly+calendars%2Fevents.write+calendars%2Fevents.readonly+calendars.write+calendars.readonly+businesses.write+businesses.readonly+conversations%2Flivechat.write+contacts.readonly+contacts.write+objects%2Fschema.readonly+objects%2Fschema.write+objects%2Frecord.readonly+objects%2Frecord.write+associations.write+associations.readonly+associations%2Frelation.readonly+associations%2Frelation.write+courses.write+courses.readonly+forms.readonly+forms.write+invoices.readonly+invoices.write+invoices%2Fschedule.readonly+invoices%2Fschedule.write+invoices%2Ftemplate.readonly+invoices%2Ftemplate.write+invoices%2Festimate.readonly+invoices%2Festimate.write+links.readonly+lc-email.readonly+links.write+locations%2FcustomValues.readonly+medias.write+medias.readonly+locations%2Ftemplates.readonly+locations%2Ftags.write+funnels%2Fredirect.readonly+funnels%2Fpage.readonly+funnels%2Ffunnel.readonly+oauth.write+oauth.readonly+opportunities.readonly+opportunities.write+socialplanner%2Fpost.write+socialplanner%2Faccount.readonly+socialplanner%2Faccount.write+socialplanner%2Fcsv.readonly+socialplanner%2Fcsv.write+socialplanner%2Fcategory.readonly+socialplanner%2Ftag.readonly+store%2Fshipping.readonly+socialplanner%2Fstatistics.readonly+store%2Fshipping.write+store%2Fsetting.readonly+surveys.readonly+store%2Fsetting.write+workflows.readonly+emails%2Fschedule.readonly+emails%2Fbuilder.write+emails%2Fbuilder.readonly+wordpress.site.readonly+blogs%2Fpost.write+blogs%2Fpost-update.write+blogs%2Fcheck-slug.readonly+blogs%2Fcategory.readonly+blogs%2Fauthor.readonly+socialplanner%2Fcategory.write+socialplanner%2Ftag.write+blogs%2Fposts.readonly+blogs%2Flist.readonly+charges.readonly+charges.write+marketplace-installer-details.readonly+twilioaccount.read+documents_contracts%2Flist.readonly+documents_contracts%2FsendLink.write+documents_contracts_template%2FsendLink.write+documents_contracts_template%2Flist.readonly+products%2Fcollection.write+products%2Fcollection.readonly+products%2Fprices.write+products%2Fprices.readonly+products.write+products.readonly+payments%2Fcustom-provider.write+payments%2Fcoupons.write+payments%2Fcustom-provider.readonly+payments%2Fcoupons.readonly+payments%2Fsubscriptions.readonly+payments%2Ftransactions.readonly+payments%2Fintegration.write+payments%2Fintegration.readonly+payments%2Forders.write+payments%2Forders.readonly+funnels%2Fredirect.write+funnels%2Fpagecount.readonly&version_id=68755e91a1a7f90cd15877d5',
+                                          );
+                                        } else if (integration.id ==
+                                            'fireflies') {
+                                          _showFirefliesKeyPopup();
+                                        }else if(integration.id == 'asana') {
+                                          _handleAsanaSignIn(integration);
+                                        }else if(integration.id == 'meta') {
+                                          _handleMetaSignIn(integration);
+                                        }else if(integration.id == 'stripe') {
+                                          _handleStripeSignIn(integration);
+                                        }
+                                      
                                     },
                                     child: Container(
                                       padding: const EdgeInsets.all(16),
