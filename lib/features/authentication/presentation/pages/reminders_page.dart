@@ -292,7 +292,7 @@ static const double fullDayHeight = 24 * pixelsPerHour; // auto = 3840px (taller
                         child: Row(
                           children: [
                             GestureDetector(
-                              onTap: () => context.push('/other'),
+                              onTap: () => context.pop(),
                               child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(

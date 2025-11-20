@@ -723,7 +723,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> {
                         child: Row(
                           children: [
                             GestureDetector(
-                              onTap: () => context.push('/other'),
+                              onTap: () => context.pop(),
                               child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(

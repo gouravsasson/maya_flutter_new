@@ -95,6 +95,7 @@ class _HomePageState extends State<HomePage> {
   String? _locationStatus;
   String? _userFirstName;
   String? _userLastName;
+  String? _userProfile;
   String? sessionId;
   StreamSubscription<Position>? _locationSubscription;
   Position? _lastSentPosition;
@@ -106,16 +107,22 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    final publicDio = Dio();
-    final protectedDio = Dio();
-    _apiClient = ApiClient(publicDio, protectedDio);
-    _setupNotifications();
-    _syncUserProfile();
-    _initializeAndSyncContacts();
-    fetchReminders();
-    fetchToDos();
-    fetchTasks();
-    _startLiveLocationTracking();
+
+    // Initialize SharedPreferences FIRST
+    _initSharedPrefs().then((_) {
+      // Only after prefs are ready, start everything else
+      final publicDio = Dio();
+      final protectedDio = Dio();
+      _apiClient = ApiClient(publicDio, protectedDio);
+
+      _setupNotifications();
+      _syncUserProfile();
+      _initializeAndSyncContacts();
+      fetchReminders();
+      fetchToDos();
+      fetchTasks();
+      _startLiveLocationTracking();
+    });
   }
 
   @override
@@ -209,6 +216,16 @@ class _HomePageState extends State<HomePage> {
     return locale.countryCode ?? 'Unknown';
   }
 
+  Future<void> _initSharedPrefs() async {
+    _prefs = await SharedPreferences.getInstance();
+
+    // Now load the permission flags
+    _locationPermissionAsked =
+        _prefs.getBool('location_permission_asked') ?? false;
+    _contactsPermissionAsked =
+        _prefs.getBool('contacts_permission_asked') ?? false;
+  }
+
   // -----------------------------------------------------------------------
   // 2. Centralised profile sync (FCM + location + timezone)
   // -----------------------------------------------------------------------
@@ -224,12 +241,14 @@ class _HomePageState extends State<HomePage> {
       final String firstName = userData['first_name']?.toString() ?? '';
       final String lastName = userData['last_name']?.toString() ?? '';
       final String phoneNumber = userData['phone_number']?.toString() ?? '';
+      final String profilePicture =
+          userData['profile_image_url']?.toString() ?? '';
       final userCountry = _getUserCountry();
-      
+
       setState(() {
         _userFirstName = firstName;
         _userLastName = lastName;
-        
+        _userProfile = profilePicture;
       });
 
       // Wait for FCM + Location/Timezone
@@ -708,17 +727,55 @@ class _HomePageState extends State<HomePage> {
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(22),
-                                child: Image.asset(
-                                  'assets/maya_logo.png',
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return const Icon(
-                                      LucideIcons.user,
-                                      color: Colors.white,
-                                      size: 24,
-                                    );
-                                  },
-                                ),
+                                child:
+                                    _userProfile != null &&
+                                        _userProfile!.isNotEmpty
+                                    ? Image.network(
+                                        _userProfile!,
+                                        fit: BoxFit.cover,
+                                        width: 48,
+                                        height: 48,
+                                        loadingBuilder:
+                                            (context, child, loadingProgress) {
+                                              if (loadingProgress == null)
+                                                return child;
+                                              return Container(
+                                                color: const Color(0xFF1E293B),
+                                                child: const Center(
+                                                  child: SizedBox(
+                                                    width: 20,
+                                                    height: 20,
+                                                    child: CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation<
+                                                            Color
+                                                          >(Colors.white54),
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                              return Container(
+                                                color: const Color(0xFF1E293B),
+                                                child: const Icon(
+                                                  LucideIcons.user,
+                                                  color: Colors.white70,
+                                                  size: 24,
+                                                ),
+                                              );
+                                            },
+                                      )
+                                    : Container(
+                                        color: const Color(0xFF1E293B),
+                                        child: const Icon(
+                                          LucideIcons.user,
+                                          color: Colors.white70,
+                                          size: 24,
+                                        ),
+                                      ),
                               ),
                             ),
                             const SizedBox(height: 16),

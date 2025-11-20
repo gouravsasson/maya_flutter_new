@@ -7,6 +7,7 @@ import 'package:Maya/core/services/mic_service.dart';
 import 'package:ultravox_client/ultravox_client.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+
 class TalkToMaya extends StatefulWidget {
   const TalkToMaya({super.key});
 
@@ -32,8 +33,8 @@ class _TalkToMayaState extends State<TalkToMaya>
   // === Services & Session ===
   final ThunderSessionService _shared = ThunderSessionService();
   UltravoxSession? _session;
-final CallInterruptionService _callService = CallInterruptionService();
-bool _wasMutedByCall = false; // Track if we muted due to call
+  final CallInterruptionService _callService = CallInterruptionService();
+  bool _wasMutedByCall = false; // Track if we muted due to call
   // === UI Controllers ===
   final ScrollController _scrollController = ScrollController();
   final ApiClient _apiClient = GetIt.instance<ApiClient>();
@@ -41,7 +42,7 @@ bool _wasMutedByCall = false; // Track if we muted due to call
   final FocusNode _focusNode = FocusNode();
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isPlayingTypingSound = false;
-
+  String _currentTranscriptSpeaker = 'agent';
   // === Animations ===
   late AnimationController _pulseController;
   late AnimationController _orbController;
@@ -65,24 +66,40 @@ bool _wasMutedByCall = false; // Track if we muted due to call
     _isSpeakerMuted = _shared.isSpeakerMuted;
     _currentTranscriptChunk = _shared.currentTranscript;
     _conversation = List.from(_shared.conversation);
-_setupCallInterruptionHandler();
+    _setupCallInterruptionHandler();
     _setupAnimations();
     _setupListeners();
     _updateWakelock();
   }
 
   void _setupAnimations() {
-    _orbController = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
-    _orbScaleAnimation = Tween<double>(begin: 1.0, end: 1.15)
-        .animate(CurvedAnimation(parent: _orbController, curve: Curves.easeInOut));
+    _orbController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _orbScaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.15,
+    ).animate(CurvedAnimation(parent: _orbController, curve: Curves.easeInOut));
 
-    _pulseController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800));
-    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.25)
-        .animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    );
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.25).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
 
-    _speakingPulseController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
-    _speakingPulseAnimation = Tween<double>(begin: 1.0, end: 1.1)
-        .animate(CurvedAnimation(parent: _speakingPulseController, curve: Curves.easeInOut));
+    _speakingPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _speakingPulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(
+        parent: _speakingPulseController,
+        curve: Curves.easeInOut,
+      ),
+    );
   }
 
   void _setupListeners() {
@@ -115,38 +132,38 @@ _setupCallInterruptionHandler();
   }
 
   void _setupCallInterruptionHandler() async {
-  _callService.onCallStarted = () {
-    if (!mounted || _session == null || _isMicMuted) return;
+    _callService.onCallStarted = () {
+      if (!mounted || _session == null || _isMicMuted) return;
 
-    print('CALL DETECTED → Muting Maya automatically');
-    _wasMutedByCall = _isMicMuted == false; // Remember if user had mic ON
+      print('CALL DETECTED → Muting Maya automatically');
+      _wasMutedByCall = _isMicMuted == false; // Remember if user had mic ON
 
-    setState(() {
-      _isMicMuted = true;
-      _shared.isMicMuted = true;
-      _session?.micMuted = true;
-    });
-  };
+      setState(() {
+        _isMicMuted = true;
+        _shared.isMicMuted = true;
+        _session?.micMuted = true;
+      });
+    };
 
-  _callService.onCallEnded = () {
-    if (!mounted || _session == null || !_wasMutedByCall) return;
+    _callService.onCallEnded = () {
+      if (!mounted || _session == null || !_wasMutedByCall) return;
 
-    print('CALL ENDED → Unmuting Maya');
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (mounted && _wasMutedByCall) {
-        setState(() {
-          _isMicMuted = false;
-          _shared.isMicMuted = false;
-          _session?.micMuted = false;
-        });
-        _wasMutedByCall = false;
-      }
-    });
-  };
+      print('CALL ENDED → Unmuting Maya');
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted && _wasMutedByCall) {
+          setState(() {
+            _isMicMuted = false;
+            _shared.isMicMuted = false;
+            _session?.micMuted = false;
+          });
+          _wasMutedByCall = false;
+        }
+      });
+    };
 
-  // Start listening
-  await _callService.initialize();
-}
+    // Start listening
+    await _callService.initialize();
+  }
 
   // ===================================================================
   // ONE AND ONLY RESET FUNCTION — SOLVES ALL RACE CONDITIONS
@@ -198,7 +215,7 @@ _setupCallInterruptionHandler();
     _ignoreTranscripts = false;
     _isResetting = false;
     _lastSentText = '';
-_updateWakelock();
+    _updateWakelock();
 
     print('FULL RESET COMPLETE');
   }
@@ -208,7 +225,8 @@ _updateWakelock();
   // ===================================================================
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       if (_shared.isSessionActive) {
         _resetEverything();
       }
@@ -218,108 +236,129 @@ _updateWakelock();
   // ===================================================================
   // Status Handler — Only reset on disconnected
   // ===================================================================
-void _onStatusChange() {
-  if (!mounted || _session == null || _isResetting) return;
+  void _onStatusChange() {
+    if (!mounted || _session == null || _isResetting) return;
 
-  final st = _session!.status;
-  print('STATUS: $st');
+    final st = _session!.status;
+    print('STATUS: $st');
 
-  if (st == UltravoxSessionStatus.disconnected) {
-    _resetEverything();
-    _updateWakelock(); // Turn off
-    return;
+    if (st == UltravoxSessionStatus.disconnected) {
+      _resetEverything();
+      _updateWakelock(); // Turn off
+      return;
+    }
+
+    setState(() {
+      _status = _mapStatusToSpeech(st);
+      _isListening =
+          st == UltravoxSessionStatus.listening ||
+          st == UltravoxSessionStatus.speaking ||
+          st == UltravoxSessionStatus.thinking;
+    });
+
+    // === UPDATE WAKELOCK BASED ON STATE ===
+    _updateWakelock();
+
+    // === Animation logic (unchanged) ===
+    if (st == UltravoxSessionStatus.speaking) {
+      _pulseController.stop();
+      _speakingPulseController.repeat();
+    } else if (st == UltravoxSessionStatus.listening) {
+      _speakingPulseController.stop();
+      _pulseController.repeat();
+    } else {
+      _pulseController.stop();
+      _speakingPulseController.stop();
+    }
   }
 
-  setState(() {
-    _status = _mapStatusToSpeech(st);
-    _isListening = st == UltravoxSessionStatus.listening ||
-        st == UltravoxSessionStatus.speaking ||
-        st == UltravoxSessionStatus.thinking;
-  });
+  void _updateWakelock() {
+    final isActiveSession =
+        _session?.status != null &&
+        _session!.status != UltravoxSessionStatus.disconnected &&
+        _session!.status != UltravoxSessionStatus.disconnecting;
 
-  // === UPDATE WAKELOCK BASED ON STATE ===
-  _updateWakelock();
-
-  // === Animation logic (unchanged) ===
-  if (st == UltravoxSessionStatus.speaking) {
-    _pulseController.stop();
-    _speakingPulseController.repeat();
-  } else if (st == UltravoxSessionStatus.listening) {
-    _speakingPulseController.stop();
-    _pulseController.repeat();
-  } else {
-    _pulseController.stop();
-    _speakingPulseController.stop();
+    if (isActiveSession) {
+      WakelockPlus.enable();
+      print('WAKELOCK: ENABLED');
+    } else {
+      WakelockPlus.disable();
+      print('WAKELOCK: DISABLED');
+    }
   }
-}
 
-
-void _updateWakelock() {
-  final isActiveSession = _session?.status != null &&
-      _session!.status != UltravoxSessionStatus.disconnected &&
-      _session!.status != UltravoxSessionStatus.disconnecting;
-
-  if (isActiveSession) {
-    WakelockPlus.enable();
-    print('WAKELOCK: ENABLED');
-  } else {
-    WakelockPlus.disable();
-    print('WAKELOCK: DISABLED');
-  }
-}
   // ===================================================================
   // Data Message: Transcripts
   // ===================================================================
-void _onDataMessage() {
-  if (!mounted || _ignoreTranscripts || _isResetting) return;
+  void _onDataMessage() {
+    if (!mounted || _ignoreTranscripts || _isResetting) return;
 
-  final transcripts = _session!.transcripts;
-  if (transcripts.isEmpty) return;
+    final transcripts = _session!.transcripts;
+    if (transcripts.isEmpty) return;
 
-  final latest = transcripts.last;
-  final text = latest.text.trim();
+    final latest = transcripts.last;
+    final text = latest.text.trim();
+final isFinal = latest.isFinal;
+  final speaker = latest.speaker.toString().split('.').last; // "user" or "agent"
+if (text.isNotEmpty) {
+    final status = isFinal ? "FINAL" : "partial";
+    final icon = speaker == 'user' ? "User" : "Maya";
+    final medium = latest.medium?.toString().split('.').last ?? 'voice';
 
-  // Live partial transcript
-  if (!latest.isFinal) {
-    if (text.isNotEmpty && _currentTranscriptChunk != text) {
-      setState(() {
-        _currentTranscriptChunk = text;
-        _shared.currentTranscript = text;
-      });
-      _scrollToBottom();
-    }
-    return;
+    print('┌─ TRANSCRIPT [$status] ───────────────────');
+    print('│ Speaker : $icon');
+    print('│ Medium  : $medium');
+    print('│ Text    : "$text"');
+    print('└────────────────────────────────────────────\n');
   }
+    // Live partial transcript
+    // === LIVE PARTIAL TRANSCRIPT (User OR Agent) ===
+    if (!latest.isFinal) {
+      final isUser = latest.speaker == Role.user;
 
-  // Final message
-  if (text.isEmpty) return;
-
-  final isUser = latest.speaker == Role.user;
-  final speakerType = isUser ? 'user' : 'maya';
-
-  // Block typed message echo
-  if (isUser && text == _lastSentText) {
-    _lastSentText = '';
-    return;
-  }
-
-  // Block duplicate messages
-  if (_conversation.isNotEmpty) {
-    final last = _conversation.last;
-    if (last['type'] == speakerType && last['text'] == text) {
+      // Only update live transcript if it's different
+      if (text.isNotEmpty && _currentTranscriptChunk != text) {
+        setState(() {
+          // Store who is currently speaking live
+          _currentTranscriptSpeaker = isUser ? 'user' : 'agent';
+          _currentTranscriptChunk = text;
+          _shared.currentTranscript = text;
+        });
+        _scrollToBottom();
+      }
       return;
     }
-  }
 
-  setState(() {
-    _conversation.add({'type': speakerType, 'text': text});
-    _shared.addMessage(speakerType, text);
-    _currentTranscriptChunk = '';
-    _shared.currentTranscript = '';
-  });
+    // Final message
+    if (text.isEmpty) return;
 
-  _scrollToBottom();
-}// Debug Message: HangUp Detection + Typing Sound
+    final isUser = latest.speaker == Role.user;
+    final speakerType = isUser ? 'user' : 'maya';
+
+    // Block typed message echo
+    if (isUser && text == _lastSentText) {
+      _lastSentText = '';
+      return;
+    }
+
+    // Block duplicate messages
+    if (_conversation.isNotEmpty) {
+      final last = _conversation.last;
+      if (last['type'] == speakerType && last['text'] == text) {
+        return;
+      }
+    }
+
+    setState(() {
+      _conversation.add({'type': speakerType, 'text': text});
+      _shared.addMessage(speakerType, text);
+      _currentTranscriptChunk = '';
+      _shared.currentTranscript = '';
+    });
+
+    _scrollToBottom();
+  } // Debug Message: HangUp Detection + Typing Sound
+
   // ===================================================================
   void _onDebugMessage() {
     if (_ignoreTranscripts || _isResetting) return;
@@ -332,15 +371,16 @@ void _onDataMessage() {
     // HangUp Tool Call → Immediate Reset
     if (message.contains('hangUp') &&
         (message.contains('tool_calls') ||
-         message.contains('FunctionCall') ||
-         message.contains('"name":"hangUp"'))) {
+            message.contains('FunctionCall') ||
+            message.contains('"name":"hangUp"'))) {
       print('HANGUP TOOL CALL DETECTED → FORCING RESET');
       _resetEverything(fromHangup: true);
       return;
     }
 
     // Typing sound on search
-    if ((message.contains('deep_search') || message.contains('simple_search')) &&
+    if ((message.contains('deep_search') ||
+            message.contains('simple_search')) &&
         !_isPlayingTypingSound) {
       _playTypingSound();
     }
@@ -350,7 +390,8 @@ void _onDataMessage() {
   // Actions
   // ===================================================================
   Future<void> _onStart() async {
-    if (_shared.isSessionActive && _session?.status != UltravoxSessionStatus.disconnected) {
+    if (_shared.isSessionActive &&
+        _session?.status != UltravoxSessionStatus.disconnected) {
       await _onStop();
       return;
     }
@@ -386,7 +427,6 @@ void _onDataMessage() {
         _updateWakelock();
       } else {
         throw Exception("Failed to start");
-        
       }
     } catch (e) {
       setState(() {
@@ -487,8 +527,6 @@ void _onDataMessage() {
     }
   }
 
- 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -508,7 +546,10 @@ void _onDataMessage() {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -528,20 +569,31 @@ void _onDataMessage() {
                               ? Colors.grey
                               : (_isSpeakerMuted ? Colors.grey : Colors.white),
                         ),
-                        onPressed: _controlsDisabled ? null : _toggleSpeakerMute,
+                        onPressed: _controlsDisabled
+                            ? null
+                            : _toggleSpeakerMute,
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(_status, style: const TextStyle(color: Colors.white70, fontSize: 17)),
+                Text(
+                  _status,
+                  style: const TextStyle(color: Colors.white70, fontSize: 17),
+                ),
                 const SizedBox(height: 24),
                 GestureDetector(
-                  onTap: () => _isListening || _isConnecting ? _onStop() : _onStart(),
+                  onTap: () =>
+                      _isListening || _isConnecting ? _onStop() : _onStart(),
                   child: AnimatedBuilder(
-                    animation: Listenable.merge([_orbController, _speakingPulseController]),
+                    animation: Listenable.merge([
+                      _orbController,
+                      _speakingPulseController,
+                    ]),
                     builder: (_, __) => Transform.scale(
-                      scale: _orbScaleAnimation.value * _speakingPulseAnimation.value,
+                      scale:
+                          _orbScaleAnimation.value *
+                          _speakingPulseAnimation.value,
                       child: Container(
                         width: 180,
                         height: 180,
@@ -553,7 +605,11 @@ void _onDataMessage() {
                           ),
                         ),
                         child: _isConnecting
-                            ? const Center(child: CircularProgressIndicator(color: Colors.cyan))
+                            ? const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.cyan,
+                                ),
+                              )
                             : null,
                       ),
                     ),
@@ -563,22 +619,41 @@ void _onDataMessage() {
                 Expanded(
                   child: ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                    itemCount: _conversation.length + (_currentTranscriptChunk.isNotEmpty ? 1 : 0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 20,
+                    ),
+                    itemCount:
+                        _conversation.length +
+                        (_currentTranscriptChunk.isNotEmpty ? 1 : 0),
                     itemBuilder: (_, i) {
-                      if (_currentTranscriptChunk.isNotEmpty && i == _conversation.length) {
+                      if (_currentTranscriptChunk.isNotEmpty &&
+                          i == _conversation.length) {
+                        final bool isUserLive = _currentTranscriptSpeaker == 'user';
                         return Align(
-                          alignment: Alignment.centerLeft,
+                          alignment: isUserLive
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.09),
+                              color: Colors.white.withOpacity(
+                                isUserLive ? 0.22 : 0.09,
+                              ),
                               borderRadius: BorderRadius.circular(18),
                             ),
                             child: Text(
                               _currentTranscriptChunk,
-                              style: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic),
+                              style: TextStyle(
+                                color: isUserLive
+                                    ? Colors.white
+                                    : Colors.white70,
+                                fontStyle: FontStyle.italic,
+                              ),
                             ),
                           ),
                         );
@@ -586,15 +661,25 @@ void _onDataMessage() {
                       final msg = _conversation[i];
                       final isUser = msg['type'] == 'user';
                       return Align(
-                        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: isUser
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(isUser ? 0.22 : 0.12),
+                            color: Colors.white.withOpacity(
+                              isUser ? 0.22 : 0.12,
+                            ),
                             borderRadius: BorderRadius.circular(18),
                           ),
-                          child: Text(msg['text'], style: const TextStyle(color: Colors.white)),
+                          child: Text(
+                            msg['text'],
+                            style: const TextStyle(color: Colors.white),
+                          ),
                         ),
                       );
                     },
