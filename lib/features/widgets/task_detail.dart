@@ -204,7 +204,7 @@ String _humanizeValue(dynamic value) {
           IconButton(
             icon: const Icon(Icons.arrow_back_ios,
                 color: Colors.white, size: 20),
-            onPressed: () => context.push('/tasks'),
+            onPressed: () => context.pop(),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),

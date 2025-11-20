@@ -379,11 +379,7 @@ if (text.isNotEmpty) {
     }
 
     // Typing sound on search
-    if ((message.contains('deep_search') ||
-            message.contains('simple_search')) &&
-        !_isPlayingTypingSound) {
-      _playTypingSound();
-    }
+   
   }
 
   // ===================================================================

@@ -226,7 +226,38 @@ class _LoginPageState extends State<LoginPage> {
                           ),
 
                           const SizedBox(height: 24),
-
+                          BlocBuilder<AuthBloc, AuthState>(
+                            builder: (context, state) {
+                              if (state is AuthError) {
+                                return Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                    horizontal: 16,
+                                  ),
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade900.withOpacity(0.9),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Colors.red.shade400,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Invalid email or password. Please try again.',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink(); // hides when no error
+                            },
+                          ),
                           // Login Button
                           SizedBox(
                             width: double.infinity,
@@ -248,16 +279,13 @@ class _LoginPageState extends State<LoginPage> {
                                 listener: (context, state) {
                                   if (state is AuthAuthenticated) {
                                     context.go('/home');
-                                  } else if (state is AuthError) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(state.message),
-                                        backgroundColor: Colors.red.shade600,
-                                      ),
-                                    );
                                   }
                                 },
                                 builder: (context, state) {
+                                  String? errorMessage;
+                                  if (state is AuthError) {
+                                    errorMessage = state.message;
+                                  }
                                   if (state is AuthLoading) {
                                     return const SizedBox(
                                       height: 20,
@@ -285,7 +313,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
 
                     const SizedBox(height: 32),
-
                   ],
                 ),
               ),
