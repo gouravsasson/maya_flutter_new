@@ -117,8 +117,11 @@ class _HomePageState extends State<HomePage> {
 
       _setupNotifications();
       _syncUserProfile();
-      _initializeAndSyncContacts();
-      fetchReminders();
+bool alreadySynced = _prefs.getBool('contacts_synced_once') ?? false;
+
+if (!alreadySynced) {
+  _initializeAndSyncContacts();
+}      fetchReminders();      fetchReminders();
       fetchToDos();
       fetchTasks();
       _startLiveLocationTracking();
@@ -252,37 +255,30 @@ class _HomePageState extends State<HomePage> {
       });
 
       // Wait for FCM + Location/Timezone
-      final results = await Future.wait([
-        _waitForFcmToken(),
-        _obtainLocationAndTimezone(),
-      ]);
-
-      final String? token = results[0] as String?;
-      final (Position position, String timezone) =
-          results[1] as (Position, String);
-
-      if (token == null) return;
-
-      // ✅ Only send dynamic fields that can change frequently
-      final Map<String, dynamic> payload = {
-        "fcm_token": token ?? '',
-        "latitude": position.latitude,
-        "longitude": position.longitude,
-        "timezone": timezone,
-        "country": userCountry,
-      };
-      final updateResp = await _apiClient.updateUserProfile(
-        fcmToken: token ?? '',
-        latitude: position.latitude,
-        longitude: position.longitude,
-        timezone: timezone,
-        country: userCountry,
-      );
-
-      if (updateResp['statusCode'] == 200) {
-        _showSnack('Profile synced successfully');
+       final String? token = await _waitForFcmToken();
+      if (token != null) {
+        await _apiClient.updateUserProfile(fcmToken: token);
+        debugPrint("🔥 FCM synced immediately");
       } else {
-        _showSnack('Profile sync failed: ${updateResp['data']['message']}');
+        debugPrint("⚠️ FCM token missing");
+      }
+
+      // 2️⃣ Location is OPTIONAL and non-blocking
+      (Position, String)? locData;
+      try {
+        locData = await _obtainLocationAndTimezone();
+      } catch (_) {
+        debugPrint("⛔ Location not available, skipping");
+      }
+
+      if (locData != null) {
+        final (Position position, String timezone) = locData;
+        await _apiClient.updateUserProfile(
+          latitude: position.latitude,
+          longitude: position.longitude,
+          timezone: timezone,
+          country: userCountry,
+        );
       }
     } catch (e) {
       debugPrint('Sync error: $e');
