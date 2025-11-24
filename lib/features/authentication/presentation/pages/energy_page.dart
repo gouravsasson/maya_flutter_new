@@ -28,7 +28,7 @@ class _EnergyPageState extends State<EnergyPage> {
                 children: [
                   InkWell(
                     onTap: () {
-                      context.go('/other');
+                      context.push('/other');
                     },
                     child: const Icon(Icons.arrow_back,
                         size: 24, color: Colors.black87),

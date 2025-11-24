@@ -714,7 +714,7 @@ void dispose() {
   centerTitle: false,   // <-- add this
   leading: IconButton(
     icon: const Icon(Icons.arrow_back, color: Colors.black),
-    onPressed: () => context.go('/other'),
+    onPressed: () => context.push('/other'),
   ),
   title: const Column(
     crossAxisAlignment: CrossAxisAlignment.start,

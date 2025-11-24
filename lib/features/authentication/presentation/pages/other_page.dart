@@ -101,27 +101,27 @@ class _OtherPageState extends State<OtherPage> {
                     _buildFeatureCard(
                       title: "Generations",
                       icon: Icons.auto_awesome,
-                      onTap: () => context.go('/generations'),
+                      onTap: () => context.push('/generations'),
                     ),
                     _buildFeatureCard(
                       title: "Reminders",
                       icon: Icons.lock_clock,
-                      onTap: () => context.go('/reminders'),
+                      onTap: () => context.push('/reminders'),
                     ),
                     _buildFeatureCard(
                       title: "To-Do",
                       icon: Icons.check_circle_outline,
-                      onTap: () => context.go('/todos'),
+                      onTap: () => context.push('/todos'),
                     ),
                     _buildFeatureCard(
                       title: "Integrations",
                       icon: Icons.link,
-                      onTap: () => context.go('/integrations'),
+                      onTap: () => context.push('/integrations'),
                     ),
                     _buildFeatureCard(
                       title: "Energy",
                       icon: Icons.energy_savings_leaf_outlined,
-                      onTap: () => context.go('/energy'),
+                      onTap: () => context.push('/energy'),
                     ),
 
                     const SizedBox(height: 20),
@@ -291,7 +291,7 @@ class _OtherPageState extends State<OtherPage> {
         ),
         const SizedBox(width: 8),
         InkWell(
-          onTap: () => context.go('/profile'),
+          onTap: () => context.push('/profile'),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
