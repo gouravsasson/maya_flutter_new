@@ -141,7 +141,7 @@ class _TabLayoutState extends State<TabLayout> {
       height: 75,
       color: AppColors.whiteClr,
       buttonBackgroundColor: Colors.transparent,
-      backgroundColor: Colors.transparent, // important for the curve effect
+backgroundColor: AppColors.bgColor,
       animationDuration: const Duration(milliseconds: 300),
       items: List.generate(_tabs.length, (i) {
         final bool isSelected = currentIndex == i;
