@@ -7,7 +7,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/logo.png"
+  image_path: "assets/app_icon.png"
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -96,6 +96,9 @@ dependencies:
   http_parser: ^4.1.2
   cached_network_image: ^3.4.1
   flutter_foreground_task: ^9.1.0
+  curved_navigation_bar: ^1.0.6
+  share_plus: ^12.0.1
+  fl_chart: ^1.1.1
 
 dev_dependencies:
   flutter_test:
@@ -119,7 +122,22 @@ flutter:
   assets:
     - assets/Layer_1.png
     - assets/maya_logo.png
+    - assets/avatar.png
+    - assets/google_calendar.png
+    - assets/gohighlevel.png
+    - assets/fireflies.png
+    - assets/asana.png
+    - assets/meta.png
+    - assets/stripe.png
+    - assets/animation.png
+    - assets/home.png
+    - assets/task.png
+    - assets/setup.png
+    - assets/other.png
+    - assets/star.png
+    - assets/user.png
     - assets/typing.mp3
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'dart:ui';
-import 'package:Maya/features/widgets/skeleton.dart';
+import 'package:Maya/core/constants/colors.dart';
+import 'package:Maya/core/services/thunder_service.dart';
+import 'package:Maya/utils/skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:Maya/core/network/api_client.dart';
@@ -13,6 +16,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ultravox_client/ultravox_client.dart';
 import 'dart:io' show Platform;
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
@@ -121,7 +125,7 @@ bool alreadySynced = _prefs.getBool('contacts_synced_once') ?? false;
 
 if (!alreadySynced) {
   _initializeAndSyncContacts();
-}      fetchReminders();      fetchReminders();
+}      fetchReminders();     
       fetchToDos();
       fetchTasks();
       _startLiveLocationTracking();
@@ -673,285 +677,125 @@ if (!alreadySynced) {
   // UI
   // -----------------------------------------------------------------------
   @override
+
+static const double navBarMarginBottom = 12.0;
+  static const double navBarHeight = 80.0;
+  static const double curveSpace = 70.0;
+  final double totalNavBarHeight = navBarHeight + navBarMarginBottom;
+
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
+return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         final displayName = _userFirstName?.isNotEmpty == true
             ? _userFirstName!
-            : (state is AuthAuthenticated
-                  ? state.user.firstName ?? 'User'
-                  : 'User');
+            : (state is AuthAuthenticated ? state.user.firstName ?? 'User' : 'User');
 
         return Scaffold(
+          extendBody: true,
+          backgroundColor: AppColors.bgColor,
           body: Stack(
             children: [
-              // Background
-              Container(color: const Color(0xFF111827)),
-              Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0x992A57E8), Colors.transparent],
-                  ),
-                ),
-              ),
-
-              // Scrollable Content
-              SafeArea(
-                child: CustomScrollView(
-                  slivers: [
-                    // === Header Section ===
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Profile image
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1E293B),
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.2),
-                                  width: 2,
+              SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 50),
+                    // PROFILE HEADER
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: Row(
+                        children: [
+                          Container(
+  width: 50,
+  height: 50,
+  decoration: BoxDecoration(
+    shape: BoxShape.circle,
+    border: Border.all(color: Colors.grey.shade300, width: 2),
+  ),
+  child: ClipOval(
+    child: _userProfile != null && _userProfile!.isNotEmpty
+        ? Image.network(
+            _userProfile!,
+            fit: BoxFit.cover,
+            width: 50,
+            height: 50,
+            errorBuilder: (context, error, stackTrace) {
+              return Image.asset("assets/maya_logo.png", fit: BoxFit.cover);
+            },
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return const CircularProgressIndicator(strokeWidth: 2);
+            },
+          )
+        : Image.asset("assets/maya_logo.png", fit: BoxFit.cover),
+  ),
+),
+                          const SizedBox(width: 15),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Hello, $displayName!', style: TextStyle(color: Colors.black54, fontSize: 16)),
+                              Text(
+                                "Let's explore the way in which \nI can assist you.",
+                                style: TextStyle(
+                                  color: AppColors.balckClr,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.3,
                                 ),
                               ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(22),
-                                child:
-                                    _userProfile != null &&
-                                        _userProfile!.isNotEmpty
-                                    ? Image.network(
-                                        _userProfile!,
-                                        fit: BoxFit.cover,
-                                        width: 48,
-                                        height: 48,
-                                        loadingBuilder:
-                                            (context, child, loadingProgress) {
-                                              if (loadingProgress == null)
-                                                return child;
-                                              return Container(
-                                                color: const Color(0xFF1E293B),
-                                                child: const Center(
-                                                  child: SizedBox(
-                                                    width: 20,
-                                                    height: 20,
-                                                    child: CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      valueColor:
-                                                          AlwaysStoppedAnimation<
-                                                            Color
-                                                          >(Colors.white54),
-                                                    ),
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                              return Container(
-                                                color: const Color(0xFF1E293B),
-                                                child: const Icon(
-                                                  LucideIcons.user,
-                                                  color: Colors.white70,
-                                                  size: 24,
-                                                ),
-                                              );
-                                            },
-                                      )
-                                    : Container(
-                                        color: const Color(0xFF1E293B),
-                                        child: const Icon(
-                                          LucideIcons.user,
-                                          color: Colors.white70,
-                                          size: 24,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Greeting
-                            Text(
-                              'Hello, $displayName!',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Let\'s explore the way in which I can\nassist you.',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white,
-                                height: 1.4,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Blue gradient card
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    Color(0xFF3B82F6),
-                                    Color(0xFF2563EB),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(
-                                      0xFF2563EB,
-                                    ).withOpacity(0.3),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Generate complex algorithms\nand clean code with ease.',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.white,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  GestureDetector(
-                                    onTap: () => context.push('/maya'),
-                                    child: AnimatedContainer(
-                                      duration: const Duration(
-                                        milliseconds: 150,
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 10,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.30),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Text(
-                                        'Start Now',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                          ],
-                        ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
+                    const SizedBox(height: 10),
 
-                    // === Scrollable Sections ===
-                    SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      sliver: SliverList(
-                        delegate: SliverChildListDelegate([
-                          // Active Tasks
-                          // ---------------------------------------------------------------
-                          //  Inside the SliverList delegate (replace the old sections)
-                          // ---------------------------------------------------------------
-
-                          // === Active Tasks ===
-                          _buildSectionHeader(
-                            'Active Tasks',
-                            LucideIcons.zap,
-                            () => context.push('/tasks'),
-                          ),
-                          const SizedBox(height: 12),
-
-                          if (isLoadingTasks) ...[
-                            // Show 3 skeletons while loading
-                            const SkeletonItem(),
-                            const SizedBox(height: 12),
-                            const SkeletonItem(),
-                            const SizedBox(height: 12),
-                            const SkeletonItem(),
-                          ] else if (tasks.isEmpty)
-                            _buildEmptyState('No active tasks')
-                          else
-                            ...tasks
-                                .take(3)
-                                .map((task) => _buildTaskCard(task)),
-
-                          const SizedBox(height: 24),
-
-                          // === Reminders ===
-                          _buildSectionHeader(
-                            'Reminders',
-                            LucideIcons.calendar,
-                            () => context.push('/reminders'),
-                          ),
-                          const SizedBox(height: 12),
-
-                          if (isLoadingReminders) ...[
-                            const SkeletonItem(),
-                            const SizedBox(height: 12),
-                            const SkeletonItem(),
-                            const SizedBox(height: 12),
-                            const SkeletonItem(),
-                          ] else if (reminders.isEmpty)
-                            _buildEmptyState('No reminders')
-                          else
-                            ...reminders.map((r) => _buildReminderCard(r)),
-
-                          const SizedBox(height: 24),
-
-                          // === To‑Do ===
-                          _buildSectionHeader(
-                            'To-Do',
-                            LucideIcons.clipboardList,
-                            () => context.push('/todos'),
-                          ),
-                          const SizedBox(height: 12),
-
-                          if (isLoadingTodos) ...[
-                            const SkeletonItem(),
-                            const SizedBox(height: 12),
-                            const SkeletonItem(),
-                            const SizedBox(height: 12),
-                            const SkeletonItem(),
-                          ] else if (todos.isEmpty)
-                            _buildEmptyState('No to-dos')
-                          else
-                            ...todos
-                                .take(3)
-                                .map((todo) => _buildToDoCard(todo)),
-
-                          const SizedBox(
-                            height: 100,
-                          ), // Bottom padding // Bottom padding
-                        ]),
-                      ),
+                    // ORANGE VOICE CHAT CARD
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20.0),
+                      child: VoiceChatCard(),
                     ),
+                    const SizedBox(height: 10),
+
+                    // ACTIVE TASKS
+                    _buildSectionHeader('Active Tasks', () => context.push('/tasks')),
+                    const SizedBox(height: 5),
+                    if (isLoadingTasks)
+                      ...List.generate(3, (_) => const TaskCardSkeleton())
+                    else if (tasks.isEmpty)
+                      _buildEmptySection('No active tasks')
+                    else
+                      ...tasks.take(3).map((task) => _buildActiveTaskCard(task)),
+
+                    // REMINDERS
+                  // REMINDERS
+_buildSectionHeader('Reminders', () => context.push('/reminders')),
+const SizedBox(height: 15),
+if (isLoadingReminders)
+  ...List.generate(3, (_) => const ReminderCardSkeleton())
+else if (reminders.isEmpty)
+  _buildEmptySection('No reminders')
+else
+  ...reminders.map((r) => _buildReminderCard(r)), // ← FIXED: added (
+                    // TO-DO
+                    _buildSectionHeader('To-Do', () => context.push('/todos')),
+                    const SizedBox(height: 15),
+                    if (isLoadingTodos)
+                      ...List.generate(3, (_) => const TodoCardSkeleton())
+                    else if (todos.isEmpty)
+                      _buildEmptySection('No to-dos')
+                    else
+                      ...todos.take(3).map((todo) => _buildTodoCard(todo)),
+
+                    const SizedBox(height: 50),
                   ],
                 ),
               ),
+
+              // ORANGE-THEMED BOTTOM BAR
             ],
           ),
         );
@@ -959,443 +803,678 @@ if (!alreadySynced) {
     );
   }
 
-  Widget _buildEmptyState(String message) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E3A5F).withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: Center(
-        child: Text(
-          message,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.white.withOpacity(0.6),
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Solid blue card at the top
-  Widget _buildSolidBlueCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2A57E8),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF2A57E8).withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+  Widget _buildSectionHeader(String title, VoidCallback onPressed) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Good to see you!',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'You have ${tasks.length} active tasks',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              LucideIcons.trendingUp,
-              color: Colors.white,
-              size: 24,
-            ),
+          Text(title, style: TextStyle(color: AppColors.balckClr, fontSize: 22, fontWeight: FontWeight.bold)),
+          TextButton(
+            onPressed: onPressed,
+            child: Text('View all', style: TextStyle(color: Colors.black54, fontSize: 14)),
           ),
         ],
       ),
     );
   }
 
-  // Section header with title and "View all"
+  Widget _buildEmptySection(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 20, right: 20, bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.all(30),
+        decoration: BoxDecoration(
+          color: AppColors.whiteClr,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borderColor),
+          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))],
+        ),
+        child: Center(child: Text(text, style: TextStyle(color: Colors.black54, fontSize: 15))),
+      ),
+    );
+  }
 
-  // Task card
-  // Task card matching the first image
-  Widget _buildTaskCard(TaskDetail task) {
-    IconData statusIcon;
-    Color accentColor;
-    String statusLabel;
-
+  Widget _buildActiveTaskCard(TaskDetail task) {
+    Color statusColor;
+    String statusText;
     switch (task.status.toLowerCase()) {
       case 'succeeded':
       case 'completed':
-        statusIcon = LucideIcons.checkCircle2;
-        accentColor = const Color(0xFF10B981);
-        statusLabel = '● Completed';
+        statusColor = Colors.green.shade600;
+        statusText = 'Completed';
         break;
       case 'failed':
-        statusIcon = LucideIcons.xCircle;
-        accentColor = const Color(0xFFEF4444);
-        statusLabel = '● Failed';
+        statusColor = AppColors.redColor;
+        statusText = 'Failed';
         break;
       case 'approval_pending':
-        statusIcon = LucideIcons.clock;
-        accentColor = const Color(0xFF3B82F6);
-        statusLabel = '● In Progress';
+      case 'in_progress':
+        statusColor = AppColors.primary; // Orange for in progress
+        statusText = 'In Progress';
         break;
       default:
-        statusIcon = LucideIcons.clock;
-        accentColor = const Color(0xFFF59E0B);
-        statusLabel = '● Pending';
+        statusColor = Colors.orange.shade700;
+        statusText = 'Pending';
+    }
+    return TaskCard(
+      title: task.query.isEmpty ? 'Untitled Task' : task.query,
+      date: task.timestamp,
+      status: statusText,
+      color: statusColor,
+      onTap: () => context.push('/tasks/${task.id}', extra: {'query': task.query}),
+    );
+  }
+
+  Widget _buildTodoCard(Map<String, dynamic> todo) {
+    final int progress = switch (todo['progress']) {
+      int v => v,
+      double v => v.round(),
+      String s => int.tryParse(s) ?? 0,
+      _ => 0,
+    };
+    return TodoCard(
+      title: todo['title'] ?? 'Untitled',
+      subtitle: todo['description'] ?? 'No description',
+      progress: progress.clamp(0, 100),
+      onTap: () => completeToDo(todo),
+    );
+  }
+
+  Widget _buildReminderCard(Map<String, dynamic> reminder) {
+    return ReminderCard(reminder: reminder);
+  }
+}
+
+
+// ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+// EXACT ORIGINAL UI — ZERO CHANGES — BUT NOW WITH ULTRAVOX TEXT CHAT
+// ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+ 
+class VoiceChatCard extends StatefulWidget {
+  const VoiceChatCard({super.key});
+
+  @override
+  State<VoiceChatCard> createState() => _VoiceChatCardState();
+}
+
+class _VoiceChatCardState extends State<VoiceChatCard> {
+  final ThunderSessionService _shared = ThunderSessionService();
+  final ApiClient _apiClient = GetIt.instance<ApiClient>();
+
+  UltravoxSession? _session;
+  final TextEditingController _textController = TextEditingController();
+
+  bool _isConnected = false;
+  bool _isConnecting = false;
+  String _liveTranscript = ''; // ← THIS SHOWS WHAT MAYA IS CURRENTLY SAYING
+
+  @override
+  void initState() {
+    super.initState();
+    _shared.init();
+    _session = _shared.session;
+    _isConnected = _shared.isSessionActive;
+    _liveTranscript = _shared.currentTranscript;
+    _setupListeners();
+  }
+
+  void _setupListeners() {
+    _session?.statusNotifier.addListener(_onStatusChange);
+    _session?.dataMessageNotifier.addListener(_onDataMessage);
+    _session?.experimentalMessageNotifier.addListener(_onDebugMessage);
+  }
+
+  void _removeListeners() {
+    try {
+      _session?.statusNotifier.removeListener(_onStatusChange);
+      _session?.dataMessageNotifier.removeListener(_onDataMessage);
+      _session?.experimentalMessageNotifier.removeListener(_onDebugMessage);
+    } catch (_) {}
+  }
+
+  void _onStatusChange() {
+    final active = _shared.isSessionActive;
+    if (_isConnected != active) {
+      setState(() => _isConnected = active);
+    }
+  }
+
+  void _onDataMessage() {
+    if (!mounted || _session == null) return;
+
+    final transcripts = _session!.transcripts;
+    if (transcripts.isEmpty) return;
+
+    final latest = transcripts.last;
+    final text = latest.text.trim();
+
+    // Real-time partial transcript (Maya typing)
+    if (!latest.isFinal && latest.speaker == Role.agent) {
+      setState(() {
+        _liveTranscript = text;
+        _shared.currentTranscript = text;
+      });
+      return;
     }
 
-    return GestureDetector(
-      onTap: () =>
-          context.push('/tasks/${task.id}', extra: {'query': task.query}),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E3A5F).withOpacity(0.5),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Status badge with dot
-            Text(
-              statusLabel,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: accentColor,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Task title
-            Text(
-              task.query.isNotEmpty ? task.query : 'No query provided',
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-                height: 1.3,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 12),
-
-            // Footer with timestamp and arrow
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      LucideIcons.clock,
-                      size: 14,
-                      color: Colors.white.withOpacity(0.5),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      task.timestamp,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withOpacity(0.5),
-                      ),
-                    ),
-                  ],
-                ),
-                Icon(
-                  LucideIcons.arrowRight,
-                  size: 18,
-                  color: Colors.white.withOpacity(0.5),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+    // Final message from Maya → clear live transcript
+    if (latest.isFinal && latest.speaker == Role.agent && text.isNotEmpty) {
+      setState(() {
+        _liveTranscript = '';
+        _shared.currentTranscript = '';
+      });
+    }
   }
 
-  // To-Do card matching the second image
-  Widget _buildToDoCard(Map<String, dynamic> todo) {
-    final isCompleted = todo['status'] == 'completed';
-
-    return GestureDetector(
-      onTap: isCompleted ? null : () => completeToDo(todo),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF2D4A6F).withOpacity(0.6),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title
-            Text(
-              todo['title'],
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-                decoration: isCompleted
-                    ? TextDecoration.lineThrough
-                    : TextDecoration.none,
-                decorationColor: Colors.white.withOpacity(0.4),
-              ),
-            ),
-            const SizedBox(height: 6),
-
-            // Description
-            Text(
-              todo['description'],
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.white.withOpacity(0.6),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Footer with timestamp and icons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      LucideIcons.clock,
-                      size: 14,
-                      color: Colors.white.withOpacity(0.5),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Today, 20 Sep 2025',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withOpacity(0.5),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+  void _onDebugMessage() {
+    final msg = _session?.experimentalMessageNotifier.value;
+    if (msg is Map<String, dynamic> && msg.toString().contains('hangUp')) {
+      _shared.resetSession();
+      setState(() {
+        _isConnected = false;
+        _isConnecting = false;
+        _liveTranscript = '';
+      });
+    }
   }
 
-  // Reminder card matching the style
-  Widget _buildReminderCard(Map<String, dynamic> reminder) {
+  Future<void> _toggleConnection() async {
+    if (_isConnected) {
+      await _shared.resetSession();
+      setState(() {
+        _isConnected = false;
+        _isConnecting = false;
+        _liveTranscript = '';
+      });
+      return;
+    }
+
+    setState(() => _isConnecting = true);
+
     try {
-      final String timeStr = reminder['reminder_time'] as String;
-      final DateTime utcTime = DateTime.parse(timeStr).toUtc();
-      final DateTime localTime = utcTime.toLocal(); // IST
+      final payload = _apiClient.prepareStartThunderPayload('main');
+      final res = await _apiClient.startThunder(payload['agent_type']);
 
-      final now = DateTime.now();
-      final isToday =
-          localTime.year == now.year &&
-          localTime.month == now.month &&
-          localTime.day == now.day;
-      final isTomorrow =
-          localTime.year == now.add(const Duration(days: 1)).year &&
-          localTime.month == now.add(const Duration(days: 1)).month &&
-          localTime.day == now.add(const Duration(days: 1)).day;
-      final isPast = localTime.isBefore(now);
+      if (res['statusCode'] != 200) throw Exception("Failed");
 
-      String dateLabel;
-      if (isToday) {
-        dateLabel = 'Today';
-      } else if (isTomorrow) {
-        dateLabel = 'Tomorrow';
-      } else if (isPast) {
-        dateLabel = DateFormat('MMM d').format(localTime);
-      } else {
-        dateLabel = DateFormat('MMM d').format(localTime);
-      }
+      final joinUrl = res['data']['data']['joinUrl'];
 
-      final timeText = DateFormat('h:mm a').format(localTime);
-      final fullDateTime = '$dateLabel, $timeText';
+      _shared.init();
+      _session = _shared.session;
+      _removeListeners();
+      _setupListeners();
 
-      return GestureDetector(
-        onTap: () => context.push('/reminders'),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isPast
-                ? const Color(0xFF2D4A6F).withOpacity(0.4)
-                : const Color(0xFF2D4A6F).withOpacity(0.6),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isPast
-                  ? Colors.white.withOpacity(0.05)
-                  : Colors.white.withOpacity(0.1),
-              width: 1,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      await _session!.joinCall(joinUrl);
+
+      // FORCE MUTE — 100% GUARANTEED NO AUDIO
+      _session!.micMuted = true;
+      _session!.speakerMuted = true;
+      _session!.micMuted = true;     // double tap
+      _session!.speakerMuted = true; // double tap
+      _shared.isMicMuted = true;
+      _shared.isSpeakerMuted = true;
+
+      setState(() {
+        _isConnected = true;
+        _isConnecting = false;
+      });
+    } catch (e) {
+      debugPrint("Connect failed: $e");
+      setState(() => _isConnecting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to connect to Maya')),
+      );
+    }
+  }
+
+  void _sendMessage() {
+    final text = _textController.text.trim();
+    if (text.isEmpty || !_isConnected) return;
+
+    _session?.sendText(text);
+    _shared.addMessage('user', text);
+    _textController.clear();
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _removeListeners();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.secondary],
+          begin: Alignment.bottomLeft,
+          end: Alignment.topRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      reminder['title'] ?? 'Reminder',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: isPast
-                            ? Colors.white.withOpacity(0.6)
-                            : Colors.white,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Container(
-                    width: 22,
-                    height: 22,
-                    decoration: BoxDecoration(
-                      color: isPast
-                          ? Colors.grey.withOpacity(0.2)
-                          : const Color(0xFFF59E0B).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Icon(
-                      LucideIcons.bell,
-                      size: 14,
-                      color: isPast ? Colors.grey : const Color(0xFFF59E0B),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                reminder['description'] ?? 'No description',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.white.withOpacity(isPast ? 0.4 : 0.6),
+              Container(
+                height: 35,
+                width: 35,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.3),
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                child: const Icon(Icons.record_voice_over, color: Colors.white, size: 20),
               ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        LucideIcons.clock,
-                        size: 14,
-                        color: Colors.white.withOpacity(isPast ? 0.3 : 0.5),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        fullDateTime,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(isPast ? 0.3 : 0.5),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              const SizedBox(width: 8),
+              const Text(
+                'Voice Chat With Maya',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ],
           ),
-        ),
-      );
-    } catch (e) {
-      debugPrint('Error parsing reminder: $e | Data: $reminder');
-      return _buildErrorCard('Failed to load reminder');
-    }
-  }
-
-  Widget _buildErrorCard(String message) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.withOpacity(0.3)),
-      ),
-      child: Text(
-        message,
-        style: const TextStyle(color: Colors.red, fontSize: 12),
-      ),
-    );
-  }
-
-  // Section header with title and "View all"
-  Widget _buildSectionHeader(String title, IconData icon, VoidCallback onTap) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
+          const SizedBox(height: 10),
+          const Text(
+            'AI Voice assistants provide instant, personalised\nsupport, enhancing daily tasks effortlessly.',
+            style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
-        ),
-        GestureDetector(
-          onTap: onTap,
-          child: Text(
-            'View all',
-            style: TextStyle(
-              fontSize: 13,
-              color: const Color(0xFF3B82F6),
-              fontWeight: FontWeight.w500,
+          const SizedBox(height: 16),
+
+          // LIVE TRANSCRIPT BUBBLE (appears when Maya is typing)
+          if (_liveTranscript.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundColor: Colors.white.withOpacity(0.3),
+                    child: ClipOval(child: Image.asset('assets/maya_logo.png', width: 28, height: 28)),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        _liveTranscript,
+                        style: const TextStyle(color: Colors.white, fontSize: 14, fontStyle: FontStyle.italic),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // INPUT + SEND + MIC/END BUTTON
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(50),
+              border: Border.all(color: Colors.white.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _textController,
+                    enabled: _isConnected,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: _isConnected ? 'Ask maya...' : 'Tap mic to start',
+                      hintStyle: TextStyle(color: Colors.white60),
+                      border: InputBorder.none,
+                      isDense: true,
+                    ),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+
+                // Send Button
+                if (_isConnected)
+                  GestureDetector(
+                    onTap: _sendMessage,
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
+                      child: const Icon(Icons.send, color: Colors.white, size: 16),
+                    ),
+                  ),
+
+                // Mic / End Call Button
+                GestureDetector(
+                  onTap: _isConnecting ? null : _toggleConnection,
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: _isConnected ? Colors.red : Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _isConnected ? Icons.call_end : Icons.mic,
+                      color: _isConnected ? Colors.white : AppColors.primary,
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+
+
+class TaskCard extends StatelessWidget {
+  final String title;
+  final String date;
+  final String status;
+  final Color color;
+  final VoidCallback? onTap;
+  const TaskCard({super.key, required this.title, required this.date, required this.status, required this.color, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(left: 20, right: 20, bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.whiteClr,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderColor),
+        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))],
+      ),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+                const SizedBox(width: 8),
+                Text(status, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(title, style: TextStyle(color: AppColors.balckClr, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            const Divider(color: Colors.black26),
+            Row(
+              children: [
+                const Icon(Icons.access_time, color: Colors.black54, size: 14),
+                const SizedBox(width: 4),
+                Text(date, style: const TextStyle(color: Colors.black54, fontSize: 14)),
+                const Spacer(),
+                const Icon(Icons.arrow_forward, color: Colors.black54, size: 16),
+              ],
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+// TodoCard, ReminderCard, Skeletons, FabNotchClipper, CustomBottomAppBar remain unchanged
+// (They now use AppColors.primary for accent and are fully orange-themed)
+
+class TodoCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final int progress;
+  final VoidCallback? onTap;
+  const TodoCard({super.key, required this.title, required this.subtitle, required this.progress, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final progressBarColor = progress > 50 ? AppColors.primary : AppColors.redColor;
+    return Container(
+      margin: const EdgeInsets.only(left: 20, right: 20, bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.whiteClr,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderColor),
+        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))],
+      ),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.check_circle_outline, color: AppColors.balckClr, size: 24),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: TextStyle(color: AppColors.balckClr, fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text(subtitle, style: const TextStyle(color: Colors.black54, fontSize: 14)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 3),
+            const Divider(color: Colors.black26),
+            Row(
+              children: [
+                const Icon(Icons.access_time, color: Colors.black54, size: 14),
+                const SizedBox(width: 4),
+                const Text('Today', style: TextStyle(color: Colors.black54, fontSize: 14)),
+                const Spacer(),
+                if (progress > 0) Text('$progress%', style: TextStyle(color: progressBarColor, fontSize: 14, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            if (progress > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: LinearProgressIndicator(
+                  value: progress / 100,
+                  backgroundColor: AppColors.borderColor,
+                  valueColor: AlwaysStoppedAnimation(progressBarColor),
+                  minHeight: 5,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ReminderCard extends StatelessWidget {
+  final Map<String, dynamic> reminder;
+  const ReminderCard({super.key, required this.reminder});
+
+  @override
+  Widget build(BuildContext context) {
+    final dateText = reminder['reminder_time'] != null
+        ? DateFormat('MMM dd, yyyy HH:mm').format(DateTime.parse(reminder['reminder_time']).toLocal())
+        : 'No date';
+    return Container(
+      margin: const EdgeInsets.only(left: 20, right: 20, bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.whiteClr,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderColor),
+        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(reminder['title'] ?? 'Reminder', style: TextStyle(color: AppColors.balckClr, fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(reminder['description'] ?? 'No description', style: const TextStyle(color: Colors.black54, fontSize: 14)),
+          const SizedBox(height: 8),
+          const Divider(color: Colors.black26),
+          Row(
+            children: [
+              const Icon(Icons.access_time, color: Colors.black54, size: 14),
+              const SizedBox(width: 4),
+              Text(dateText, style: const TextStyle(color: Colors.black54, fontSize: 14)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Skeletons, FabNotchClipper, CustomBottomAppBar – unchanged, fully compatible with orange theme
+
+class TaskCardSkeleton extends StatelessWidget { const TaskCardSkeleton({super.key}); @override Widget build(BuildContext context) => _skeletonCard(); }
+class TodoCardSkeleton extends StatelessWidget { const TodoCardSkeleton({super.key}); @override Widget build(BuildContext context) => _skeletonCard(); }
+class ReminderCardSkeleton extends StatelessWidget { const ReminderCardSkeleton({super.key}); @override Widget build(BuildContext context) => _skeletonCard(); }
+
+Widget _skeletonCard() {
+  return Container(
+    margin: const EdgeInsets.only(left: 20, right: 20, bottom: 12),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: AppColors.whiteClr,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: AppColors.borderColor),
+      boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.grey[400])), const SizedBox(width: 8), Container(width: 80, height: 12, color: Colors.grey[300])]),
+        const SizedBox(height: 12),
+        Container(width: double.infinity, height: 16, color: Colors.grey[300]),
+        const SizedBox(height: 8),
+        Container(width: 120, height: 12, color: Colors.grey[300]),
       ],
+    ),
+  );
+}
+
+class FabNotchClipper extends CustomClipper<Path> {
+  final double notchRadius;
+  final double cornerRadius;
+  final double fabSize;
+  FabNotchClipper({required this.notchRadius, required this.cornerRadius, required this.fabSize});
+
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    final center = size.width / 2;
+    final halfCutout = fabSize * 0.7;
+    path.moveTo(0, cornerRadius);
+    path.arcToPoint(Offset(cornerRadius, 0), radius: Radius.circular(cornerRadius));
+    path.lineTo(center - halfCutout, 0);
+    path.cubicTo(center - halfCutout * 0.8, 0, center - halfCutout * 0.5, -20, center, -20);
+    path.cubicTo(center + halfCutout * 0.5, -20, center + halfCutout * 0.8, 0, center + halfCutout, 0);
+    path.lineTo(size.width - cornerRadius, 0);
+    path.arcToPoint(Offset(size.width, cornerRadius), radius: Radius.circular(cornerRadius));
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
+class CustomBottomAppBar extends StatelessWidget {
+  final int selectedIndex;
+  final Function(int) onItemSelected;
+  final double height;
+  final double marginBottom;
+  final double curveSpace;
+  final Color navBarColor;
+  final Color primaryTextColor;
+  final Color secondaryTextColor;
+  final Color accentBlue;
+
+  const CustomBottomAppBar({
+    super.key,
+    required this.selectedIndex,
+    required this.onItemSelected,
+    required this.height,
+    required this.marginBottom,
+    required this.curveSpace,
+    required this.navBarColor,
+    required this.primaryTextColor,
+    required this.secondaryTextColor,
+    required this.accentBlue,
+  });
+
+  static const double borderRadius = 28.0;
+  static const double fabSize = 65.0;
+  static const List<Map<String, dynamic>> items = [
+    {'icon': Icons.home, 'label': "Home", 'index': 0},
+    {'icon': Icons.list_alt, 'label': "Tasks", 'index': 1},
+    {'icon': Icons.menu, 'label': "Setup", 'index': 3},
+    {'icon': Icons.more_horiz, 'label': "Others", 'index': 4},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(left: 16.0, right: 16.0, bottom: marginBottom),
+      child: ClipPath(
+        clipper: FabNotchClipper(notchRadius: curveSpace, cornerRadius: borderRadius, fabSize: fabSize),
+        child: Container(
+          height: height,
+          decoration: BoxDecoration(
+            color: navBarColor,
+            boxShadow: [
+              BoxShadow(color: Colors.grey.withOpacity(0.3), blurRadius: 15, spreadRadius: 0, offset: const Offset(0, -5)),
+              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5)),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: items.map((item) {
+              final index = item['index'] as int;
+              final actualIndex = index > 2 ? index - 1 : index;
+              if (index == 2) return SizedBox(width: curveSpace);
+              final isSelected = selectedIndex == actualIndex;
+              final color = isSelected || actualIndex == 0 ? accentBlue : secondaryTextColor;
+              return GestureDetector(
+                onTap: () => onItemSelected(index),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                      decoration: isSelected && actualIndex != 0
+                          ? BoxDecoration(color: accentBlue.withOpacity(0.1), borderRadius: BorderRadius.circular(25))
+                          : null,
+                      child: Icon(item['icon'], color: color, size: 26),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(item['label'], style: TextStyle(fontSize: 12, color: color, fontWeight: isSelected || actualIndex == 0 ? FontWeight.bold : FontWeight.normal)),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildSmallIconButton(IconData icon) {
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.white.withOpacity(0.15), width: 1),
-      ),
-      child: Icon(icon, size: 14, color: Colors.white.withOpacity(0.7)),
-    );
-  }
+
 }

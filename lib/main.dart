@@ -81,7 +81,6 @@ class _MyAppState extends State<MyApp> {
       value: _authBloc,
       child: MaterialApp.router(
         title: 'Maya',
-        theme: AppTheme.theme,
         routerConfig: _router,
         debugShowCheckedModeBanner: false,
       ),

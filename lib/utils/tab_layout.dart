@@ -1,12 +1,20 @@
+import 'package:Maya/core/constants/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:go_router/go_router.dart';
+import 'package:curved_navigation_bar/curved_navigation_bar.dart';
+
+
 
 class TabLayout extends StatefulWidget {
   final Widget child;
   final int currentIndex;
 
-  const TabLayout({super.key, required this.child, required this.currentIndex});
+  const TabLayout({
+    super.key,
+    required this.child,
+    required this.currentIndex,
+  });
 
   @override
   State<TabLayout> createState() => _TabLayoutState();
@@ -14,22 +22,40 @@ class TabLayout extends StatefulWidget {
 
 class _TabLayoutState extends State<TabLayout> {
   static const _tabs = [
-    {'route': '/home', 'icon': FeatherIcons.home, 'label': 'Home'},
-    {'route': '/tasks', 'icon': FeatherIcons.checkSquare, 'label': 'Tasks'},
-    {'route': '/maya', 'icon': FeatherIcons.star, 'label': 'Maya'},
-    {'route': '/settings', 'icon': FeatherIcons.settings, 'label': 'Settings'},
-    {'route': '/other', 'icon': FeatherIcons.moreHorizontal, 'label': 'Other'},
+    {
+      'route': '/home',
+      'asset': 'assets/home.png',
+      'label': 'Home',
+    },
+    {
+      'route': '/tasks',
+      'asset': 'assets/task.png',
+      'label': 'Tasks',
+    },
+    {
+      'route': '/maya',
+      'asset': 'assets/star.png',
+      'label': 'AI',
+    },
+    {
+      'route': '/settings',
+      'asset': 'assets/setup.png',
+      'label': 'Setup',
+    },
+    {
+      'route': '/other',
+      'asset': 'assets/other.png',
+      'label': 'Others',
+    },
   ];
 
-  /// Persistent tab backstack across navigations
+  // ── Persistent tab back-stack (exactly the same logic you had) ──
   static final List<int> _tabHistory = [0];
-
   bool _isDialogShowing = false;
 
   @override
   void initState() {
     super.initState();
-    // Ensure the initial tab is tracked
     if (!_tabHistory.contains(widget.currentIndex)) {
       _tabHistory.add(widget.currentIndex);
     }
@@ -38,24 +64,24 @@ class _TabLayoutState extends State<TabLayout> {
   @override
   void didUpdateWidget(covariant TabLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Keep track of tab switches
     if (widget.currentIndex != _tabHistory.last) {
       _tabHistory.remove(widget.currentIndex);
       _tabHistory.add(widget.currentIndex);
     }
   }
 
+  // ── Back handling (unchanged) ──
   Future<bool> _handleBack(BuildContext context) async {
     final router = GoRouter.of(context);
     final uri = router.routeInformationProvider.value.uri.toString();
 
-    // 1️⃣ Handle in-tab back (inner route)
+    // 1. Inner route → pop
     if (_isInnerRoute(uri)) {
       router.pop();
       return false;
     }
 
-    // 2️⃣ Go to previous tab if history exists
+    // 2. Previous tab in history
     if (_tabHistory.length > 1) {
       _tabHistory.removeLast();
       final previousIndex = _tabHistory.last;
@@ -69,7 +95,7 @@ class _TabLayoutState extends State<TabLayout> {
       return false;
     }
 
-    // 3️⃣ Exit prompt
+    // 3. Exit dialog
     if (_isDialogShowing) return false;
     _isDialogShowing = true;
 
@@ -101,151 +127,90 @@ class _TabLayoutState extends State<TabLayout> {
     return shouldExit ?? false;
   }
 
-  /// Returns true if the route is a subpage (like `/tasks/:id`).
   bool _isInnerRoute(String uri) {
     for (final tab in _tabs) {
-      final route = tab['route']!;
-      if (uri == route) return false;
+      if (uri == tab['route']) return false;
     }
-    // If not a tab root, treat as an inner route
     return true;
   }
+
+  // ── New curved navigation bar UI (exactly the look you asked for) ──
+  Widget _buildCurvedNavBar(int currentIndex) {
+    return CurvedNavigationBar(
+      index: currentIndex,
+      height: 75,
+      color: AppColors.whiteClr,
+      buttonBackgroundColor: Colors.transparent,
+      backgroundColor: Colors.transparent, // important for the curve effect
+      animationDuration: const Duration(milliseconds: 300),
+      items: List.generate(_tabs.length, (i) {
+        final bool isSelected = currentIndex == i;
+        final String asset = _tabs[i]['asset'] as String;
+        final String label = _tabs[i]['label'] as String;
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              padding: isSelected ? const EdgeInsets.all(12) : EdgeInsets.zero,
+              decoration: isSelected
+                  ? const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    )
+                  : null,
+              child: Image.asset(
+                asset,
+                height: 26,
+                color: isSelected
+                    ? Colors.white
+                    : AppColors.balckClr.withOpacity(0.6),
+                errorBuilder: (_, __, ___) => Icon(
+                  _fallbackIcon(i),
+                  size: 26,
+                  color: isSelected ? Colors.white : AppColors.balckClr.withOpacity(0.6),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              isSelected ? label : '',
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        );
+      }),
+      onTap: (index) {
+        if (index != currentIndex) {
+          context.go(_tabs[index]['route'] as String);
+        }
+      },
+    );
+  }
+
+  // Fallback icons if the PNGs are missing
+  IconData _fallbackIcon(int index) => [
+        FeatherIcons.home,
+        FeatherIcons.checkSquare,
+        FeatherIcons.star,
+        FeatherIcons.settings,
+        FeatherIcons.moreHorizontal,
+      ][index];
 
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () => _handleBack(context),
       child: Scaffold(
-        backgroundColor: const Color(0xFF111827),
-        extendBody: true,
+        backgroundColor: AppColors.bgColor,
+        extendBody: true, // required for the curve to float over the body
         body: widget.child,
-        bottomNavigationBar: _buildBottomNavigationBar(context, widget.currentIndex),
-      ),
-    );
-  }
-
-  Widget _buildBottomNavigationBar(BuildContext context, int currentIndex) {
-    const activeColor = Color(0xFF60A5FA);
-    const inactiveColor = Color(0xFF9CA3AF);
-    const backgroundColor = Color(0xFF1E293B);
-
-    return Container(
-      margin: const EdgeInsets.all(16),
-      height: 90,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.bottomCenter,
-        children: [
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 70,
-              decoration: BoxDecoration(
-                color: backgroundColor,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: List.generate(_tabs.length, (index) {
-                  final tab = _tabs[index];
-                  final isActive = currentIndex == index;
-                  final isCentral = index == 2;
-
-                  if (isCentral) return const Expanded(child: SizedBox());
-
-                  return Expanded(
-                    child: InkWell(
-                      onTap: () {
-                        if (!isActive) context.go(tab['route'] as String);
-                      },
-                      borderRadius: BorderRadius.circular(16),
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(tab['icon'] as IconData,
-                                size: 22,
-                                color: isActive ? activeColor : inactiveColor),
-                            const SizedBox(height: 4),
-                            Text(
-                              tab['label'] as String,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: isActive ? activeColor : inactiveColor,
-                              ),
-                            ),
-                            if (isActive)
-                              Container(
-                                margin: const EdgeInsets.only(top: 4),
-                                width: 32,
-                                height: 3,
-                                decoration: BoxDecoration(
-                                  color: activeColor,
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 0,
-            child: GestureDetector(
-              onTap: () {
-                if (widget.currentIndex != 2) context.go('/maya');
-              },
-              child: Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF3B82F6).withOpacity(0.6),
-                      blurRadius: 20,
-                      spreadRadius: 2,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Image.asset(
-                    'assets/maya_logo.png',
-                    width: 28,
-                    height: 28,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(
-                      FeatherIcons.star,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        bottomNavigationBar: _buildCurvedNavBar(widget.currentIndex),
       ),
     );
   }

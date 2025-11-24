@@ -18,6 +18,7 @@ import '../../features/authentication/presentation/pages/integration_page.dart';
 import '../../features/authentication/presentation/pages/generations_page.dart';
 import '../../features/authentication/presentation/pages/todos_page.dart';
 import '../../features/authentication/presentation/pages/reminders_page.dart';
+import '../../features/authentication/presentation/pages/energy_page.dart';
 import '../../features/widgets/talk_to_maya.dart';
 import '../../features/widgets/ghl.dart';
 import '../../features/widgets/task_detail.dart';
@@ -140,6 +141,11 @@ class AppRouter {
           path: '/integrations',
           parentNavigatorKey: navigationService.navigatorKey,
           builder: (_, __) => const IntegrationsPage(),
+        ),
+        GoRoute(
+        path: '/energy',
+          parentNavigatorKey: navigationService.navigatorKey,
+          builder: (_, __) => const EnergyPage(data: {},),
         ),
         GoRoute(
           path: '/call_sessions',
