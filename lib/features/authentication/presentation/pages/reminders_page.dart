@@ -276,7 +276,7 @@ class _RemindersPageState extends State<RemindersPage> {
         backgroundColor: AppColors.whiteClr,
         elevation: 0,
         leading: InkWell(
-          onTap: () => context.push('/other'),
+          onTap: () => context.pop(),
           child: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 18),
         ),
         title: Column(

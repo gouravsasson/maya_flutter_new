@@ -23,15 +23,17 @@ class _EnergyPageState extends State<EnergyPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               Row(
                 children: [
                   InkWell(
                     onTap: () {
-                      context.push('/other');
+                      context.pop();
                     },
-                    child: const Icon(Icons.arrow_back,
-                        size: 24, color: Colors.black87),
+                    child: const Icon(
+                      Icons.arrow_back,
+                      size: 24,
+                      color: Colors.black87,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   const Text(
@@ -46,40 +48,53 @@ class _EnergyPageState extends State<EnergyPage> {
                 style: TextStyle(color: Colors.black54, fontSize: 14),
               ),
               const SizedBox(height: 16),
-      
+
               _energyLevelCard(),
               const SizedBox(height: 10),
-      
+
               Row(
                 children: [
-                  _smallInfoCard("Energy Produced Today", widget.data['today'],
-                      Colors.green.shade50, Colors.green),
-                  const SizedBox(width: 12),
-                  _smallInfoCard("This Week", widget.data['week'],
-                      Colors.orange.shade50, Colors.orange),
-                ],
-              ),
-              const SizedBox(height: 10),
-      
-              Row(
-                children: [
-                  _smallInfoCard("This Month", widget.data['month'],
-                      Colors.blue.shade50, Colors.blue),
+                  _smallInfoCard(
+                    "Energy Produced Today",
+                    widget.data['today'],
+                    Colors.green.shade50,
+                    Colors.green,
+                  ),
                   const SizedBox(width: 12),
                   _smallInfoCard(
-                      "Conversion Efficiency",
-                      "${widget.data['efficiency']}%",
-                      Colors.lightBlue.shade50,
-                      Colors.lightBlue),
+                    "This Week",
+                    widget.data['week'],
+                    Colors.orange.shade50,
+                    Colors.orange,
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
-      
+
+              Row(
+                children: [
+                  _smallInfoCard(
+                    "This Month",
+                    widget.data['month'],
+                    Colors.blue.shade50,
+                    Colors.blue,
+                  ),
+                  const SizedBox(width: 12),
+                  _smallInfoCard(
+                    "Conversion Efficiency",
+                    "${widget.data['efficiency']}%",
+                    Colors.lightBlue.shade50,
+                    Colors.lightBlue,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
               /// Donut chart + legend
               _usageDonutChart(),
-      
+
               const SizedBox(height: 10),
-      
+
               /// Line Chart
               _last7DaysTrend(),
             ],
@@ -100,8 +115,10 @@ class _EnergyPageState extends State<EnergyPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Energy Level",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            "Energy Level",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 14),
           Row(
             children: List.generate(10, (index) {
@@ -110,7 +127,9 @@ class _EnergyPageState extends State<EnergyPage> {
                   margin: const EdgeInsets.symmetric(horizontal: 3),
                   height: 35,
                   decoration: BoxDecoration(
-                    color: index < 6 ? AppColors.secondary : Colors.grey.shade300,
+                    color: index < 6
+                        ? AppColors.secondary
+                        : Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -125,7 +144,7 @@ class _EnergyPageState extends State<EnergyPage> {
               _energyText("Credit Left", "40%"),
               _energyText("Energy Units", "60%"),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -135,18 +154,25 @@ class _EnergyPageState extends State<EnergyPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(color: Colors.black54, fontSize: 12)),
-        Text(value,
-            style:
-            const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.black54, fontSize: 12),
+        ),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
       ],
     );
   }
 
   // ---------------- SMALL INFO CARDS ----------------
   Widget _smallInfoCard(
-      String title, dynamic value, Color bgColor, Color textColor) {
+    String title,
+    dynamic value,
+    Color bgColor,
+    Color textColor,
+  ) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -157,17 +183,23 @@ class _EnergyPageState extends State<EnergyPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title,
-                style: TextStyle(
-                    color: textColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500)),
+            Text(
+              title,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             const SizedBox(height: 6),
-            Text("$value",
-                style: TextStyle(
-                    color: textColor,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold)),
+            Text(
+              "$value",
+              style: TextStyle(
+                color: textColor,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),
@@ -196,7 +228,7 @@ class _EnergyPageState extends State<EnergyPage> {
                 builder: (context, setState) {
                   return Container(
                     decoration: BoxDecoration(
-                      color:Colors.white,
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: DropdownButtonHideUnderline(
@@ -204,10 +236,22 @@ class _EnergyPageState extends State<EnergyPage> {
                         value: selectedFilter,
                         icon: const Icon(Icons.keyboard_arrow_down_rounded),
                         items: const [
-                          DropdownMenuItem(value: "Today", child: Text("Today")),
-                          DropdownMenuItem(value: "Yesterday", child: Text("Yesterday")),
-                          DropdownMenuItem(value: "This Week", child: Text("This Week")),
-                          DropdownMenuItem(value: "This Month", child: Text("This Month")),
+                          DropdownMenuItem(
+                            value: "Today",
+                            child: Text("Today"),
+                          ),
+                          DropdownMenuItem(
+                            value: "Yesterday",
+                            child: Text("Yesterday"),
+                          ),
+                          DropdownMenuItem(
+                            value: "This Week",
+                            child: Text("This Week"),
+                          ),
+                          DropdownMenuItem(
+                            value: "This Month",
+                            child: Text("This Month"),
+                          ),
                         ],
                         onChanged: (value) {
                           setState(() {
@@ -259,9 +303,8 @@ class _EnergyPageState extends State<EnergyPage> {
                 ),
                 const Text(
                   "150",
-                  style: TextStyle(
-                      fontSize: 28, fontWeight: FontWeight.bold),
-                )
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ),
@@ -272,11 +315,13 @@ class _EnergyPageState extends State<EnergyPage> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: const [
               _LegendDot(
-                  color: Color(0xff2D79FF),
-                  text: "AI Generations (60%)"),
+                color: Color(0xff2D79FF),
+                text: "AI Generations (60%)",
+              ),
               _LegendDot(
-                  color: Color(0xff8B0016),
-                  text: "Voice Interactions (45%)"),
+                color: Color(0xff8B0016),
+                text: "Voice Interactions (45%)",
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -284,11 +329,13 @@ class _EnergyPageState extends State<EnergyPage> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: const [
               _LegendDot(
-                  color: Color(0xff1E725D),
-                  text: "Reminders & Tasks (25%)"),
+                color: Color(0xff1E725D),
+                text: "Reminders & Tasks (25%)",
+              ),
               _LegendDot(
-                  color: Color(0xffC08A20),
-                  text: "Integrations Sync (20%)"),
+                color: Color(0xffC08A20),
+                text: "Integrations Sync (20%)",
+              ),
             ],
           ),
         ],
@@ -328,9 +375,18 @@ class _EnergyPageState extends State<EnergyPage> {
                         value: selectedFilter,
                         icon: const Icon(Icons.keyboard_arrow_down_rounded),
                         items: const [
-                          DropdownMenuItem(value: "This Week", child: Text("This Week")),
-                          DropdownMenuItem(value: "This Month", child: Text("This Month")),
-                          DropdownMenuItem(value: "This Year", child: Text("This Year")),
+                          DropdownMenuItem(
+                            value: "This Week",
+                            child: Text("This Week"),
+                          ),
+                          DropdownMenuItem(
+                            value: "This Month",
+                            child: Text("This Month"),
+                          ),
+                          DropdownMenuItem(
+                            value: "This Year",
+                            child: Text("This Year"),
+                          ),
                         ],
                         onChanged: (value) {
                           setState(() {
@@ -344,7 +400,6 @@ class _EnergyPageState extends State<EnergyPage> {
               ),
             ],
           ),
-
 
           const Text(
             "Credit Used",
@@ -367,9 +422,15 @@ class _EnergyPageState extends State<EnergyPage> {
                   borderData: FlBorderData(show: false),
 
                   titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    topTitles: AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
@@ -382,7 +443,7 @@ class _EnergyPageState extends State<EnergyPage> {
                             "NOV 16",
                             "NOV 17",
                             "NOV 18",
-                            "NOV 19"
+                            "NOV 19",
                           ];
                           return Padding(
                             padding: const EdgeInsets.all(5.0),
@@ -432,7 +493,6 @@ class _EnergyPageState extends State<EnergyPage> {
       ),
     );
   }
-
 }
 
 class _LegendDot extends StatelessWidget {
@@ -448,8 +508,7 @@ class _LegendDot extends StatelessWidget {
         Container(
           height: 12,
           width: 12,
-          decoration:
-          BoxDecoration(color: color, shape: BoxShape.circle),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
         Text(text, style: const TextStyle(fontSize: 12)),

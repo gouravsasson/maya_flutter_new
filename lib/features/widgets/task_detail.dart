@@ -147,7 +147,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: AppColors.balckClr),
-            onPressed: () => context.push('/tasks'),
+            onPressed: () => context.pop(),
           ),
           title: const Text('Task Detail', style: TextStyle(color: AppColors.balckClr, fontSize: 18)),
           backgroundColor: AppColors.whiteClr,

@@ -624,7 +624,7 @@ class _ProfilePageState extends State<ProfilePage> {
             Row(
               children: [
                 InkWell(
-                  onTap: () => context.push('/other'),
+                  onTap: () => context.pop(),
                   child: Container(
                     height: 35,
                     width: 35,

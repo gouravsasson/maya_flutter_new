@@ -22,26 +22,6 @@ class MainActivity: FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
-         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, AUDIO_CHANNEL)
-            .setMethodCallHandler { call, result ->
-                val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-
-                when (call.method) {
-                    "setCallMode" -> {
-                        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-                        audioManager.isSpeakerphoneOn = false
-                        result.success(true)
-                    }
-
-                    "setDefaultMode" -> {
-                        audioManager.mode = AudioManager.MODE_NORMAL
-                        audioManager.isSpeakerphoneOn = true
-                        result.success(true)
-                    }
-
-                    else -> result.notImplemented()
-                }
-            }
     }
 
     private fun getInitialLink(): String? {

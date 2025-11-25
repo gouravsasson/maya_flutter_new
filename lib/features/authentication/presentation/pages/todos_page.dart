@@ -186,7 +186,7 @@ if (response['statusCode'] == 200 && response['data']['success'] == true) {
   elevation: 0,
   leading: IconButton(
     icon: const Icon(Icons.arrow_back, color: Colors.black),
-    onPressed: () => context.push('/other'),
+    onPressed: () => context.pop(),
   ),
   // ← Add this line
   titleSpacing: 0, // removes default extra spacing

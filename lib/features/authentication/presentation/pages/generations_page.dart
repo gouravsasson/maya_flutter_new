@@ -61,7 +61,7 @@ class _GenerationsPageState extends State<GenerationsPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: InkWell(
-          onTap: () => context.push('/other'),
+          onTap: () => context.pop(),
           child: const Icon(Icons.arrow_back, color: Colors.black),
         ),
         title: const Text(
