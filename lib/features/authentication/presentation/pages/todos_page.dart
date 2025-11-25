@@ -5,9 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
 
-// ──────────────────────── Your Colors ────────────────────────
-
-// ──────────────────────── TodosPage ────────────────────────
 class TodosPage extends StatefulWidget {
   const TodosPage({super.key});
 
