@@ -1,44 +1,50 @@
 package com.ravan.maya
 
-
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import android.content.Intent
 import android.net.Uri
 
-class MainActivity: FlutterActivity() {
+class MainActivity : FlutterActivity() {
+
     private val CHANNEL = "maya.ravan.ai/deeplink"
+    private var initialLink: String? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "getInitialLink" -> {
-                    val initialLink = getInitialLink()
-                    result.success(initialLink)
-                }
-                else -> result.notImplemented()
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            CHANNEL
+        ).setMethodCallHandler { call, result ->
+            if (call.method == "getInitialLink") {
+                result.success(initialLink)
+                initialLink = null
+            } else {
+                result.notImplemented()
             }
         }
     }
 
-    private fun getInitialLink(): String? {
-        val intent = intent
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+
         val data: Uri? = intent?.data
-        return data?.toString()
+        if (data != null) {
+            initialLink = data.toString()
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        setIntent(intent)
-        
+
         val data: Uri? = intent.data
         if (data != null) {
-            // Handle the deep link
-            val channel = MethodChannel(flutterEngine!!.dartExecutor.binaryMessenger, CHANNEL)
-            channel.invokeMethod("onDeepLink", data.toString())
+            MethodChannel(
+                flutterEngine!!.dartExecutor.binaryMessenger,
+                CHANNEL
+            ).invokeMethod("onDeepLink", data.toString())
         }
     }
 }

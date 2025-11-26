@@ -56,7 +56,7 @@
             </intent-filter>
 
             <!-- Optional: Handle specific paths -->
-            <intent-filter android:autoVerify="true">
+            <intent-filter android:autoVerify="true">  
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -65,6 +65,16 @@
                     android:host="maya.ravan.ai"
                     android:pathPrefix="/" />
             </intent-filter>
+            <intent-filter>
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+
+    <data
+        android:scheme="maya"
+        android:host="oauthCallback" />
+</intent-filter>
+
 
         </activity>
 <activity
