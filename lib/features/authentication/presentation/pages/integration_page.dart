@@ -638,6 +638,135 @@ void dispose() {
   }
 
 
+
+    Future<void> _disconnectIntegrationApi(String provider) async {
+    try {
+      final result =
+          await getIt<ApiClient>().disconnectIntegration(provider: provider);
+      if (result['statusCode'] == 200) {
+        // server-side disconnect successful; clear local tokens
+        await _resetConnection(provider);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['data']['message'] ?? 'Disconnect failed')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Disconnect error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Disconnect failed: $e')),
+      );
+    }
+  }
+
+
+   Future<void> _onToggleIntegration(Integration integration, bool newValue) async {
+    if (newValue) {
+      // Turn ON -> call existing connect flow (Reconnect = A)
+      if (integration.id == 'google-calendar') {
+        await _handleGoogleSignIn(integration);
+      } else if (integration.id == 'gohighlevel') {
+        await _launchURL(
+            'https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=https%3A%2F%2Fmaya.ravan.ai%2Fapi%2Fcrm%2Fleadconnector%2Fcode&client_id=68755e91a1a7f90cd15877d5-me8gas4x&scope=socialplanner%2Fpost.readonly+saas%2Flocation.write+socialplanner%2Foauth.readonly+saas%2Flocation.read+socialplanner%2Foauth.write+conversations%2Freports.readonly+calendars%2Fresources.write+campaigns.readonly+conversations.readonly+conversations.write+conversations%2Fmessage.readonly+conversations%2Fmessage.write+calendars%2Fgroups.readonly+calendars%2Fgroups.write+calendars%2Fresources.readonly+calendars%2Fevents.write+calendars%2Fevents.readonly+calendars.write+calendars.readonly+businesses.write+businesses.readonly+conversations%2Flivechat.write+contacts.readonly+contacts.write+objects%2Fschema.readonly+objects%2Fschema.write+objects%2Frecord.readonly+objects%2Frecord.write+associations.write+associations.readonly+associations%2Frelation.readonly+associations%2Frelation.write+courses.write+courses.readonly+forms.readonly+forms.write+invoices.readonly+invoices.write+invoices%2Fschedule.readonly+invoices%2Fschedule.write+invoices%2Ftemplate.readonly+invoices%2Ftemplate.write+invoices%2Festimate.readonly+invoices%2Festimate.write+links.readonly+lc-email.readonly+links.write+locations%2FcustomValues.readonly+medias.write+medias.readonly+locations%2Ftemplates.readonly+locations%2Ftags.write+funnels%2Fredirect.readonly+funnels%2Fpage.readonly+funnels%2Ffunnel.readonly+oauth.write+oauth.readonly+opportunities.readonly+opportunities.write+socialplanner%2Fpost.write+socialplanner%2Faccount.readonly+socialplanner%2Faccount.write+socialplanner%2Fcsv.readonly+socialplanner%2Fcsv.write+socialplanner%2Fcategory.readonly+socialplanner%2Ftag.readonly+store%2Fshipping.readonly+socialplanner%2Fstatistics.readonly+store%2Fshipping.write+store%2Fsetting.readonly+surveys.readonly+store%2Fsetting.write+workflows.readonly+emails%2Fschedule.readonly+emails%2Fbuilder.write+emails%2Fbuilder.readonly+wordpress.site.readonly+blogs%2Fpost.write+blogs%2Fpost-update.write+blogs%2Fcheck-slug.readonly+blogs%2Fcategory.readonly+blogs%2Fauthor.readonly+socialplanner%2Fcategory.write+socialplanner%2Ftag.write+blogs%2Fposts.readonly+blogs%2Flist.readonly+charges.readonly+charges.write+marketplace-installer-details.readonly+twilioaccount.read+documents_contracts%2Flist.readonly+documents_contracts%2FsendLink.write+documents_contracts_template%2FsendLink.write+documents_contracts_template%2Flist.readonly+products%2Fcollection.write+products%2Fcollection.readonly+products%2Fprices.write+products%2Fprices.readonly+products.write+products.readonly+payments%2Fcustom-provider.write+payments%2Fcoupons.write+payments%2Fcustom-provider.readonly+payments%2Fcoupons.readonly+payments%2Fsubscriptions.readonly+payments%2Ftransactions.readonly+payments%2Fintegration.write+payments%2Fintegration.readonly+payments%2Forders.write+payments%2Forders.readonly+funnels%2Fredirect.write+funnels%2Fpagecount.readonly&version_id=68755e91a1a7f90cd15877d5'); // keep your long URL
+      } else if (integration.id == 'fireflies') {
+        _showFirefliesKeyPopup();
+      } else if (integration.id == 'asana') {
+        await _handleAsanaSignIn(integration);
+      } else if (integration.id == 'meta') {
+        await _handleMetaSignIn(integration);
+      } else if (integration.id == 'stripe') {
+        await _handleStripeSignIn(integration);
+      }
+    } else {
+      // Turn OFF -> call disconnect API then reset local tokens/storage
+      await _disconnectIntegrationApi(integration.id);
+    }
+  }
+
+
+void _openManageSheet(Integration integration) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
+      ),
+      builder: (BuildContext context) {
+        return Padding(
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Wrap(
+            children: [
+              ListTile(
+                title: Text('Manage ${integration.name}',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                trailing: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.refresh),
+                title: const Text('Reconnect'),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  // Reconnect uses existing flows (A)
+                  await _onToggleIntegration(integration, true);
+                },
+              ),
+              ExpansionTile(
+                leading: const Icon(Icons.workspaces_filled),
+                title: const Text('Workspace'),
+                childrenPadding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  // Put your workspace items here. Minimal placeholders.
+                  ListTile(
+                    title: const Text('Workspace 1'),
+                    subtitle: const Text('Primary workspace'),
+                    onTap: () {
+                      // Your workspace logic
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Selected Workspace 1')),
+                      );
+                    },
+                  ),
+                  ListTile(
+                    title: const Text('Workspace 2'),
+                    subtitle: const Text('Secondary workspace'),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Selected Workspace 2')),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(44),
+                    backgroundColor: const Color(0xFFE5E7EB),
+                    foregroundColor: const Color(0xFF1F2937),
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
   Future<void> _handleAsanaSignIn(Integration integration) async {
     await _launchIntegrationUrl(
       requester: () => getIt<ApiClient>().handleAsanaSignIn(),
@@ -705,43 +834,148 @@ void dispose() {
   }
 
 
+ Widget _buildIntegrationTile(Integration integration) {
+    return Column(
+      children: [
+        Card(
+          elevation: 0.5,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: integration.iconColor.withOpacity(0.12),
+                  ),
+                  child: Icon(
+                    integration.icon,
+                    color: integration.iconColor,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        integration.name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        integration.description,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        integration.connected ? 'Connected' : 'Not Connected',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color:
+                              integration.connected ? Colors.green : AppColors.redColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Switch
+                Switch(
+                  value: integration.connected,
+                  onChanged: (value) async {
+                    await _onToggleIntegration(integration, value);
+                    // update UI locally immediately for snappy feedback
+                    setState(() {
+                      integration.connected = value;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Manage row below card (like the screenshot)
+        InkWell(
+          onTap: () => _openManageSheet(integration),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: const BoxDecoration(
+              color: Colors.transparent,
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.settings, size: 18, color: Colors.grey),
+                const SizedBox(width: 8),
+                const Text('Manage', style: TextStyle(color: Colors.grey)),
+                const Spacer(),
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }  
+
+
   
 @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgColor,
-   appBar: AppBar(
-  centerTitle: false,   // <-- add this
-  leading: IconButton(
-    icon: const Icon(Icons.arrow_back, color: Colors.black),
-    onPressed: () => context.pop(),
-  ),
-  title: const Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        'Integrations',
-        style: TextStyle(
-          color: Colors.black,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
+      appBar: AppBar(
+        centerTitle: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => context.pop(),
+        ),
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Integrations',
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              'Connected apps and services',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarBrightness: Brightness.light,
         ),
       ),
-      Text(
-        'Connected apps and services',
-        style: TextStyle(
-          color: Colors.grey,
-          fontSize: 14,
-        ),
-      ),
-    ],
-  ),
-  backgroundColor: Colors.white,
-  elevation: 0,
-  systemOverlayStyle: SystemUiOverlayStyle(
-    statusBarBrightness: Brightness.light,
-  ),
-),    body: _isInitializing
+      body: _isInitializing
           ? const Center(child: CircularProgressIndicator())
           : _isLoadingStatus
               ? ListView.separated(
@@ -756,39 +990,12 @@ void dispose() {
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final integration = integrations[index];
-                    return GestureDetector(
-                      onTap: () {
-                        if (integration.id == 'google-calendar') {
-                          _handleGoogleSignIn(integration);
-                        } else if (integration.id == 'gohighlevel') {
-                          _launchURL(
-                              'https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=https%3A%2F%2Fmaya.ravan.ai%2Fapi%2Fcrm%2Fleadconnector%2Fcode&client_id=68755e91a1a7f90cd15877d5-me8gas4x&scope=socialplanner%2Fpost.readonly+saas%2Flocation.write+socialplanner%2Foauth.readonly+saas%2Flocation.read+socialplanner%2Foauth.write+conversations%2Freports.readonly+calendars%2Fresources.write+campaigns.readonly+conversations.readonly+conversations.write+conversations%2Fmessage.readonly+conversations%2Fmessage.write+calendars%2Fgroups.readonly+calendars%2Fgroups.write+calendars%2Fresources.readonly+calendars%2Fevents.write+calendars%2Fevents.readonly+calendars.write+calendars.readonly+businesses.write+businesses.readonly+conversations%2Flivechat.write+contacts.readonly+contacts.write+objects%2Fschema.readonly+objects%2Fschema.write+objects%2Frecord.readonly+objects%2Frecord.write+associations.write+associations.readonly+associations%2Frelation.readonly+associations%2Frelation.write+courses.write+courses.readonly+forms.readonly+forms.write+invoices.readonly+invoices.write+invoices%2Fschedule.readonly+invoices%2Fschedule.write+invoices%2Ftemplate.readonly+invoices%2Ftemplate.write+invoices%2Festimate.readonly+invoices%2Festimate.write+links.readonly+lc-email.readonly+links.write+locations%2FcustomValues.readonly+medias.write+medias.readonly+locations%2Ftemplates.readonly+locations%2Ftags.write+funnels%2Fredirect.readonly+funnels%2Fpage.readonly+funnels%2Ffunnel.readonly+oauth.write+oauth.readonly+opportunities.readonly+opportunities.write+socialplanner%2Fpost.write+socialplanner%2Faccount.readonly+socialplanner%2Faccount.write+socialplanner%2Fcsv.readonly+socialplanner%2Fcsv.write+socialplanner%2Fcategory.readonly+socialplanner%2Ftag.readonly+store%2Fshipping.readonly+socialplanner%2Fstatistics.readonly+store%2Fshipping.write+store%2Fsetting.readonly+surveys.readonly+store%2Fsetting.write+workflows.readonly+emails%2Fschedule.readonly+emails%2Fbuilder.write+emails%2Fbuilder.readonly+wordpress.site.readonly+blogs%2Fpost.write+blogs%2Fpost-update.write+blogs%2Fcheck-slug.readonly+blogs%2Fcategory.readonly+blogs%2Fauthor.readonly+socialplanner%2Fcategory.write+socialplanner%2Ftag.write+blogs%2Fposts.readonly+blogs%2Flist.readonly+charges.readonly+charges.write+marketplace-installer-details.readonly+twilioaccount.read+documents_contracts%2Flist.readonly+documents_contracts%2FsendLink.write+documents_contracts_template%2FsendLink.write+documents_contracts_template%2Flist.readonly+products%2Fcollection.write+products%2Fcollection.readonly+products%2Fprices.write+products%2Fprices.readonly+products.write+products.readonly+payments%2Fcustom-provider.write+payments%2Fcoupons.write+payments%2Fcustom-provider.readonly+payments%2Fcoupons.readonly+payments%2Fsubscriptions.readonly+payments%2Ftransactions.readonly+payments%2Fintegration.write+payments%2Fintegration.readonly+payments%2Forders.write+payments%2Forders.readonly+funnels%2Fredirect.write+funnels%2Fpagecount.readonly&version_id=68755e91a1a7f90cd15877d5'); // (your long URL)
-                        } else if (integration.id == 'fireflies') {
-                          _showFirefliesKeyPopup();
-                        } else if (integration.id == 'asana') {
-                          _handleAsanaSignIn(integration);
-                        } else if (integration.id == 'meta') {
-                          _handleMetaSignIn(integration);
-                        } else if (integration.id == 'stripe') {
-                          _handleStripeSignIn(integration);
-                        }
-                      },
-                      child: IntegrationCard(
-                        // You can replace with actual asset paths later
-                        icon: 'assets/${integration.id.replaceAll('-', '_')}.png',
-                        title: integration.name,
-                        subtitle: integration.description,
-                        status: integration.connected
-                            ? 'Connected'
-                            : 'Not Connected',
-                        statusColor:
-                            integration.connected ? Colors.green : AppColors.redColor,
-                      ),
-                    );
+                    return _buildIntegrationTile(integration);
                   },
                 ),
     );
   }
+
 }
 
 // New clean card exactly matching the design you provided
