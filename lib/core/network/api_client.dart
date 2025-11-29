@@ -141,8 +141,7 @@ class ApiClient {
                 options.headers['Authorization'] = 'Bearer $token';
               }
 
-              if (sessionId != null &&
-                  options.path.contains('/auth/users/me')) {
+              if (sessionId != null ) {
                 options.headers['X-Session-Id'] = sessionId;
               }
               return handler.next(options);
@@ -1024,6 +1023,16 @@ class ApiClient {
       '/auth/integrations/disconnect',
       data: {'provider': provider},
     );
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  Future<Map<String,dynamic>> getAsanaWorkspace({required int userId}) async {
+    final response = await _protectedDio.get('/productivity/asana/workspaces?user_id=${userId}');
+    return {'statusCode': response.statusCode, 'data': response.data};
+  }
+
+  Future<Map<String,dynamic>> setAsanaWorkspace({required int userId, required String workspaceId}) async {
+    final response = await _protectedDio.post('/productivity/asana/workspace/set', data: {'user_id': userId, 'workspace_id': workspaceId});
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 }

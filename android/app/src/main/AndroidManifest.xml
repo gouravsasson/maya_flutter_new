@@ -19,11 +19,22 @@
 <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
     android:maxSdkVersion="32" />
 <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+<!-- android/app/src/main/AndroidManifest.xml -->
+<uses-permission android:name="android.permission.WAKE_LOCK" />
+<uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
     <application
         android:enableOnBackInvokedCallback="true"
         android:label="Maya"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true"
+android:requestLegacyExternalStorage="true"
+        >
+
+        <service
+        android:name="be.tramckrijgs.volken.wakelock_plus.WakelockPlusService"
+        android:foregroundServiceType="mediaPlayback|microphone"
+        android:exported="false"/>
 
         <activity
             android:name=".MainActivity"

@@ -35,6 +35,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   GoogleSignInAccount? _currentUser;
   bool _isInitializing = false;
+
   final _storage = const FlutterSecureStorage();
   late int _currentUserId;
   bool _isLoadingStatus = true;
@@ -57,6 +58,8 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
         "https://www.googleapis.com/auth/gmail.modify",
         "https://www.googleapis.com/auth/gmail.send",
       ],
+      imagePath: 'assets/google_calendar.png',
+
     ),
     Integration(
       id: 'gohighlevel',
@@ -67,6 +70,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
       connected: false,
       category: 'crm',
       scopes: ['api_key'],
+      imagePath: 'assets/gohighlevel.png',
     ),
     Integration(
       id: 'fireflies',
@@ -77,6 +81,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
       connected: false,
       category: 'productivity',
       scopes: [],
+      imagePath: 'assets/fireflies.png',
     ),
     Integration(
       id: 'asana',
@@ -87,6 +92,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
       connected: false,
       category: 'productivity',
       scopes: [],
+      imagePath: 'assets/asana.png',
     ),
     Integration(
       id: 'meta',
@@ -97,6 +103,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
       connected: false,
       category: 'social',
       scopes: [],
+      imagePath: 'assets/meta.png',
     ),
     Integration(
       id: 'stripe',
@@ -107,6 +114,7 @@ class _IntegrationsPageState extends State<IntegrationsPage> with WidgetsBinding
       connected: false,
       category: 'payment',
       scopes: [],
+      imagePath: 'assets/stripe.png',
     ),
   ];
 
@@ -684,6 +692,22 @@ void dispose() {
   }
 
 
+  List<dynamic> _extractAsanaWorkspaces(Map<String, dynamic> raw) {
+  if (raw['data'] is List) {
+    // Case 1: "data": [ ... ]
+    return raw['data'];
+  }
+
+  if (raw['data'] is Map && raw['data']['data'] is List) {
+    // Case 2: "data": { "data": [ ... ] }
+    return raw['data']['data'];
+  }
+
+  return [];
+}
+
+
+
 void _openManageSheet(Integration integration) {
     showModalBottomSheet<void>(
       context: context,
@@ -716,36 +740,50 @@ void _openManageSheet(Integration integration) {
                   await _onToggleIntegration(integration, true);
                 },
               ),
-              ExpansionTile(
-                leading: const Icon(Icons.workspaces_filled),
-                title: const Text('Workspace'),
-                childrenPadding: const EdgeInsets.symmetric(horizontal: 16),
-                children: [
-                  // Put your workspace items here. Minimal placeholders.
-                  ListTile(
-                    title: const Text('Workspace 1'),
-                    subtitle: const Text('Primary workspace'),
-                    onTap: () {
-                      // Your workspace logic
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Selected Workspace 1')),
-                      );
-                    },
-                  ),
-                  ListTile(
-                    title: const Text('Workspace 2'),
-                    subtitle: const Text('Secondary workspace'),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Selected Workspace 2')),
-                      );
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
+if (integration.id == 'asana')
+  FutureBuilder<Map<String, dynamic>>(
+    future: getIt<ApiClient>().getAsanaWorkspace(userId: _currentUserId),
+    builder: (context, snapshot) {
+      if (!snapshot.hasData) {
+        return const Padding(
+          padding: EdgeInsets.all(16),
+          child: CircularProgressIndicator(),
+        );
+      }
+
+      final raw = snapshot.data!;
+      final workspaces = _extractAsanaWorkspaces(raw);
+
+      if (workspaces.isEmpty) {
+        return const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('No workspaces found'),
+        );
+      }
+
+      return ExpansionTile(
+        leading: const Icon(Icons.workspaces_filled),
+        title: const Text('Workspace'),
+        children: workspaces.map((ws) {
+          return ListTile(
+            title: Text(ws['name']),
+            onTap: () async {
+              await getIt<ApiClient>().setAsanaWorkspace(
+                userId: _currentUserId,
+                workspaceId: ws['gid'],
+              );
+
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Workspace set: ${ws['name']}')),
+              );
+            },
+          );
+        }).toList(),
+      );
+    },
+  ),
+   const SizedBox(height: 12),
               Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
@@ -834,109 +872,123 @@ void _openManageSheet(Integration integration) {
   }
 
 
- Widget _buildIntegrationTile(Integration integration) {
-    return Column(
-      children: [
-        Card(
-          elevation: 0.5,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: integration.iconColor.withOpacity(0.12),
-                  ),
-                  child: Icon(
-                    integration.icon,
-                    color: integration.iconColor,
-                  ),
+Widget _buildIntegrationTile(Integration integration) {
+  return Card(
+    elevation: 0.5,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ------ MAIN ROW (icon, text, switch)
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: integration.iconColor.withOpacity(0.12),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        integration.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        integration.description,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        integration.connected ? 'Connected' : 'Not Connected',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color:
-                              integration.connected ? Colors.green : AppColors.redColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Switch
-                Switch(
-                  value: integration.connected,
-                  onChanged: (value) async {
-                    await _onToggleIntegration(integration, value);
-                    // update UI locally immediately for snappy feedback
-                    setState(() {
-                      integration.connected = value;
-                    });
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-        // Manage row below card (like the screenshot)
-        InkWell(
-          onTap: () => _openManageSheet(integration),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: const BoxDecoration(
-              color: Colors.transparent,
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.settings, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                const Text('Manage', style: TextStyle(color: Colors.grey)),
-                const Spacer(),
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }  
+                child: Container(
+  width: 44,
+  height: 44,
+  decoration: BoxDecoration(
+    borderRadius: BorderRadius.circular(8),
+    color: Colors.grey.shade200,
+  ),
+  child: ClipRRect(
+    borderRadius: BorderRadius.circular(8),
+    child: Image.asset(
+      integration.imagePath,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) =>
+          const Icon(Icons.broken_image, color: Colors.red),
+    ),
+  ),
+),
 
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      integration.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      integration.description,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      integration.connected ? 'Connected' : 'Not Connected',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: integration.connected
+                            ? Colors.green
+                            : Colors.red,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Switch(
+                value: integration.connected,
+                onChanged: (value) async {
+                  await _onToggleIntegration(integration, value);
+                  setState(() {
+                    integration.connected = value;
+                  });
+                },
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          // ------ MANAGE BUTTON (inside the card, full white background)
+          InkWell(
+            onTap: () => _openManageSheet(integration),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.settings, size: 18, color: Colors.grey),
+                  SizedBox(width: 8),
+                  Text(
+                    'Manage',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   
 @override
@@ -947,7 +999,7 @@ void _openManageSheet(Integration integration) {
         centerTitle: false,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/other'),
         ),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,

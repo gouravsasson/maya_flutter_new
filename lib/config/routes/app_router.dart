@@ -3,7 +3,6 @@ import 'package:Maya/features/authentication/presentation/pages/forgot_password.
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
-
 import '../../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../../features/authentication/presentation/bloc/auth_state.dart';
 import '../../features/authentication/presentation/pages/splash_page.dart';
@@ -32,7 +31,9 @@ class AppRouter {
   );
 
   AppRouter({required this.navigationService});
+
   final public = ['/login', '/forgot-password'];
+
   GoRouter createRouter(AuthBloc authBloc) {
     // keep auth notifier in sync
     authStateNotifier.value = authBloc.state;
@@ -69,11 +70,11 @@ class AppRouter {
           parentNavigatorKey: navigationService.navigatorKey,
           builder: (_, __) => const ForgotPasswordPage(),
         ),
-
-        // Tabs
+        
+        // Tabs — ShellRoute without WillPopScope (handled in TabLayout)
         ShellRoute(
           navigatorKey: homeKey,
-          builder: (_, __, child) => TabLayout(currentIndex: 0, child: child),
+          builder: (context, state, child) => TabLayout(currentIndex: 0, child: child),
           routes: [
             GoRoute(
               path: '/home',
@@ -83,49 +84,45 @@ class AppRouter {
         ),
         ShellRoute(
           navigatorKey: tasksKey,
-          builder: (_, __, child) => TabLayout(currentIndex: 1, child: child),
+          builder: (context, state, child) => TabLayout(currentIndex: 1, child: child),
           routes: [
             GoRoute(
               path: '/tasks',
-              pageBuilder: (_, __) =>
-                  const NoTransitionPage(child: TasksPage()),
+              pageBuilder: (_, __) => const NoTransitionPage(child: TasksPage()),
             ),
           ],
         ),
         ShellRoute(
           navigatorKey: mayaKey,
-          builder: (_, __, child) => TabLayout(currentIndex: 2, child: child),
+          builder: (context, state, child) => TabLayout(currentIndex: 2, child: child),
           routes: [
             GoRoute(
               path: '/maya',
-              pageBuilder: (_, __) =>
-                  const NoTransitionPage(child: TalkToMaya()),
+              pageBuilder: (_, __) => const NoTransitionPage(child: TalkToMaya()),
             ),
           ],
         ),
         ShellRoute(
           navigatorKey: settingsKey,
-          builder: (_, __, child) => TabLayout(currentIndex: 3, child: child),
+          builder: (context, state, child) => TabLayout(currentIndex: 3, child: child),
           routes: [
             GoRoute(
               path: '/settings',
-              pageBuilder: (_, __) =>
-                  const NoTransitionPage(child: SettingsPage()),
+              pageBuilder: (_, __) => const NoTransitionPage(child: SettingsPage()),
             ),
           ],
         ),
         ShellRoute(
           navigatorKey: otherKey,
-          builder: (_, __, child) => TabLayout(currentIndex: 4, child: child),
+          builder: (context, state, child) => TabLayout(currentIndex: 4, child: child),
           routes: [
             GoRoute(
               path: '/other',
-              pageBuilder: (_, __) =>
-                  const NoTransitionPage(child: OtherPage()),
+              pageBuilder: (_, __) => const NoTransitionPage(child: OtherPage()),
             ),
           ],
         ),
-
+        
         // Standalone pages (above shell)
         GoRoute(
           path: '/tasks/:taskId',
@@ -143,9 +140,9 @@ class AppRouter {
           builder: (_, __) => const IntegrationsPage(),
         ),
         GoRoute(
-        path: '/energy',
+          path: '/energy',
           parentNavigatorKey: navigationService.navigatorKey,
-          builder: (_, __) => const EnergyPage(data: {},),
+          builder: (_, __) => const EnergyPage(data: {}),
         ),
         GoRoute(
           path: '/call_sessions',
@@ -173,55 +170,29 @@ class AppRouter {
           builder: (_, __) => const RemindersPage(),
         ),
       ],
-
-      // 🔥 Smart redirect logic
+      
       redirect: (context, state) {
         final auth = authStateNotifier.value;
         final loc = state.uri.path;
-
         final isAuthenticated = auth is AuthAuthenticated;
         final isLoading = auth is AuthLoading;
 
-        // Splash should only show while loading
         if (isLoading) {
           return loc == '/' ? null : '/';
         }
 
-        // NOT loading anymore → this means auth is either authenticated or unauthenticated.
         if (!isAuthenticated) {
-          // User NOT logged in
           if (loc == '/login' || loc == '/forgot-password') {
             return null;
           }
-          // Not logged in → always go to login
           return '/login';
         }
 
-        // Authenticated
         if (loc == '/' || loc == '/login' || loc == '/forgot-password') {
           return '/home';
         }
-
         return null;
       },
     );
-  }
-
-  static bool _isProtected(String loc) {
-    const protectedRoutes = [
-      '/home',
-      '/tasks',
-      '/maya',
-      '/settings',
-      '/other',
-      '/profile',
-      '/integrations',
-      '/call_sessions',
-      '/ghl',
-      '/generations',
-      '/todos',
-      '/reminders',
-    ];
-    return protectedRoutes.any((r) => loc.startsWith(r));
   }
 }
