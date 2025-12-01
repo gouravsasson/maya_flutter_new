@@ -24,7 +24,7 @@ class _TabLayoutState extends State<TabLayout> {
     {'route': '/other', 'asset': 'assets/other.png', 'label': 'Others'},
   ];
 
-  bool _isDialogShowing = false;
+  final bool _isDialogShowing = false;
   DateTime? _lastBackPressed;
 
   @override

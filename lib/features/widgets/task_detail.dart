@@ -255,9 +255,9 @@ DateFormat.yMMMd().format(DateTime.parse(_createdAt).toLocal()) // "Nov 30, 2025
     Color textColor = AppColors.greyColor;
     if (isStatus) {
       final lower = value.toLowerCase();
-      if (lower.contains('complete'))
+      if (lower.contains('complete')) {
         textColor = Colors.green.shade700;
-      else if (lower.contains('fail'))
+      } else if (lower.contains('fail'))
         textColor = Colors.red.shade700;
       else if (lower.contains('progress') || lower.contains('running'))
         textColor = AppColors.primary;

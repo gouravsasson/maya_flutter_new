@@ -2,7 +2,6 @@ import 'package:Maya/core/services/navigation_service.dart';
 import 'package:Maya/features/authentication/presentation/pages/forgot_password.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
 import '../../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../../features/authentication/presentation/bloc/auth_state.dart';
 import '../../features/authentication/presentation/pages/splash_page.dart';
@@ -22,7 +21,6 @@ import '../../features/widgets/talk_to_maya.dart';
 import '../../features/widgets/ghl.dart';
 import '../../features/widgets/task_detail.dart';
 import '../../utils/tab_layout.dart';
-import '../../core/network/api_client.dart';
 
 class AppRouter {
   final NavigationService navigationService;

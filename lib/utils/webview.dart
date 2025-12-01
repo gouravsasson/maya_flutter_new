@@ -33,10 +33,9 @@ class _OAuthWebViewState extends State<OAuthWebView> {
           },
           onPageFinished: (url) {
             setState(() => isLoading = false);
-            // Check if it's a callback URL
-            if (url.contains('maya.ravan.ai')) {
-              // Parse success/failure from URL
               final uri = Uri.parse(url);
+            if (uri.host == "maya.ravan.ai") {
+              // Parse success/failure from URL
               final status = uri.queryParameters['status'];
               Navigator.pop(context);
               widget.onComplete(status == 'success');
@@ -67,8 +66,7 @@ class _OAuthWebViewState extends State<OAuthWebView> {
       body: Stack(
         children: [
           WebViewWidget(controller: controller),
-          if (isLoading)
-            const Center(child: CircularProgressIndicator()),
+          if (isLoading) const Center(child: CircularProgressIndicator()),
         ],
       ),
     );

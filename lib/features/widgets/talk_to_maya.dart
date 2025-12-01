@@ -524,7 +524,7 @@ class _TalkToMayaState extends State<TalkToMaya>
       case UltravoxSessionStatus.idle:
         return 'Maya is Ready';
       default:
-        return 'Talk To Maya';
+        return 'Maya is Idle';
     }
   }
 

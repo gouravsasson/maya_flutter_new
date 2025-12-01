@@ -216,7 +216,7 @@ final Duration _seekTimeout = const Duration(seconds: 5);
     _audioPlayer.onDurationChanged.listen((d) {
   setState(() {
     duration = d;
-    _sourceReady = d != null && d.inMilliseconds > 0;
+    _sourceReady = d.inMilliseconds > 0;
   });
 });
 

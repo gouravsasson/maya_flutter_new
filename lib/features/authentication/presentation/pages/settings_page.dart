@@ -1025,7 +1025,7 @@ class _SettingsPageState extends State<SettingsPage> {
         value: value,
         onChanged: onChanged,
         activeTrackColor: AppColors.primary.withOpacity(0.3),
-        activeColor: AppColors.primary,
+        activeThumbColor: AppColors.primary,
         inactiveThumbColor: Colors.white,
         inactiveTrackColor: AppColors.borderColor,
       ),

@@ -1,7 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/services/auth_service.dart';
-import '../../../../core/services/navigation_service.dart';
 import '../../../../core/usecases/usecase.dart';
 import '../../domain/usecases/check_auth_usecase.dart';
 import '../../domain/usecases/login_usecase.dart';

@@ -1027,7 +1027,7 @@ class ApiClient {
   }
 
   Future<Map<String,dynamic>> getAsanaWorkspace({required int userId}) async {
-    final response = await _protectedDio.get('/productivity/asana/workspaces?user_id=${userId}');
+    final response = await _protectedDio.get('/productivity/asana/workspaces?user_id=$userId');
     return {'statusCode': response.statusCode, 'data': response.data};
   }
 

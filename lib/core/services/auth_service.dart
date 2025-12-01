@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'package:go_router/go_router.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'storage_service.dart';
-import 'navigation_service.dart';
 import '../../injection_container.dart';
 import '../network/api_client.dart';
 
