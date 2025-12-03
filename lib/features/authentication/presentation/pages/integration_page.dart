@@ -678,7 +678,7 @@ class _IntegrationsPageState extends State<IntegrationsPage>
       if (integration.id == 'google-calendar') {
         await _handleGoogleSignIn(integration);
       } else if (integration.id == 'gohighlevel') {
-        _openOAuthWebView(longUrl, integration.name);
+        _launchURL(longUrl);
       } else if (integration.id == 'fireflies') {
         _showFirefliesKeyPopup();
       } else if (integration.id == 'asana') {
@@ -813,7 +813,7 @@ class _IntegrationsPageState extends State<IntegrationsPage>
     );
   }
 
-  void _openOAuthWebView(String url, String integrationName) {
+  void _launchUrl(String url, String integrationName) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -863,7 +863,7 @@ class _IntegrationsPageState extends State<IntegrationsPage>
         final url = _extractIntegrationUrl(result['data']);
 
         if (url != null) {
-          _openOAuthWebView(url, integrationName);
+          _launchURL(url);
           return;
         }
       }
