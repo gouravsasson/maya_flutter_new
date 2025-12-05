@@ -110,7 +110,7 @@ class _TabLayoutState extends State<TabLayout> {
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 300),
-              padding: isSelected ? const EdgeInsets.all(12) : EdgeInsets.zero,
+              padding: isSelected ? const EdgeInsets.all(12) : EdgeInsets.all(20),
               decoration: isSelected
                   ? const BoxDecoration(
                       color: AppColors.primary,
