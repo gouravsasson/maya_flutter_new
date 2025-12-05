@@ -180,7 +180,7 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 15)),
+          Text(title, style: const TextStyle(color: Color(0xff374957), fontSize: 15)),
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -613,7 +613,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.bgColor,
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         child: Column(
@@ -629,7 +629,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     width: 35,
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(0xffB2B2B2),
+                      color: Color(0xffF8F8F8),
                     ),
                     child: const Icon(
                       Icons.arrow_back_outlined,
@@ -645,110 +645,122 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor:
-                      AppColors.greyColor, // <- same background as OtherPage
-                  backgroundImage:
-                      (_avatarUrl != null && _avatarUrl!.isNotEmpty)
-                      ? CachedNetworkImageProvider(_avatarUrl!) as ImageProvider
-                      : null,
-                  child: (_avatarUrl == null || _avatarUrl!.isEmpty)
-                      ? Text(
-                          // ── Initials logic (same as in OtherPage) ──
-                          fullName.isNotEmpty
-                              ? fullName
-                                    .trim()
-                                    .split(' ')
-                                    .first[0]
-                                    .toUpperCase()
-                              : 'U',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.balckClr,
-                          ),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        fullName,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(email, style: const TextStyle(color: Colors.grey)),
-                    ],
-                  ),
-                ),
-                // Change Picture Button
-                GestureDetector(
-                  onTap: _isUploadingAvatar ? null : _pickAndUploadAvatar,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: _isUploadingAvatar
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            "Change Picture",
-                            style: TextStyle(fontSize: 12, color: Colors.white),
-                          ),
-                  ),
-                ),
-                // Remove Picture Button (only when a picture exists)
-                if (_avatarUrl != null && _avatarUrl!.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: _isUploadingAvatar ? null : _removeProfilePicture,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade600,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Icon(Icons.delete, color: Colors.white),
-                    ),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.cardColor,
+                borderRadius: BorderRadius.circular(13),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.01),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
                   ),
                 ],
-              ],
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: AppColors.greyColor,
+                    backgroundImage: (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+                        ? CachedNetworkImageProvider(_avatarUrl!) as ImageProvider
+                        : null,
+                    child: (_avatarUrl == null || _avatarUrl!.isEmpty)
+                        ? Text(
+                      fullName.isNotEmpty
+                          ? fullName.trim().split(' ').first[0].toUpperCase()
+                          : 'U',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.balckClr,
+                      ),
+                    )
+                        : null,
+                  ),
+
+                  const SizedBox(width: 15),
+
+                  // NAME + EMAIL TEXT
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          fullName,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          email,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // CHANGE PICTURE BUTTON
+                  GestureDetector(
+                    onTap: _isUploadingAvatar ? null : _pickAndUploadAvatar,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xffF29452),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: _isUploadingAvatar
+                          ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                          : const Text(
+                        "Change Picture",
+                        style: TextStyle(fontSize: 12, color: Colors.white),
+                      ),
+                    ),
+                  ),
+
+                  // REMOVE PICTURE BUTTON
+                  if (_avatarUrl != null && _avatarUrl!.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: _isUploadingAvatar ? null : _removeProfilePicture,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade600,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Icon(Icons.delete, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
             const SizedBox(height: 10),
 
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.cardColor,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black12,
-                    blurRadius: 6,
-                    spreadRadius: 1,
+                    blurRadius: 0,
+                    spreadRadius: 0,
                   ),
                 ],
               ),

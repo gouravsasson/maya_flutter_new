@@ -45,14 +45,12 @@ class _TabLayoutState extends State<TabLayout> {
   }
 
   Future<void> _handleBackButton() async {
-    // 1. Check if GoRouter can pop
     final router = GoRouter.of(context);
     if (router.canPop()) {
       router.pop();
       return;
     }
 
-    // 2. If not on home, go to home
     if (widget.currentIndex != 0) {
       context.go('/home');
       return;

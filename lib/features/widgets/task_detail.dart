@@ -188,34 +188,44 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.borderColor,
+                  color: Color(0xffF8F8F8),
                   borderRadius: BorderRadius.circular(5),
                 ),
                 child: Text(
                   _category,
                   style: const TextStyle(
                     fontSize: 14,
-                    color: AppColors.balckClr,
+                    color: Color(0xff6D6D6D),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
 
               // Title
-              Text(
-                _title,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  SizedBox(
+                    width: 320,
+                    child: Text(
+                      _title,
+                      maxLines: 2,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        overflow: TextOverflow.ellipsis,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  // Text("${_status}")
+                ],
               ),
-              const SizedBox(height: 8),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
               _buildInfoRow(
                 Icons.calendar_today,
                 'Due Date',
-DateFormat.yMMMd().format(DateTime.parse(_createdAt).toLocal()) // "Nov 30, 2025"
+                DateFormat.yMMMd().format(DateTime.parse(_createdAt).toLocal()) // "Nov 30, 2025"
               ),
 
               _buildInfoRow(
@@ -225,8 +235,7 @@ DateFormat.yMMMd().format(DateTime.parse(_createdAt).toLocal()) // "Nov 30, 2025
               ),
               _buildInfoRow(
                 Icons.assignment,
-                'Task Status',
-                _status,
+                'Task Status', _status,
                 isStatus: true,
               ),
 

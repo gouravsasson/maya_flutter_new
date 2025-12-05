@@ -328,7 +328,6 @@ Widget _tabButton(String title, bool active) {
   Widget _buildTaskCard(TaskDetail task) {
     Color tagColor;
     String statusText;
-
     switch (task.status.toLowerCase()) {
       case 'succeeded':
         tagColor = Colors.green;
@@ -355,11 +354,11 @@ Widget _tabButton(String title, bool active) {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppColors.whiteClr,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.borderColor),
+          color: AppColors.cardColor,
+          borderRadius: BorderRadius.circular(13),
+          // border: Border.all(color: AppColors.borderColor),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12, offset: Offset(0, 6)),
+            BoxShadow(color: Colors.black.withOpacity(0.0), blurRadius: 12, offset: Offset(0, 6)),
           ],
         ),
         child: Column(

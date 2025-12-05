@@ -897,10 +897,11 @@ class _IntegrationsPageState extends State<IntegrationsPage>
 
   Widget _buildIntegrationTile(Integration integration) {
     return Card(
-      elevation: 0.5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 0.0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12),),
+      color: AppColors.cardColor,
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(10.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -977,9 +978,7 @@ class _IntegrationsPageState extends State<IntegrationsPage>
               ],
             ),
 
-            const SizedBox(height: 10),
-
-            // ------ MANAGE BUTTON (inside the card, full white background)
+            Divider(color: Color(0xffCFCFCF)),
             InkWell(
               onTap: () => _openManageSheet(integration),
               child: Container(
@@ -1052,7 +1051,7 @@ class _IntegrationsPageState extends State<IntegrationsPage>
           : ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: integrations.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, __) => const SizedBox(height: 5),
               itemBuilder: (context, index) {
                 final integration = integrations[index];
                 return _buildIntegrationTile(integration);

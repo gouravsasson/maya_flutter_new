@@ -9,6 +9,8 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/constants/colors.dart';
+
 class TalkToMaya extends StatefulWidget {
   const TalkToMaya({super.key});
 
@@ -533,7 +535,7 @@ class _TalkToMayaState extends State<TalkToMaya>
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: AppColors.bgColor,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Column(
@@ -818,11 +820,11 @@ class _TalkToMayaState extends State<TalkToMaya>
                       padding: const EdgeInsets.all(12),
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.black,
+                        color: Colors.white,
                       ),
                       child: const Icon(
                         Icons.send,
-                        color: Colors.white,
+                        color: Color(0xffF97418),
                         size: 17,
                       ),
                     ),

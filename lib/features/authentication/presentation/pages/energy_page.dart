@@ -88,14 +88,8 @@ class _EnergyPageState extends State<EnergyPage> {
                   ),
                 ],
               ),
+              const SizedBox(height: 10), _usageDonutChart(),
               const SizedBox(height: 10),
-
-              /// Donut chart + legend
-              _usageDonutChart(),
-
-              const SizedBox(height: 10),
-
-              /// Line Chart
               _last7DaysTrend(),
             ],
           ),
@@ -120,23 +114,34 @@ class _EnergyPageState extends State<EnergyPage> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 14),
-          Row(
-            children: List.generate(10, (index) {
-              return Expanded(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  height: 35,
-                  decoration: BoxDecoration(
-                    color: index < 6
-                        ? AppColors.secondary
-                        : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(4),
+        Row(
+          children: List.generate(10, (index) {
+            return Expanded(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                height: 35,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: index < 6
+                        ? [
+                      Color(0xffF97418),
+                      Color(0xffECB48D),
+                    ]
+                        : [
+                      Colors.grey.shade300.withOpacity(0.1),
+                      Colors.grey.shade200, // right darker
+                    ],
                   ),
+                  borderRadius: BorderRadius.circular(4),
                 ),
-              );
-            }),
-          ),
-          const SizedBox(height: 14),
+              ),
+            );
+          }),
+        ),
+
+        const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -268,47 +273,108 @@ class _EnergyPageState extends State<EnergyPage> {
 
           const SizedBox(height: 10),
 
-          SizedBox(
-            height: 220,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                PieChart(
-                  PieChartData(
-                    sectionsSpace: 4,
-                    centerSpaceRadius: 60,
-                    sections: [
-                      PieChartSectionData(
-                        value: 60,
-                        color: const Color(0xff2D79FF),
-                        radius: 55,
-                      ),
-                      PieChartSectionData(
-                        value: 45,
-                        color: const Color(0xff8B0016),
-                        radius: 55,
-                      ),
-                      PieChartSectionData(
-                        value: 25,
-                        color: const Color(0xff1E725D),
-                        radius: 55,
-                      ),
-                      PieChartSectionData(
-                        value: 20,
-                        color: const Color(0xffC08A20),
-                        radius: 55,
-                      ),
-                    ],
-                  ),
+          // SizedBox(
+          //   height: 220,
+          //   child: Stack(
+          //     alignment: Alignment.center,
+          //     children: [
+          //       PieChart(
+          //         PieChartData(
+          //           sectionsSpace: 4,
+          //           centerSpaceRadius: 60,
+          //           sections: [
+          //             PieChartSectionData(
+          //               value: 60,
+          //               color: const Color(0xff2D79FF),
+          //               radius: 55,
+          //             ),
+          //             PieChartSectionData(
+          //               value: 45,
+          //               color: const Color(0xff8B0016),
+          //               radius: 55,
+          //             ),
+          //             PieChartSectionData(
+          //               value: 25,
+          //               color: const Color(0xff1E725D),
+          //               radius: 55,
+          //             ),
+          //             PieChartSectionData(
+          //               value: 20,
+          //               color: const Color(0xffC08A20),
+          //               radius: 55,
+          //             ),
+          //           ],
+          //         ),
+          //       ),
+          //       const Text(
+          //         "150",
+          //         style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+          //       ),
+          //     ],
+          //   ),
+          // ),
+        SizedBox(
+          height: 220,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              PieChart(
+                PieChartData(
+                  startDegreeOffset: -90,
+                  sectionsSpace: 3,
+                  centerSpaceRadius: 70,
+                  sections: [
+                    PieChartSectionData(
+                      value: 25,
+                      color: Color(0xffFF9F00),
+                      radius: 15,
+                      showTitle: false,
+                    ),
+                    PieChartSectionData(
+                      value: 25,
+                      color: Color(0xff2D00FF),
+                      radius: 15,
+                      showTitle: false,
+                    ),
+                    PieChartSectionData(
+                      value: 25,
+                      color: Color(0xffC4006F),
+                      radius: 15,
+                      showTitle: false,
+                    ),
+                    PieChartSectionData(
+                      value: 25,
+                      color: Color(0xff8C00FF),
+                      radius: 15,
+                      showTitle: false,
+                    ),
+                  ],
                 ),
-                const Text(
-                  "150",
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
+              ),
 
+              // CENTER TEXT
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Text(
+                    "84%",
+                    style: TextStyle(
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    "used",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              )
+            ],
+          ),
+        ),
           const SizedBox(height: 20),
 
           Row(

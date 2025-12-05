@@ -10,12 +10,12 @@ plugins {
 
 android {
     namespace = "com.ravan.maya"
-    compileSdk = 36    
-    ndkVersion = "29.0.13846066"
+    compileSdk = 36
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
 isCoreLibraryDesugaringEnabled = true 
    }
     dependencies {
@@ -24,7 +24,7 @@ isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_1_8.toString()
     }
 
     defaultConfig {

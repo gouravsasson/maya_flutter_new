@@ -95,7 +95,7 @@ class _OtherPageState extends State<OtherPage> {
                   children: [
                     // ==================== HEADER ====================
                     _buildHeader(),
-                    const SizedBox(height: 25),
+                    const SizedBox(height: 10),
 
                     // ==================== UNIFIED FEATURE CARDS ====================
                     _buildFeatureCard(
@@ -184,8 +184,21 @@ class _OtherPageState extends State<OtherPage> {
   // HEADER (with skeleton)
   // -----------------------------------------------------------------
   Widget _buildHeader() {
-    if (_user == null) {
-      return Row(
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.cardColor,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.01),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: _user == null
+          ? Row(
         children: [
           Container(
             width: 64,
@@ -231,90 +244,82 @@ class _OtherPageState extends State<OtherPage> {
           ),
           const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            padding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             decoration: BoxDecoration(
               color: AppColors.borderColor.withOpacity(0.3),
               borderRadius: BorderRadius.circular(10),
             ),
           ),
         ],
-      );
-    }
-
-    final avatarUrl = _user!.profile_image_url;
-    final initials = _user!.initials;
-
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 32,
-          backgroundColor: AppColors.greyColor,
-          backgroundImage: avatarUrl.isNotEmpty
-              ? CachedNetworkImageProvider(avatarUrl) as ImageProvider
-              : null,
-          child: avatarUrl.isEmpty
-              ? Text(
-                  initials,
-                  style: TextStyle(
-                    fontSize: 28,
+      )
+          : Row(
+        children: [
+          CircleAvatar(
+            radius: 32,
+            backgroundColor: AppColors.greyColor,
+            backgroundImage: _user!.profile_image_url.isNotEmpty
+                ? CachedNetworkImageProvider(_user!.profile_image_url)
+            as ImageProvider
+                : null,
+            child: _user!.profile_image_url.isEmpty
+                ? Text(
+              _user!.initials,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: AppColors.balckClr,
+              ),
+            )
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _user!.fullName,
+                  style: const TextStyle(
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: AppColors.balckClr,
                   ),
-                )
-              : null,
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _user!.fullName,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.balckClr,
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _user!.email,
-                style: const TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-              const SizedBox(height: 2),
-              const Text(
-                "Member since October 2025",
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        InkWell(
-          onTap: () => context.push('/profile'),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Text(
-              "Edit",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                fontSize: 14,
-              ),
+                const SizedBox(height: 4),
+                Text(
+                  _user!.email,
+                  style:
+                  const TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  "Member since October 2025",
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 8),
+          InkWell(
+            onTap: () => context.push('/profile'),
+            child: Container(
+              padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Color(0xffF29452),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: const Icon(Icons.edit, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  // -----------------------------------------------------------------
-  // REUSABLE UNIFIED FEATURE CARD (same style as TasksPage cards)
-  // -----------------------------------------------------------------
+
+
   Widget _buildFeatureCard({
     required String title,
     required IconData icon,
@@ -327,14 +332,14 @@ class _OtherPageState extends State<OtherPage> {
       borderRadius: BorderRadius.circular(18),
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: AppColors.whiteClr,
+          color: AppColors.cardColor,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.borderColor),
+          // border: Border.all(color: AppColors.borderColor),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withOpacity(0.01),
               blurRadius: 12,
               offset: const Offset(0, 6),
             ),

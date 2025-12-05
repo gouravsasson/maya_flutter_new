@@ -461,9 +461,10 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.bgColor,
       body: Stack(
         children: [
-         Container(color: AppColors.bgColor), // Light greyish-white background
+         // Container(color: AppColors.bgColor),
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -545,7 +546,7 @@ class _SettingsPageState extends State<SettingsPage> {
   );
 
   Widget _buildConnectivitySection() => _buildSection(
-    title: 'Connectivity',
+    title: 'Connection',
     child: Row(
       children: [
         Expanded(
@@ -562,7 +563,7 @@ class _SettingsPageState extends State<SettingsPage> {
         Expanded(
           child: _buildStatusCard(
             icon: Icons.bluetooth,
-            label: 'Bluetooth',
+            label: 'Maya.AI',
             status: _bluetoothEnabled ? 'On' : 'Off',
             iconColor: _bluetoothEnabled
                 ? AppColors.primary
@@ -754,7 +755,6 @@ class _SettingsPageState extends State<SettingsPage> {
               _notiDebouncer.run(_updateNotificationPrefs);
             },
           ),
-          const SizedBox(height: 8),
           _buildSwitchRow(
             label: 'Push Notification',
             value: _pushNotifications,
@@ -763,7 +763,6 @@ class _SettingsPageState extends State<SettingsPage> {
               _notiDebouncer.run(_updateNotificationPrefs);
             },
           ),
-          const SizedBox(height: 8),
           _buildSwitchRow(
             label: 'SMS Notification',
             value: _smsNotifications,
@@ -772,7 +771,6 @@ class _SettingsPageState extends State<SettingsPage> {
               _notiDebouncer.run(_updateNotificationPrefs);
             },
           ),
-          const SizedBox(height: 8),
           _buildSwitchRow(
             label: 'Device Notification',
             value: _deviceNotifications,
@@ -781,7 +779,6 @@ class _SettingsPageState extends State<SettingsPage> {
               _notiDebouncer.run(_updateNotificationPrefs);
             },
           ),
-          const SizedBox(height: 8),
           _buildSwitchRow(
             label: 'Call Notification',
             value: _callNotifications,
@@ -827,12 +824,12 @@ class _SettingsPageState extends State<SettingsPage> {
       Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.whiteClr,
+          color: AppColors.cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.borderColor),
+          // border: Border.all(color: AppColors.borderColor),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withOpacity(0.0),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -895,7 +892,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }) => Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: AppColors.whiteClr,
+      color: Color(0xffF2F3F4),
       borderRadius: BorderRadius.circular(8),
       border: Border.all(color: AppColors.borderColor),
     ),
@@ -917,7 +914,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               Text(
                 status,
-                style: const TextStyle(color: AppColors.greyColor, fontSize: 12),
+                style: const TextStyle(color: AppColors.balckClr, fontSize: 12),
               ),
             ],
           ),
@@ -934,9 +931,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }) => Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: AppColors.whiteClr,
+      color: Color(0xffF2F3F4),
       borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: AppColors.borderColor),
+      // border: Border.all(color: AppColors.borderColor),
     ),
     child: Row(
       children: [
@@ -998,8 +995,8 @@ class _SettingsPageState extends State<SettingsPage> {
             activeTrackColor: AppColors.primary,
           inactiveTrackColor: AppColors.borderColor,
           thumbColor: AppColors.primary,
-          overlayColor: AppColors.primary.withOpacity(0.2),
-          trackHeight: 4,
+          overlayColor: AppColors.primary.withOpacity(0.1),
+          trackHeight: 2,
         ),
         child: Slider(value: value, min: 0, max: 100, onChanged: onChanged),
       ),
